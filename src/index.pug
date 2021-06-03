@@ -6,7 +6,39 @@ html
         // styles
         style#base-style
             include styles/base-style.css
+        style#main-style
+            include styles/main-style.css
         // scripts
         script
             include scripts/main.js
     body(onload="start()")
+        main
+            section#sidebar
+                h1 scene
+                #scene-select.grid4.radio-select
+                    each index in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+                        label
+                            input(type="radio" name="scene-select" title=`select scene ${index}`)
+                .button-row
+                    button(title="copy scene") copy
+                    button(title="paste scene") paste
+                    button(title="clear scene") clear
+                h1 tool
+                #tool-select.grid4.radio-select
+                    each name in ["free", "line", "fill", "pick"]
+                        label
+                            input(type="radio" name="tool-select" title=`select ${name} tool`)
+                h1 brush
+                #brush-select.grid6.radio-select
+                    each index in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+                        label
+                            input(type="radio" name="brush-select" title=`select brush ${index}`)
+                h1 color
+                #color-select.grid8.radio-select
+                    each index in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+                        label
+                            input(type="radio" name="color-select" title=`select color ${index}`)
+                .button-row
+                    button(title="change this palette entry") change palette entry
+            section#viewport
+                canvas#renderer
