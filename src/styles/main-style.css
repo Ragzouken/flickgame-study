@@ -1,3 +1,7 @@
+:root {
+    --button-color: #ffd800;
+}
+
 html, body {
     margin: 0; padding: 0;
     width: 100%; height: 100%;
@@ -7,31 +11,125 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+
+    background: black;
 }
 
 main {
     display: flex;
-    flex-direction: row;
-
-    background: orange;
-    border-radius: 1.5em;
-    padding: .5em;
-    padding-left: 0;
-}
-
-#sidebar {
-    width: 320px;
-
-    display: flex;
     flex-direction: column;
+    padding: 1em; gap: 1em;
 
-    gap: 1em;
-    padding: 1em;
+    background: cornflowerblue;
 }
 
-#sidebar h1 {
+main h1 {
+    font-size: 1.5rem;
     margin: 0;
 }
+
+#scene-select {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 1em;
+}
+
+#scene-select label {
+    aspect-ratio: 160 / 100;
+}
+
+#tools {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 1em;
+}
+
+#tool-select {
+    grid-column: 1 / span 4;
+    grid-row: 1;
+
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+}
+
+#tool-select label {
+    aspect-ratio: unset;
+    min-height: 3em;
+
+    background-color: var(--button-color);
+}
+
+#tool-select input[type="radio"]:checked {
+    border: none;
+    background: blue;
+}
+
+#tool-select img {
+    filter: brightness(0);
+}
+
+#tool-select input[type="radio"]:checked + img {
+    filter: none;
+}
+
+#tool-select label { border-radius: 0; }
+#tool-select label:first-child { 
+    border-top-left-radius: 1em;
+    border-bottom-left-radius: 1em; 
+}
+#tool-select label:last-child { 
+    border-top-right-radius: 1em;
+    border-bottom-right-radius: 1em; 
+}
+
+#brush-select {
+    grid-column: 1 / span 4;
+    grid-row: 2 / span 1;
+
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(auto, 1fr);
+    gap: 0;
+}
+
+#brush-select label {
+    background-color: var(--button-color);
+}
+
+#brush-select input[type="radio"]:checked {
+    border: none;
+    background: blue;
+}
+
+#brush-select img {
+    filter: brightness(0);
+}
+
+#brush-select input[type="radio"]:checked + img {
+    filter: none;
+}
+
+#brush-select label { border-radius: 0; }
+#brush-select label:nth-child(1) { border-top-left-radius: 1em; }
+#brush-select label:nth-child(4) { border-top-right-radius: 1em; }
+#brush-select label:nth-last-child(4) { border-bottom-left-radius: 1em; }
+#brush-select label:nth-last-child(1) { border-bottom-right-radius: 1em; }
+
+#color-select {
+    grid-column: 5 / span 4;
+    grid-row: 1 / span 4;
+
+    gap: .5em;
+    gap: 0;
+}
+
+#color-select label { border-radius: 0; }
+#color-select label:nth-child(1) { border-top-left-radius: 1em; }
+#color-select label:nth-child(4) { border-top-right-radius: 1em; }
+#color-select label:nth-last-child(4) { border-bottom-left-radius: 1em; }
+#color-select label:nth-last-child(1) { border-bottom-right-radius: 1em; }
 
 #viewport {
     flex: 1;
@@ -76,7 +174,7 @@ main {
 .grid8 {
     display: grid;
     grid-template-columns: repeat(8, auto);
-    gap: .5em;
+    gap: 1em;
 }
 
 .radio-select {
@@ -84,40 +182,48 @@ main {
 }
 
 .radio-select label {
-    aspect-ratio: 1 / 1;
+    position: relative;
 
     margin: 0;
     appearance: unset;
     background-color: black;
 
-    display: flex;
-}
-
-#tool-select label {
-    aspect-ratio: unset;
-    min-height: 2em;
-}
-
-#scene-select label {
-    aspect-ratio: 160 / 100;
+    border-radius: .5em;
 }
 
 .radio-select input[type="radio"] {
     margin: 0;
     appearance: unset;
-    background-color: black;
     border-radius: inherit;
-    width: 100%;
+
+    position: absolute;
+    width: 100%; height: 100%;
 }
 
 .radio-select input[type="radio"]:checked {
-    box-shadow: 0 0 0 var(--highlight-thickness) white;
+    /*box-shadow: 0 0 0 var(--highlight-thickness) white;*/
+    border: solid var(--highlight-thickness) white;
+
+    animation-name: selection-flash;
+    animation-direction: alternate;
+    animation-duration: 2s;
+    animation-iteration-count: infinite;
 }
 
-#color-select {
-    --highlight-thickness: .25em;
+.radio-select label img {
+    pointer-events: none;
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 32px; height: 32px;
+    transform: translate(-50%, -50%);
 }
 
-#color-select label {
-    border-radius: .5em;
+@keyframes selection-flash {
+    0% {
+        border-color: black;
+    }
+
+    100% {
+        border-color: white;
+    }
 }

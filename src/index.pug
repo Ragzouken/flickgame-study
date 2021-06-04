@@ -1,3 +1,18 @@
+- 
+    var tools = [
+        { name: "freehand", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAYUlEQVQ4jb2RUQ7AIAhDi/e/c/fDjHMI1Szrn4b3agT4MyQ539kJbGadkwRhs0tKQQSPklRQwekLFHgpUOFQsAO/BLvwQ3ACA0C74WVDsamWDVdwDz3jWQLhfzADcvMXuQC15zwLU3quDgAAAABJRU5ErkJggg==" },
+        { name: "line", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQElEQVQ4jWNgoBAwkqrh/////+GaGRkZmciylZERbjFZBiC7gj4aRzUPds2M6JqQUxkxAJ4SSdWIYQBF/qYEAAB/ei/rTsuX6AAAAABJRU5ErkJggg==" },
+        { name: "fill", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAXUlEQVQ4jcWOQRKAUAhC4d//zrZyxqiUappY4gMBvlRExOvwoxIN3Sq5gq2SCWrv7kzlmCZJOiXJkSQALOerhusSu0A/p1Z3nMIH1Xmp6ivXlnRw9U4n7YBp9u/aAKUMc8GnWuIfAAAAAElFTkSuQmCC" },
+        { name: "color picker", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAFRJREFUOI3dkTkSACAIAw3//7M2xvEG0cqUYJYIIbxSzDr1geamCIA1ADgGDI82ELFMURNQsyQaXDSz9j1ZNTjZAimqT9mbPCf+GeIC0LhasjvNtRL0G2PGEcOUnAAAAABJRU5ErkJggg==" }
+    ];
+
+    var brushes = [
+        { name: "1px circle", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABlJREFUOI1jYBgFwx38/////0C7YRQMDQAApd4D/cefQokAAAAASUVORK5CYII=" },
+        { name: "2px circle", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABpJREFUOI1jYBgFwx38hwJ8apjo5ZhRMKgBADvbB/vPRl6wAAAAAElFTkSuQmCC" },
+        { name: "3px circle", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAACNJREFUOI1jYBgFgxz8////PyE1jMRoZmRkxKmOYheMgmEBAARbC/qDr1pMAAAAAElFTkSuQmCC" },
+        { name: "4px circle", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAChJREFUOI1jYBgFgxz8hwJ8ahjxaUZRyMiIVS0TeW4jEhDjhVEwGAAAJhAT9IYiYRoAAAAASUVORK5CYII=" }
+    ];
+
 doctype html
 html
     head
@@ -13,32 +28,37 @@ html
             include scripts/main.js
     body(onload="start()")
         main
-            section#sidebar
-                h1 scene
-                #scene-select.grid4.radio-select
+            h1.double-column flickgame study 1
+            //#toolbar.button-row
+                button export html
+                button import html
+            //.button-row
+                button(title="undo") undo
+                button(title="redo") redo
+            #scene-select.radio-select
+                each index in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+                    label
+                        input(type="radio" name="scene-select" title=`select scene ${index}`)
+            div.double-column
+                img#renderer(src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAABkBAMAAADzmCa8AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAMUExURRQMHG2qLN7u1tJ9LAlotEkAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAMUSURBVGjezdmJkesgDABQIA1ABx6lgUzov7cPEmAwh4Vh50d7xgsv4jBZiPgfYTZ70ujd4F5P7E7wKaigcVHq5yDAUV80HtsLmu2gfg7WnegmDIFSr4JHBNGU5pyKrYb0wLNoGHICJTY8/QWegJCDIvOeg0cOZj04BUJWKwfzm5kPqiaoryAsgTQPF8DjCob5olfB89dqRgNwJ2IbHJXig2obCHe1sNA82K8Fm0EsMzPKdyA8AxsdRanhdfbyNQLh9AQ7TqaqCY9A0QVhMwhFPABVCcImsOOtggo2gFnF2psZlQYIyyAUY9JIcEasQYAlUeWgeHUSBP64lKD9dMHJ5QYSCPD+wkqzA/jGCvbjnsBaWBEDaL/+h/24R7aXIU90xd4fLsjpSWwjgu7p0RqC90kiqLwixMv3Xr8LeUkm0CeI8b0Bxzn6eRJB8u4SHIgv38gIpgBGdEA3jRGECL55XFdE0HeZuze8JyDvwaMW1E2rE0hV/Lesya76UWWkhim69opToLLJP3CbUSekBim+LDW020tRjEt6vgC32+ziM1iiVf7PaGLUqM0uwdGaXxDpch/0wyLai34oUF6gfYKCtF+oMywbdE2wHgJa3dvZDcGzTOHhHm0AUosbbe7f/8MNgQ2gK/TuJVjFAHxZm561XLNGC9RoYxpbXGUoFkOxe5AbwVF/BfaKSVHsee/BuwT9UY6ZAo8LKCuQeeBEoILrVuBSexI8IpgJxpwdp6vDlxtQVCAeLsWOa5zm9INuUP9Zge5Lz4MhzxqMqH9Un+bcpin6oNSroEwgDo2h8z+hJ0B64UynS+FsCY8m3QeB0jwFfWIR9OOCwx2bz/MU5NtxX1sn0Es42pSleQSeg0Dd6Oc43ir5yecjMFBxhLH9PDBfGzxoRMgo3cL0mDl1VLFenyB1GQ1ENvSMKF5QENTX8XQjMnX/qRyUrb731/QkmE5NW3NYnn3JBmNN07zL6BJzahf/FUjzO2/69EOaXwanRpMRcdXfBpL102B86dwX1zcslkOazW/gSvZazw1c+3fGRIOF+Af8sQAWZmiH2QAAAABJRU5ErkJggg==")
+            //.button-row
+                button(title="copy scene") copy
+                button(title="paste scene") paste
+                button(title="clear scene") clear
+            section#tools
+                #tool-select.radio-select
+                    each tool in tools
+                        label
+                            input(type="radio" name="tool-select" title=`select ${tool.name} tool`)
+                            img(src=`${tool.icon}`)
+                #brush-select.radio-select
+                    each brush in brushes
+                        label
+                            input(type="radio" name="brush-select" title=`select ${brush.name} brush`)
+                            img(src=`${brush.icon}`)
+                #color-select.grid4.radio-select
                     each index in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-                        label
-                            input(type="radio" name="scene-select" title=`select scene ${index}`)
-                .button-row
-                    button(title="copy scene") copy
-                    button(title="paste scene") paste
-                    button(title="clear scene") clear
-                h1 tool
-                #tool-select.grid4.radio-select
-                    each name in ["free", "line", "fill", "pick"]
-                        label
-                            input(type="radio" name="tool-select" title=`select ${name} tool`)
-                h1 brush
-                #brush-select.grid6.radio-select
-                    each index in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-                        label
-                            input(type="radio" name="brush-select" title=`select brush ${index}`)
-                h1 color
-                #color-select.grid8.radio-select
-                    each index in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-                        label
+                        label(style=`background: hsl(${index / 16 * 360}, 75%, 50%)`)
                             input(type="radio" name="color-select" title=`select color ${index}`)
-                .button-row
-                    button(title="change this palette entry") change palette entry
-            section#viewport
-                canvas#renderer
+                    //.button-row
+                        button(title="change this palette entry") change palette entry
