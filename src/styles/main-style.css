@@ -20,7 +20,8 @@ main {
     flex-direction: column;
     padding: 1em; gap: 1em;
 
-    background: cornflowerblue;
+    background: #367b6b;
+    border-radius: 2em;
 }
 
 main h1 {
@@ -121,8 +122,13 @@ main h1 {
     grid-column: 5 / span 4;
     grid-row: 1 / span 4;
 
-    gap: .5em;
     gap: 0;
+    /* gap: .25em; */
+    /* background: black; */
+
+    /* border: solid .25em black; */
+    /* border-radius: 1.25em; */
+    /* overflow: hidden; */
 }
 
 #color-select label { border-radius: 0; }
@@ -187,8 +193,6 @@ main h1 {
     margin: 0;
     appearance: unset;
     background-color: black;
-
-    border-radius: .5em;
 }
 
 .radio-select input[type="radio"] {
