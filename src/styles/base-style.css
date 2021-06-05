@@ -19,8 +19,8 @@
 /* used dynamically to prevent or cancel smooth transitions */
 .skip-transition { transition: none !important; }
 
-/* make buttons inherit font */ 
-button { font-family: inherit; font-size: inherit; }
+/* make buttons and select inherit font */ 
+button, select { font-family: inherit; font-size: inherit; }
 
 /* clickable things should use this cursor imo */
 button, a, input[type="radio"], select, option { cursor: pointer; }

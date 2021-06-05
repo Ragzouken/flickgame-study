@@ -1,6 +1,10 @@
 :root {
     --button-color: #ffd800;
 
+    --trans-color-1: rgb(32, 32, 32);
+    --trans-color-2: rgb(48, 48, 48);
+    --trans-gradient: repeating-linear-gradient( -45deg, var(--trans-color-1), var(--trans-color-1) .5em, var(--trans-color-2) .5em, var(--trans-color-2) 1em );
+
     font-family: sans-serif;
 }
 
@@ -20,6 +24,11 @@ body {
 main {
     display: flex;
     flex-direction: column;
+
+    padding: 1em;
+    background: #367b6b;
+    border-radius: 2em;
+    gap: 1em;
 }
 
 main h1 {
@@ -51,10 +60,6 @@ main h1 {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
     gap: .5em;
-
-    padding: 1em;
-    background: #367b6b;
-    border-radius: 2em;
 }
 
 #scene-select label {
@@ -85,10 +90,6 @@ main h1 {
     grid-template-columns: repeat(8, 1fr);
     grid-template-rows: repeat(5, 1fr);
     gap: 1em;
-
-    padding: 1em;
-    background: #367b6b;
-    border-radius: 2em;
 }
 
 #tool-select {
@@ -141,7 +142,7 @@ main h1 {
     grid-column: 6 / -1;
 
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
 
     overflow: hidden;
 }
@@ -149,7 +150,7 @@ main h1 {
 #jump-source-color {
     grid-column: 1 / span 1;
 
-    background-color: pink;
+    background-color: #d27d2c;
 }
 
 #jump-source-color {
@@ -168,7 +169,7 @@ main h1 {
 #jump-destination-select {
     grid-column: 2 / -1;
 
-    padding: 1em;
+    padding: .5em;
 
     border: none;
     border-top-right-radius: 1em;
@@ -181,17 +182,21 @@ main h1 {
     grid-column: 1 / span 5;
 }
 
+#viewport {
+    display: flex;
+    border-radius: 1em;
+
+    background: var(--trans-gradient);
+    padding: .65em;
+
+    justify-content: center;
+    align-items: center;
+}
+
 #renderer {
     width: 640px;
     height: 400px;
     background: magenta;
-
-    box-sizing: content-box;
-    border-width: 0 .5em;
-    border-color: #367b6b;
-    border-style: solid;
-
-    margin: 0 2em;
 }
 
 .button-row {
