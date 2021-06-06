@@ -117,24 +117,33 @@ function SELECT(name) {
     return ONE(`select[name="${name}"]`);
 }
 
+class FlickgameStateManager extends EventTarget {
+    /** @param {FlickgameDataProject} data */
+    load(data) {
+        this.data = data;
+        this.dispatchEvent(new CustomEvent("change"));
+    }
+}
+
+function makeBlankProject() {
+    return {
+        scenes: [],
+    }
+}
+
 async function start() {
     const palette = [
-        "#140c1c",
-        "#442434",
-        "#30346d",
-        "#4e4a4e",
-        "#854c30",
-        "#346524",
-        "#d04648",
-        "#757161",
-        "#597dce",
-        "#d27d2c",
-        "#8595a1",
-        "#6daa2c",
-        "#d2aa99",
-        "#6dc2ca",
-        "#dad45e",
-        "#deeed6",
+        "#140c1c", "#442434", "#30346d", "#4e4a4e",
+        "#854c30", "#346524", "#d04648", "#757161",
+        "#597dce", "#d27d2c", "#8595a1", "#6daa2c",
+        "#d2aa99", "#6dc2ca", "#dad45e", "#deeed6",
+    ];
+
+    const brushes = [
+        { name: "1px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABlJREFUOI1jYBgFwx38/////0C7YRQMDQAApd4D/cefQokAAAAASUVORK5CYII=" },
+        { name: "2px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABpJREFUOI1jYBgFwx38hwJ8apjo5ZhRMKgBADvbB/vPRl6wAAAAAElFTkSuQmCC" },
+        { name: "3px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAACNJREFUOI1jYBgFgxz8////PyE1jMRoZmRkxKmOYheMgmEBAARbC/qDr1pMAAAAAElFTkSuQmCC" },
+        { name: "4px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAChJREFUOI1jYBgFgxz8hwJ8ahjxaUZRyMiIVS0TeW4jEhDjhVEwGAAAJhAT9IYiYRoAAAAASUVORK5CYII=" },
     ];
 
     const sceneSelect = RADIO("scene-select");
@@ -160,9 +169,17 @@ async function start() {
         label.style.backgroundColor = palette[index];
     });
 
+    ALL("#brush-select label").forEach((label, index) => {
+        ONE("input", label).title = brushes[index].name + " brush";
+        ONE("img", label).src = brushes[index].image;
+    });
+
     colorSelect.addEventListener("change", () => {
         jumpColorIndicator.style.backgroundColor = palette[colorSelect.selectedIndex];
     });
+
+    const stateManager = new FlickgameStateManager();
+    stateManager.load(makeBlankProject());
 
     sceneSelect.selectedIndex = 0;
     toolSelect.selectedIndex = 0;

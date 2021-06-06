@@ -10,13 +10,6 @@
         { name: "color picker", icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iY3VycmVudENvbG9yIiBjbGFzcz0iYmkgYmktZXllZHJvcHBlciIgdmlld0JveD0iMCAwIDE2IDE2Ij4KICA8cGF0aCBkPSJNMTMuMzU0LjY0NmExLjIwNyAxLjIwNyAwIDAgMC0xLjcwOCAwTDguNSAzLjc5M2wtLjY0Ni0uNjQ3YS41LjUgMCAxIDAtLjcwOC43MDhMOC4yOTMgNWwtNy4xNDcgNy4xNDZBLjUuNSAwIDAgMCAxIDEyLjV2MS43OTNsLS44NTQuODUzYS41LjUgMCAxIDAgLjcwOC43MDdMMS43MDcgMTVIMy41YS41LjUgMCAwIDAgLjM1NC0uMTQ2TDExIDcuNzA3bDEuMTQ2IDEuMTQ3YS41LjUgMCAwIDAgLjcwOC0uNzA4bC0uNjQ3LS42NDYgMy4xNDctMy4xNDZhMS4yMDcgMS4yMDcgMCAwIDAgMC0xLjcwOGwtMi0yek0yIDEyLjcwN2w3LTdMMTAuMjkzIDdsLTcgN0gydi0xLjI5M3oiLz4KPC9zdmc+" },
     ];
 
-    var brushes = [
-        { name: "1px circle", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABlJREFUOI1jYBgFwx38/////0C7YRQMDQAApd4D/cefQokAAAAASUVORK5CYII=" },
-        { name: "2px circle", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABpJREFUOI1jYBgFwx38hwJ8apjo5ZhRMKgBADvbB/vPRl6wAAAAAElFTkSuQmCC" },
-        { name: "3px circle", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAACNJREFUOI1jYBgFgxz8////PyE1jMRoZmRkxKmOYheMgmEBAARbC/qDr1pMAAAAAElFTkSuQmCC" },
-        { name: "4px circle", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAChJREFUOI1jYBgFgxz8hwJ8ahjxaUZRyMiIVS0TeW4jEhDjhVEwGAAAJhAT9IYiYRoAAAAASUVORK5CYII=" }
-    ];
-
 doctype html
 html
     head
@@ -52,10 +45,10 @@ html
                             input(type="radio" name="tool-select" title=tool.name)
                             img(src=`${tool.icon}`)
                 #brush-select.grid4.radio-select(title="brushes")
-                    each brush in brushes
+                    each index in [0, 1, 2, 3]
                         label
-                            input(type="radio" name="brush-select" title=`${brush.name} brush`)
-                            img(src=`${brush.icon}`)
+                            input(type="radio" name="brush-select" value=`${index}`)
+                            img
                 #pattern-select.grid4.radio-select(title="patterns")
                     label
                         input(type="radio" name="pattern-select" title="pattern")
