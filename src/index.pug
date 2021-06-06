@@ -17,25 +17,6 @@
         { name: "4px circle", icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAChJREFUOI1jYBgFgxz8hwJ8ahjxaUZRyMiIVS0TeW4jEhDjhVEwGAAAJhAT9IYiYRoAAAAASUVORK5CYII=" }
     ];
 
-    var colors = [
-        "#140c1c",
-        "#442434",
-        "#30346d",
-        "#4e4a4e",
-        "#854c30",
-        "#346524",
-        "#d04648",
-        "#757161",
-        "#597dce",
-        "#d27d2c",
-        "#8595a1",
-        "#6daa2c",
-        "#d2aa99",
-        "#6dc2ca",
-        "#dad45e",
-        "#deeed6",
-    ];
-
 doctype html
 html
     head
@@ -48,13 +29,15 @@ html
             include styles/main-style.css
         // scripts
         script
+            include scripts/types.js
+        script
             include scripts/main.js
     body(onload="start()")
         main
             #scene-select.grid8.radio-select
-                each index in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+                each index in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                     label
-                        input(type="radio" name="scene-select" title=`open scene ${index}`)
+                        input(type="radio" name="scene-select" value=`${index}` title=`open scene ${index}`)
                         img(src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAABkBAMAAADzmCa8AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAMUExURRQMHG2qLN7u1tJ9LAlotEkAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAMUSURBVGjezdmJkesgDABQIA1ABx6lgUzov7cPEmAwh4Vh50d7xgsv4jBZiPgfYTZ70ujd4F5P7E7wKaigcVHq5yDAUV80HtsLmu2gfg7WnegmDIFSr4JHBNGU5pyKrYb0wLNoGHICJTY8/QWegJCDIvOeg0cOZj04BUJWKwfzm5kPqiaoryAsgTQPF8DjCob5olfB89dqRgNwJ2IbHJXig2obCHe1sNA82K8Fm0EsMzPKdyA8AxsdRanhdfbyNQLh9AQ7TqaqCY9A0QVhMwhFPABVCcImsOOtggo2gFnF2psZlQYIyyAUY9JIcEasQYAlUeWgeHUSBP64lKD9dMHJ5QYSCPD+wkqzA/jGCvbjnsBaWBEDaL/+h/24R7aXIU90xd4fLsjpSWwjgu7p0RqC90kiqLwixMv3Xr8LeUkm0CeI8b0Bxzn6eRJB8u4SHIgv38gIpgBGdEA3jRGECL55XFdE0HeZuze8JyDvwaMW1E2rE0hV/Lesya76UWWkhim69opToLLJP3CbUSekBim+LDW020tRjEt6vgC32+ziM1iiVf7PaGLUqM0uwdGaXxDpch/0wyLai34oUF6gfYKCtF+oMywbdE2wHgJa3dvZDcGzTOHhHm0AUosbbe7f/8MNgQ2gK/TuJVjFAHxZm561XLNGC9RoYxpbXGUoFkOxe5AbwVF/BfaKSVHsee/BuwT9UY6ZAo8LKCuQeeBEoILrVuBSexI8IpgJxpwdp6vDlxtQVCAeLsWOa5zm9INuUP9Zge5Lz4MhzxqMqH9Un+bcpin6oNSroEwgDo2h8z+hJ0B64UynS+FsCY8m3QeB0jwFfWIR9OOCwx2bz/MU5NtxX1sn0Es42pSleQSeg0Dd6Oc43ir5yecjMFBxhLH9PDBfGzxoRMgo3cL0mDl1VLFenyB1GQ1ENvSMKF5QENTX8XQjMnX/qRyUrb731/QkmE5NW3NYnn3JBmNN07zL6BJzahf/FUjzO2/69EOaXwanRpMRcdXfBpL102B86dwX1zcslkOazW/gSvZazw1c+3fGRIOF+Af8sQAWZmiH2QAAAABJRU5ErkJggg==")
             #viewport
                 img#renderer(src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAABkBAMAAADzmCa8AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAMUExURRQMHG2qLN7u1tJ9LAlotEkAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAMUSURBVGjezdmJkesgDABQIA1ABx6lgUzov7cPEmAwh4Vh50d7xgsv4jBZiPgfYTZ70ujd4F5P7E7wKaigcVHq5yDAUV80HtsLmu2gfg7WnegmDIFSr4JHBNGU5pyKrYb0wLNoGHICJTY8/QWegJCDIvOeg0cOZj04BUJWKwfzm5kPqiaoryAsgTQPF8DjCob5olfB89dqRgNwJ2IbHJXig2obCHe1sNA82K8Fm0EsMzPKdyA8AxsdRanhdfbyNQLh9AQ7TqaqCY9A0QVhMwhFPABVCcImsOOtggo2gFnF2psZlQYIyyAUY9JIcEasQYAlUeWgeHUSBP64lKD9dMHJ5QYSCPD+wkqzA/jGCvbjnsBaWBEDaL/+h/24R7aXIU90xd4fLsjpSWwjgu7p0RqC90kiqLwixMv3Xr8LeUkm0CeI8b0Bxzn6eRJB8u4SHIgv38gIpgBGdEA3jRGECL55XFdE0HeZuze8JyDvwaMW1E2rE0hV/Lesya76UWWkhim69opToLLJP3CbUSekBim+LDW020tRjEt6vgC32+ziM1iiVf7PaGLUqM0uwdGaXxDpch/0wyLai34oUF6gfYKCtF+oMywbdE2wHgJa3dvZDcGzTOHhHm0AUosbbe7f/8MNgQ2gK/TuJVjFAHxZm561XLNGC9RoYxpbXGUoFkOxe5AbwVF/BfaKSVHsee/BuwT9UY6ZAo8LKCuQeeBEoILrVuBSexI8IpgJxpwdp6vDlxtQVCAeLsWOa5zm9INuUP9Zge5Lz4MhzxqMqH9Un+bcpin6oNSroEwgDo2h8z+hJ0B64UynS+FsCY8m3QeB0jwFfWIR9OOCwx2bz/MU5NtxX1sn0Es42pSleQSeg0Dd6Oc43ir5yecjMFBxhLH9PDBfGzxoRMgo3cL0mDl1VLFenyB1GQ1ENvSMKF5QENTX8XQjMnX/qRyUrb731/QkmE5NW3NYnn3JBmNN07zL6BJzahf/FUjzO2/69EOaXwanRpMRcdXfBpL102B86dwX1zcslkOazW/gSvZazw1c+3fGRIOF+Af8sQAWZmiH2QAAAABJRU5ErkJggg==")
@@ -82,30 +65,30 @@ html
                             input(type="radio" name="pattern-select" title="pattern")
                             img(src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC")
                 #color-select.grid4.radio-select(title="colors")
-                    each color, index in colors
-                        label(style=`background: ${color}`)
-                            input(type="radio" name="color-select" title=`select color ${index}`)
+                    each index in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                        label
+                            input(type="radio" name="color-select" value=`${index}` title=`select color ${index}`)
                     //.button-row
                         button(title="change this palette entry") change palette entry
                 #toolbar.button-row(title="toolbar")
-                    button(title="undo")
+                    button(name="undo" title="undo")
                         img(alt="" src="data:image/svg+xml;charset=utf-8;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iY3VycmVudENvbG9yIiBjbGFzcz0iYmkgYmktYXJyb3ctY291bnRlcmNsb2Nrd2lzZSIgdmlld0JveD0iMCAwIDE2IDE2Ij4NCiAgPHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBkPSJNOCAzYTUgNSAwIDEgMS00LjU0NiAyLjkxNC41LjUgMCAwIDAtLjkwOC0uNDE3QTYgNiAwIDEgMCA4IDJ2MXoiLz4NCiAgPHBhdGggZD0iTTggNC40NjZWLjUzNGEuMjUuMjUgMCAwIDAtLjQxLS4xOTJMNS4yMyAyLjMwOGEuMjUuMjUgMCAwIDAgMCAuMzg0bDIuMzYgMS45NjZBLjI1LjI1IDAgMCAwIDggNC40NjZ6Ii8+DQo8L3N2Zz4=")
-                    button(title="redo")
+                    button(name="redo" title="redo")
                         img(alt="" src="data:image/svg+xml;charset=utf-8;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iY3VycmVudENvbG9yIiBjbGFzcz0iYmkgYmktYXJyb3ctY2xvY2t3aXNlIiB2aWV3Qm94PSIwIDAgMTYgMTYiPg0KICA8cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik04IDNhNSA1IDAgMSAwIDQuNTQ2IDIuOTE0LjUuNSAwIDAgMSAuOTA4LS40MTdBNiA2IDAgMSAxIDggMnYxeiIvPg0KICA8cGF0aCBkPSJNOCA0LjQ2NlYuNTM0YS4yNS4yNSAwIDAgMSAuNDEtLjE5MmwyLjM2IDEuOTY2Yy4xMi4xLjEyLjI4NCAwIC4zODRMOC40MSA0LjY1OEEuMjUuMjUgMCAwIDEgOCA0LjQ2NnoiLz4NCjwvc3ZnPg==")
-                    button(title="copy scene")
+                    button(name="copy" title="copy scene")
                         img(alt="" src="data:image/svg+xml;charset=utf-8;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iY3VycmVudENvbG9yIiBjbGFzcz0iYmkgYmktZmlsZXMiIHZpZXdCb3g9IjAgMCAxNiAxNiI+DQogIDxwYXRoIGQ9Ik0xMyAwSDZhMiAyIDAgMCAwLTIgMiAyIDIgMCAwIDAtMiAydjEwYTIgMiAwIDAgMCAyIDJoN2EyIDIgMCAwIDAgMi0yIDIgMiAwIDAgMCAyLTJWMmEyIDIgMCAwIDAtMi0yem0wIDEzVjRhMiAyIDAgMCAwLTItMkg1YTEgMSAwIDAgMSAxLTFoN2ExIDEgMCAwIDEgMSAxdjEwYTEgMSAwIDAgMS0xIDF6TTMgNGExIDEgMCAwIDEgMS0xaDdhMSAxIDAgMCAxIDEgMXYxMGExIDEgMCAwIDEtMSAxSDRhMSAxIDAgMCAxLTEtMVY0eiIvPg0KPC9zdmc+")
-                    button(title="paste scene")
+                    button(name="paste" title="paste scene")
                         img(alt="" src="data:image/svg+xml;charset=utf-8;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iY3VycmVudENvbG9yIiBjbGFzcz0iYmkgYmktY2xpcGJvYXJkLWRhdGEiIHZpZXdCb3g9IjAgMCAxNiAxNiI+DQogIDxwYXRoIGQ9Ik00IDExYTEgMSAwIDEgMSAyIDB2MWExIDEgMCAxIDEtMiAwdi0xem02LTRhMSAxIDAgMSAxIDIgMHY1YTEgMSAwIDEgMS0yIDBWN3pNNyA5YTEgMSAwIDAgMSAyIDB2M2ExIDEgMCAxIDEtMiAwVjl6Ii8+DQogIDxwYXRoIGQ9Ik00IDEuNUgzYTIgMiAwIDAgMC0yIDJWMTRhMiAyIDAgMCAwIDIgMmgxMGEyIDIgMCAwIDAgMi0yVjMuNWEyIDIgMCAwIDAtMi0yaC0xdjFoMWExIDEgMCAwIDEgMSAxVjE0YTEgMSAwIDAgMS0xIDFIM2ExIDEgMCAwIDEtMS0xVjMuNWExIDEgMCAwIDEgMS0xaDF2LTF6Ii8+DQogIDxwYXRoIGQ9Ik05LjUgMWEuNS41IDAgMCAxIC41LjV2MWEuNS41IDAgMCAxLS41LjVoLTNhLjUuNSAwIDAgMS0uNS0uNXYtMWEuNS41IDAgMCAxIC41LS41aDN6bS0zLTFBMS41IDEuNSAwIDAgMCA1IDEuNXYxQTEuNSAxLjUgMCAwIDAgNi41IDRoM0ExLjUgMS41IDAgMCAwIDExIDIuNXYtMUExLjUgMS41IDAgMCAwIDkuNSAwaC0zeiIvPg0KPC9zdmc+")
-                    button(title="clear scene")
+                    button(name="clear" title="clear scene")
                         img(alt="" src="data:image/svg+xml;charset=utf-8;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iY3VycmVudENvbG9yIiBjbGFzcz0iYmkgYmktdHJhc2giIHZpZXdCb3g9IjAgMCAxNiAxNiI+DQogIDxwYXRoIGQ9Ik01LjUgNS41QS41LjUgMCAwIDEgNiA2djZhLjUuNSAwIDAgMS0xIDBWNmEuNS41IDAgMCAxIC41LS41em0yLjUgMGEuNS41IDAgMCAxIC41LjV2NmEuNS41IDAgMCAxLTEgMFY2YS41LjUgMCAwIDEgLjUtLjV6bTMgLjVhLjUuNSAwIDAgMC0xIDB2NmEuNS41IDAgMCAwIDEgMFY2eiIvPg0KICA8cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xNC41IDNhMSAxIDAgMCAxLTEgMUgxM3Y5YTIgMiAwIDAgMS0yIDJINWEyIDIgMCAwIDEtMi0yVjRoLS41YTEgMSAwIDAgMS0xLTFWMmExIDEgMCAwIDEgMS0xSDZhMSAxIDAgMCAxIDEtMWgyYTEgMSAwIDAgMSAxIDFoMy41YTEgMSAwIDAgMSAxIDF2MXpNNC4xMTggNCA0IDQuMDU5VjEzYTEgMSAwIDAgMCAxIDFoNmExIDEgMCAwIDAgMS0xVjQuMDU5TDExLjg4MiA0SDQuMTE4ek0yLjUgM1YyaDExdjFoLTExeiIvPg0KPC9zdmc+")
                 #jump-bar(title="scene jumped to when this color is clicked in this scene")
                     #jump-source-color
                         img(src="data:image/svg+xml;charset=utf-8;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iY3VycmVudENvbG9yIiBjbGFzcz0iYmkgYmktaGFuZC1pbmRleC10aHVtYiIgdmlld0JveD0iMCAwIDE2IDE2Ij4NCiAgPHBhdGggZD0iTTYuNzUgMWEuNzUuNzUgMCAwIDEgLjc1Ljc1VjhhLjUuNSAwIDAgMCAxIDBWNS40NjdsLjA4Ni0uMDA0Yy4zMTctLjAxMi42MzctLjAwOC44MTYuMDI3LjEzNC4wMjcuMjk0LjA5Ni40NDguMTgyLjA3Ny4wNDIuMTUuMTQ3LjE1LjMxNFY4YS41LjUgMCAwIDAgMSAwVjYuNDM1bC4xMDYtLjAxYy4zMTYtLjAyNC41ODQtLjAxLjcwOC4wNC4xMTguMDQ2LjMuMjA3LjQ4Ni40My4wODEuMDk2LjE1LjE5LjIuMjU5VjguNWEuNS41IDAgMSAwIDEgMHYtMWguMzQyYTEgMSAwIDAgMSAuOTk1IDEuMWwtLjI3MSAyLjcxNWEyLjUgMi41IDAgMCAxLS4zMTcuOTkxbC0xLjM5NSAyLjQ0MmEuNS41IDAgMCAxLS40MzQuMjUySDYuMTE4YS41LjUgMCAwIDEtLjQ0Ny0uMjc2bC0xLjIzMi0yLjQ2NS0yLjUxMi00LjE4NWEuNTE3LjUxNyAwIDAgMSAuODA5LS42MzFsMi40MSAyLjQxQS41LjUgMCAwIDAgNiA5LjVWMS43NUEuNzUuNzUgMCAwIDEgNi43NSAxek04LjUgNC40NjZWMS43NWExLjc1IDEuNzUgMCAxIDAtMy41IDB2Ni41NDNMMy40NDMgNi43MzZBMS41MTcgMS41MTcgMCAwIDAgMS4wNyA4LjU4OGwyLjQ5MSA0LjE1MyAxLjIxNSAyLjQzQTEuNSAxLjUgMCAwIDAgNi4xMTggMTZoNi4zMDJhMS41IDEuNSAwIDAgMCAxLjMwMi0uNzU2bDEuMzk1LTIuNDQxYTMuNSAzLjUgMCAwIDAgLjQ0NC0xLjM4OWwuMjcxLTIuNzE1YTIgMiAwIDAgMC0xLjk5LTIuMTk5aC0uNTgxYTUuMTE0IDUuMTE0IDAgMCAwLS4xOTUtLjI0OGMtLjE5MS0uMjI5LS41MS0uNTY4LS44OC0uNzE2LS4zNjQtLjE0Ni0uODQ2LS4xMzItMS4xNTgtLjEwOGwtLjEzMi4wMTJhMS4yNiAxLjI2IDAgMCAwLS41Ni0uNjQyIDIuNjMyIDIuNjMyIDAgMCAwLS43MzgtLjI4OGMtLjMxLS4wNjItLjczOS0uMDU4LTEuMDUtLjA0NmwtLjA0OC4wMDJ6bTIuMDk0IDIuMDI1eiIvPg0KPC9zdmc+")
-                    select#jump-destination-select
+                    select(name="jump-select")#jump-destination-select
                         option no jump
                         each index in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
                             option= `jump to scene ${index}`
         #menu
-            button(title="export as webpage") export
-            button(title="import from webpage") import
-            button(title="reset to blank") reset
+            button(name="export" title="export as webpage") export
+            button(name="import" title="import from webpage") import
+            button(name="reset" title="reset to blank") reset

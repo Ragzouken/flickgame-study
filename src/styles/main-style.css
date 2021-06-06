@@ -59,7 +59,8 @@ main h1 {
 #scene-select {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    gap: .5em;
+    /* gap: .5em; */
+    gap: 2px;
 }
 
 #scene-select label {
@@ -67,8 +68,9 @@ main h1 {
     background: none;
 }
 
-#scene-select *:checked {
+#scene-select *:checked + img {
     box-shadow: 0 0 0 .5em white;
+    z-index: 5;
 }
 
 #scene-select label img {
@@ -129,8 +131,8 @@ main h1 {
 
 #color-select input[type="radio"]:checked {
     background: none;
-    /*box-shadow: 0 0 0 var(--highlight-thickness) white;*/
-    border: solid var(--highlight-thickness) white;
+    box-shadow: 0 0 0 var(--highlight-thickness) white;
+    z-index: 5;
 
     animation-name: selection-flash;
     animation-direction: alternate;
@@ -220,8 +222,13 @@ button {
     align-items: center;
 }
 
-.button-row button:active {
+button:active {
     filter: invert();
+}
+
+button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
 }
 
 .grid4 {
@@ -298,10 +305,10 @@ button {
 
 @keyframes selection-flash {
     0% {
-        border-color: black;
+        box-shadow: 0 0 0 var(--highlight-thickness) black;
     }
 
     100% {
-        border-color: white;
+        box-shadow: 0 0 0 var(--highlight-thickness) white;
     }
 }
