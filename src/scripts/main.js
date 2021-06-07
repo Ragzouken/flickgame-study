@@ -327,6 +327,11 @@ async function start() {
         stateManager.dispatchEvent(new CustomEvent("change"));
     });
 
+    reset.addEventListener("invoke", () => {
+        stateManager.load(makeBlankProject());
+        stateManager.dispatchEvent(new CustomEvent("change"));
+    });
+
     ALL("#scene-select input").forEach((input, index) => {
         input.after(thumbnails[index].canvas);
     });
