@@ -7,5 +7,17 @@
 /**
  * @typedef {Object} FlickgameDataProject
  * @property {FlickgameDataScene[]} scenes
- * @property {{[id: string]: string}} images
+ */
+
+/**
+ * @typedef {Object} ResourceData
+ * @property {string} type
+ * @property {any} data
+ */
+
+/**
+ * @template T
+ * @typedef {Object} ProjectBundle
+ * @property {T} project
+ * @property {{[id: string]: ResourceData}} resources
  */

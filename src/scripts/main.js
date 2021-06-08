@@ -30,6 +30,12 @@ function LISTEN(element, type, listener) {
 const COPY = (object) => JSON.parse(JSON.stringify(object));
 
 /**
+ * @param {number} length 
+ * @returns {number[]}
+ */
+const ZEROES = (length) => Array(length).fill(0);
+
+/**
  * @param {number} min 
  * @param {number} max 
  * @returns {number}
@@ -134,7 +140,7 @@ function RENDERING2D(width, height) {
     canvas.width = width;
     canvas.height = height;
     return canvas.getContext("2d");
-}
+} 
 
 /** @param {HTMLImageElement} image */
 function imageToRendering2D(image) {
@@ -153,6 +159,31 @@ function imageToRendering2D(image) {
         image.addEventListener("load", () => resolve(image));
         image.src = src;
     });
+}
+
+async function imageDataURIresourceLoader(resource) {
+    const image = await loadImage(resource.data);
+    const rendering = imageToRendering2D(image);
+    return rendering;
+}
+
+const resourceTypes = {
+    "canvas-datauri": {
+        load: async (resource) => {
+            const image = await loadImage(resource.data);
+            return imageToRendering2D(image);
+        },
+
+        copy: async (instance) => {
+            const copy = RENDERING2D(instance.canvas.width, instance.canvas.height);
+            copy.drawImage(instance.canvas, 0, 0);
+            return copy;
+        },
+
+        save: async (instance) => {
+            return instance.canvas.toDataURL();
+        }
+    }
 }
 
 class FlickgameStateManager extends EventTarget {
@@ -181,21 +212,31 @@ class FlickgameStateManager extends EventTarget {
         return this.index < this.history.length - 1 && !this.dirty;
     }
 
-    /** @param {FlickgameDataProject} data */
-    async load(data) {
+    /** @param {ProjectBundle<FlickgameDataProject>} bundle */
+    async loadBundle(bundle) {
         this.lastId = 0;
         this.history.length = 0;
-        this.history.push(data);
+        this.history.push(bundle.project);
         this.index = 0;
 
-        const promises = Object.entries(data.images).map(async ([id, datauri]) => {
-            const image = await loadImage(datauri);
-            const rendering = imageToRendering2D(image);
-            this.rendering2ds.set(id, rendering);
+        const promises = Object.entries(bundle.resources).map(async ([id, resource]) => {
+            const instance = await resourceTypes[resource.type].load(resource);
+            this.rendering2ds.set(id, instance);
         });
         await Promise.all(promises);
 
         this.dispatchEvent(new CustomEvent("change"));
+    }
+
+    async makeBundle() {
+        const project = COPY(this.data);
+        const resources = {};
+        this.rendering2ds.forEach((rendering, id) => {
+            const data = rendering.canvas.toDataURL();
+            resources[id] = { type: "canvas-datauri", data };
+        });
+
+        return { project, resources };
     }
 
     nextId() {
@@ -244,15 +285,18 @@ class FlickgameStateManager extends EventTarget {
     }
 }
 
-/** @returns {FlickgameDataProject} */
-function makeBlankProject() {
+/** @returns {ProjectBundle<FlickgameDataProject>} */
+function makeBlankBundle() {
     const blank = RENDERING2D(160, 100);
     blank.fillStyle = "#140c1c";
     blank.fillRect(0, 0, 160, 100);
-    const scenes = Array(16).fill().map(() => ({ image: "0", jumps: {} }));
-    const images = { "0": blank.canvas.toDataURL() };
+    const scenes = ZEROES(16).map(() => ({ image: "0", jumps: {} }));
+    const project = { scenes };
+    const resources = {
+        "0": { type: "canvas-datauri", data: blank.canvas.toDataURL() },
+    };
 
-    return { scenes, images };
+    return { project, resources };
 }
 
 async function start() {
@@ -305,7 +349,7 @@ async function start() {
     const jumpColorIndicator = ONE("#jump-source-color");
 
     const test = ONE("#renderer");
-    const thumbnails = Array(16).fill().map(() => {
+    const thumbnails = ZEROES(16).map(() => {
         const thumbnail = RENDERING2D(160, 100);
         thumbnail.drawImage(test, 0, 0);
         return thumbnail;
@@ -328,8 +372,13 @@ async function start() {
     });
 
     reset.addEventListener("invoke", () => {
-        stateManager.load(makeBlankProject());
+        stateManager.loadBundle(makeBlankBundle());
         stateManager.dispatchEvent(new CustomEvent("change"));
+    });
+
+    export_.addEventListener("invoke", async () => {
+        const bundle = await stateManager.makeBundle();
+        console.log(bundle);
     });
 
     ALL("#scene-select input").forEach((input, index) => {
@@ -358,6 +407,8 @@ async function start() {
 
     function refreshJumpSelect() {
         const currentScene = stateManager.data.scenes[sceneSelect.selectedIndex];
+        if (!currentScene) return;
+
         const jump = currentScene.jumps[colorSelect.value];
         jumpSelect.value = jump ? jump : "none";
 
@@ -371,7 +422,8 @@ async function start() {
         });
 
         const currentScene = stateManager.data.scenes[sceneSelect.selectedIndex];
-        renderer.drawImage(stateManager.rendering2ds.get(currentScene.image).canvas, 0, 0);
+        if (currentScene)
+            renderer.drawImage(stateManager.rendering2ds.get(currentScene.image).canvas, 0, 0);
 
         undo.disabled = !stateManager.canUndo;
         redo.disabled = !stateManager.canRedo;
@@ -381,7 +433,8 @@ async function start() {
 
     sceneSelect.addEventListener("change", () => {
         const currentScene = stateManager.data.scenes[sceneSelect.selectedIndex];
-        renderer.drawImage(stateManager.rendering2ds.get(currentScene.image).canvas, 0, 0);
+        if (currentScene)
+            renderer.drawImage(stateManager.rendering2ds.get(currentScene.image).canvas, 0, 0);
 
         refreshJumpSelect();
     });
@@ -390,12 +443,13 @@ async function start() {
         stateManager.makeCheckpoint();
         
         const currentScene = stateManager.data.scenes[sceneSelect.selectedIndex];
-        currentScene.jumps[colorSelect.value] = jumpSelect.value;
+        if (currentScene)
+            currentScene.jumps[colorSelect.value] = jumpSelect.value;
 
         stateManager.dispatchEvent(new CustomEvent("change"));
     });
 
-    await stateManager.load(makeBlankProject());
+    await stateManager.loadBundle(makeBlankBundle());
     const init = RENDERING2D(160, 100);
     init.drawImage(demo, 0, 0);
     stateManager.data.scenes[0].image = stateManager.addRendering(init);
