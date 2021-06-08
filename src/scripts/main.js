@@ -293,6 +293,7 @@ class FlickgameStateManager extends EventTarget {
         this.dispatchEvent(new CustomEvent("change"));
     }
 
+    /** @returns {Promise<ProjectBundle<FlickgameDataProject>>} */
     async makeBundle() {
         const project = COPY(this.data);
         const resources = {};
@@ -370,13 +371,55 @@ function makeBlankBundle() {
     return { project, resources };
 }
 
+const palette = [
+    "#140c1c", "#442434", "#30346d", "#4e4a4e",
+    "#854c30", "#346524", "#d04648", "#757161",
+    "#597dce", "#d27d2c", "#8595a1", "#6daa2c",
+    "#d2aa99", "#6dc2ca", "#dad45e", "#deeed6",
+];
+
+class FlickgamePlayer extends EventTarget {
+    constructor() {
+        super();
+        this.stateManager = new FlickgameStateManager();
+        this.rendering = RENDERING2D(160, 100);
+        this.activeSceneIndex = 0;
+    }
+
+    async loadBundle(bundle) {
+        await this.stateManager.loadBundle(bundle);
+        this.activeSceneIndex = 0;
+        this.render();
+    }
+
+    render() {
+        const scene = this.stateManager.data.scenes[this.activeSceneIndex];
+        const image = this.stateManager.getResource(scene.image);
+        
+        this.rendering.clearRect(0, 0, 160, 100);
+        this.rendering.drawImage(image.canvas, 0, 0);
+
+        this.dispatchEvent(new CustomEvent("render"));
+    }
+
+    click(x, y) {
+        const scene = this.stateManager.data.scenes[this.activeSceneIndex];
+        const image = this.stateManager.getResource(scene.image);
+
+        const [r, g, b, a] = image.getImageData(x, y, 1, 1).data;
+        const hex = "#" + [r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("");
+        const index = palette.findIndex((color) => color === hex);
+        const jump = scene.jumps[index];
+
+        if (jump) { 
+            this.activeSceneIndex = parseInt(jump, 10);
+            this.render();
+        }
+    }
+}
+
 async function start() {
-    const palette = [
-        "#140c1c", "#442434", "#30346d", "#4e4a4e",
-        "#854c30", "#346524", "#d04648", "#757161",
-        "#597dce", "#d27d2c", "#8595a1", "#6daa2c",
-        "#d2aa99", "#6dc2ca", "#dad45e", "#deeed6",
-    ];
+    const player = new FlickgamePlayer();
 
     const brushes = [
         { name: "1px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABlJREFUOI1jYBgFwx38/////0C7YRQMDQAApd4D/cefQokAAAAASUVORK5CYII=" },
@@ -413,6 +456,8 @@ async function start() {
     const paste = ACTION("paste");
     const clear = ACTION("clear");
 
+    const play = ACTION("play");
+    const edit = ACTION("edit");
     const export_ = ACTION("export");
     const import_ = ACTION("import");
     const reset = ACTION("reset");
@@ -440,6 +485,30 @@ async function start() {
         stateManager.makeCheckpoint();
         stateManager.data.scenes[sceneSelect.selectedIndex] = copiedScene;
         stateManager.dispatchEvent(new CustomEvent("change"));
+    });
+
+    function showPlayer() {
+        ONE("#player").hidden = false;
+        ONE("#editor").hidden = true;
+        resizePlayer();
+    }
+
+    function showEditor() {
+        ONE("#player").hidden = true;
+        ONE("#editor").hidden = false;
+    }
+
+    play.addEventListener("invoke", async () => {
+        await player.loadBundle(await stateManager.makeBundle());
+        showPlayer();
+    });
+
+    edit.addEventListener("invoke", async () => {
+        if (!stateManager.data) {
+            const bundle = await player.stateManager.makeBundle();
+            await stateManager.loadBundle(bundle);
+        }
+        showEditor();
     });
 
     reset.addEventListener("invoke", () => {
@@ -540,12 +609,6 @@ async function start() {
         stateManager.dispatchEvent(new CustomEvent("change"));
     });
 
-    await stateManager.loadBundle(makeBlankBundle());
-    const init = RENDERING2D(160, 100);
-    init.drawImage(demo, 0, 0);
-    stateManager.data.scenes[0].image = stateManager.addResource("canvas-datauri", init);
-    stateManager.dispatchEvent(new CustomEvent("change"));
-
     sceneSelect.selectedIndex = 0;
     toolSelect.selectedIndex = 0;
     brushSelect.selectedIndex = getRandomInt(0, 4);
@@ -567,4 +630,46 @@ async function start() {
         scene.image = stateManager.addResource("canvas-datauri", edit);
         stateManager.dispatchEvent(new CustomEvent("change"));
     });
+
+    const playCanvas = ONE("#player canvas");
+    const playRendering = /** @type {CanvasRenderingContext2D} */ (playCanvas.getContext("2d"));
+    playCanvas.getContext("2d").drawImage(demo, 0, 0);
+    
+    playCanvas.addEventListener("click", (event) => {
+        const bounds = playCanvas.getBoundingClientRect();
+        const [mx, my] = [event.clientX - bounds.x, event.clientY - bounds.y];
+        const scale = playCanvas.width / playCanvas.clientWidth; 
+        const [px, py] = [Math.floor(mx * scale), Math.floor(my * scale)];
+        
+        player.click(px, py);
+    });
+
+    player.addEventListener("render", () => {
+        playRendering.drawImage(player.rendering.canvas, 0, 0);
+    });
+
+    function resizePlayer() {
+        const container = playCanvas.parentElement;
+        const [tw, th] = [container.clientWidth, container.clientHeight];
+        const [sw, sh] = [tw / playCanvas.width, th / playCanvas.height];
+        const scale = Math.min(sw, sh);
+        playCanvas.style.setProperty("width", `${playCanvas.width * scale}px`);
+        playCanvas.style.setProperty("height", `${playCanvas.height * scale}px`);
+    }
+
+    window.addEventListener("resize", resizePlayer);
+
+    const embedded = ONE("#bundle-embed")?.textContent;
+    if (embedded) {
+        const bundle = JSON.parse(embedded);
+        await player.loadBundle(bundle);
+        showPlayer();
+    } else {
+        await stateManager.loadBundle(makeBlankBundle());
+        const init = RENDERING2D(160, 100);
+        init.drawImage(demo, 0, 0);
+        stateManager.data.scenes[0].image = stateManager.addResource("canvas-datauri", init);
+        stateManager.dispatchEvent(new CustomEvent("change"));
+        showEditor();
+    }
 }
