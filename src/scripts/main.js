@@ -36,12 +36,77 @@ const COPY = (object) => JSON.parse(JSON.stringify(object));
 const ZEROES = (length) => Array(length).fill(0);
 
 /**
+ * @template {keyof HTMLElementTagNameMap} K
+ * @param {K} tagName 
+ * @param {*} attributes 
+ * @param  {...(Node | string)} children 
+ * @returns {HTMLElementTagNameMap[K]}
+ */
+ function html(tagName, attributes = {}, ...children) {
+    const element = /** @type {HTMLElementTagNameMap[K]} */ (document.createElement(tagName)); 
+    Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
+    children.forEach((child) => element.append(child));
+    return element;
+}
+
+/**
+ * @param {string} text 
+ */
+ function textToBlob(text, type = "text/plain") {
+    return new Blob([text], { type });
+}
+
+function saveAs(blob, name) {
+    const element = document.createElement("a");
+    const url = window.URL.createObjectURL(blob);
+    element.href = url;
+    element.download = name;
+    element.click();
+    window.URL.revokeObjectURL(url);
+};
+
+/**
+ * @param {string} accept 
+ * @param {boolean} multiple 
+ * @returns {Promise<File[]>}
+ */
+ async function pickFiles(accept = "*", multiple = false) {
+    return new Promise((resolve) => {
+        const fileInput = html("input", { type: "file", accept, multiple });
+        fileInput.addEventListener("change", () => resolve(Array.from(fileInput.files)));
+        fileInput.click();
+    });
+}
+
+/**
  * @param {number} min 
  * @param {number} max 
  * @returns {number}
  */
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
+}
+
+/**
+ * @param {File} file 
+ * @return {Promise<string>}
+ */
+async function textFromFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = () => resolve(/** @type {string} */ (reader.result));
+        reader.readAsText(file); 
+    });
+}
+
+/**
+ * @param {string} source
+ */
+async function htmlFromText(source) {
+    const template = document.createElement('template');
+    template.innerHTML = source;
+    return template.content;
 }
 
 class RadioGroupWrapper extends EventTarget {
@@ -114,7 +179,7 @@ function RADIO(name) {
  * @param {string} name
  * @returns {HTMLButtonElement}
  */
- function BUTTON(name) {
+function BUTTON(name) {
     return ONE(`button[name="${name}"]`);
 }
 
@@ -122,7 +187,7 @@ function RADIO(name) {
  * @param {string} name
  * @returns {ButtonAction}
  */
- function ACTION(name) {
+function ACTION(name) {
     const buttons = ALL(`button[name="${name}"]`);
     return new ButtonAction(buttons);
 }
@@ -190,8 +255,8 @@ class FlickgameStateManager extends EventTarget {
     constructor() {
         super();
 
-        /** @type {Map<string, CanvasRenderingContext2D>} */
-        this.rendering2ds = new Map();
+        /** @type {Map<string, { type: string, instance: any }>} */
+        this.resources = new Map();
 
         /** @type {FlickgameDataProject[]} */
         this.history = [];
@@ -221,7 +286,7 @@ class FlickgameStateManager extends EventTarget {
 
         const promises = Object.entries(bundle.resources).map(async ([id, resource]) => {
             const instance = await resourceTypes[resource.type].load(resource);
-            this.rendering2ds.set(id, instance);
+            this.resources.set(id, { type: resource.type, instance });
         });
         await Promise.all(promises);
 
@@ -231,26 +296,22 @@ class FlickgameStateManager extends EventTarget {
     async makeBundle() {
         const project = COPY(this.data);
         const resources = {};
-        this.rendering2ds.forEach((rendering, id) => {
-            const data = rendering.canvas.toDataURL();
-            resources[id] = { type: "canvas-datauri", data };
+
+        const promises = Array.from(this.resources).map(async ([id, { type, instance }]) => {
+            const data = await resourceTypes[type].save(instance);
+            resources[id] = { type, data };
         });
+        await Promise.all(promises);
 
         return { project, resources };
     }
 
     nextId() {
-        while (this.rendering2ds.has(this.lastId.toString())) {
+        while (this.resources.has(this.lastId.toString())) {
             this.lastId += 1;
         }
 
         return this.lastId.toString();
-    }
-
-    addRendering(rendering) {
-        const id = this.nextId();
-        this.rendering2ds.set(id, rendering);
-        return id;
     }
 
     makeCheckpoint() {
@@ -282,6 +343,16 @@ class FlickgameStateManager extends EventTarget {
         this.index += 1;
         this.dirty = undefined;
         this.dispatchEvent(new CustomEvent("change"));
+    }
+
+    getResource(id) {
+        return this.resources.get(id).instance;
+    }
+
+    addResource(type, instance) {
+        const id = this.nextId();
+        this.resources.set(id, { type, instance });
+        return id;
     }
 }
 
@@ -378,7 +449,27 @@ async function start() {
 
     export_.addEventListener("invoke", async () => {
         const bundle = await stateManager.makeBundle();
-        console.log(bundle);
+
+        const clone = /** @type {HTMLElement} */ (document.documentElement.cloneNode(true));
+        ALL("[data-empty]", clone).forEach((element) => element.replaceChildren());
+        ALL("[data-editor-only]", clone).forEach((element) => element.remove());
+        ONE("body", clone).setAttribute("data-play", "true");
+        //ONE("title", clone).innerHTML = "";
+        ONE("#bundle-embed", clone).innerHTML = JSON.stringify(bundle);
+
+        const name = "flickgame.html";
+        const blob = textToBlob(clone.outerHTML, "text/html");
+        saveAs(blob, name);
+    });
+
+    import_.addEventListener("invoke", async () => {
+        const [file] = await pickFiles("text/html");
+        const text = await textFromFile(file);
+        const html = await htmlFromText(text);
+
+        const json = ONE("#bundle-embed", html).innerHTML;
+        const bundleData = JSON.parse(json);
+        stateManager.loadBundle(bundleData);
     });
 
     ALL("#scene-select input").forEach((input, index) => {
@@ -417,13 +508,13 @@ async function start() {
 
     stateManager.addEventListener("change", () => {
         stateManager.data.scenes.forEach((scene, index) => {
-            const image = stateManager.rendering2ds.get(scene.image).canvas;
+            const image = stateManager.getResource(scene.image).canvas;
             thumbnails[index].drawImage(image, 0, 0);
         });
 
         const currentScene = stateManager.data.scenes[sceneSelect.selectedIndex];
         if (currentScene)
-            renderer.drawImage(stateManager.rendering2ds.get(currentScene.image).canvas, 0, 0);
+            renderer.drawImage(stateManager.getResource(currentScene.image).canvas, 0, 0);
 
         undo.disabled = !stateManager.canUndo;
         redo.disabled = !stateManager.canRedo;
@@ -434,7 +525,7 @@ async function start() {
     sceneSelect.addEventListener("change", () => {
         const currentScene = stateManager.data.scenes[sceneSelect.selectedIndex];
         if (currentScene)
-            renderer.drawImage(stateManager.rendering2ds.get(currentScene.image).canvas, 0, 0);
+            renderer.drawImage(stateManager.getResource(currentScene.image).canvas, 0, 0);
 
         refreshJumpSelect();
     });
@@ -452,7 +543,7 @@ async function start() {
     await stateManager.loadBundle(makeBlankBundle());
     const init = RENDERING2D(160, 100);
     init.drawImage(demo, 0, 0);
-    stateManager.data.scenes[0].image = stateManager.addRendering(init);
+    stateManager.data.scenes[0].image = stateManager.addResource("canvas-datauri", init);
     stateManager.dispatchEvent(new CustomEvent("change"));
 
     sceneSelect.selectedIndex = 0;
@@ -470,10 +561,10 @@ async function start() {
 
         const scene = stateManager.data.scenes[sceneSelect.selectedIndex];
         const edit = RENDERING2D(160, 100);
-        edit.drawImage(stateManager.rendering2ds.get(scene.image).canvas, 0, 0);
+        edit.drawImage(stateManager.getResource(scene.image).canvas, 0, 0);
         edit.fillStyle = palette[colorSelect.selectedIndex];
         edit.fillRect(0, 0, 160, 100);
-        scene.image = stateManager.addRendering(edit);
+        scene.image = stateManager.addResource("canvas-datauri", edit);
         stateManager.dispatchEvent(new CustomEvent("change"));
     });
 }
