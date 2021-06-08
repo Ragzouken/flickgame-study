@@ -496,6 +496,12 @@ async function start() {
     function showEditor() {
         ONE("#player").hidden = true;
         ONE("#editor").hidden = false;
+
+        sceneSelect.selectedIndex = 0;
+        toolSelect.selectedIndex = 0;
+        brushSelect.selectedIndex = getRandomInt(0, 4);
+        patternSelect.selectedIndex = getRandomInt(0, 8);
+        colorSelect.selectedIndex = getRandomInt(7, 16);
     }
 
     play.addEventListener("invoke", async () => {
@@ -608,12 +614,6 @@ async function start() {
 
         stateManager.dispatchEvent(new CustomEvent("change"));
     });
-
-    sceneSelect.selectedIndex = 0;
-    toolSelect.selectedIndex = 0;
-    brushSelect.selectedIndex = getRandomInt(0, 4);
-    patternSelect.selectedIndex = getRandomInt(0, 8);
-    colorSelect.selectedIndex = getRandomInt(7, 16);
 
     undo.disabled = true;
     redo.disabled = true;
