@@ -240,9 +240,7 @@ const resourceTypes = {
         },
 
         copy: async (instance) => {
-            const copy = RENDERING2D(instance.canvas.width, instance.canvas.height);
-            copy.drawImage(instance.canvas, 0, 0);
-            return copy;
+            return copyRendering2D(instance);
         },
 
         save: async (instance) => {
@@ -255,6 +253,7 @@ class FlickgameStateManager extends EventTarget {
     constructor() {
         super();
 
+        this.lastId = 0;
         /** @type {Map<string, { type: string, instance: any }>} */
         this.resources = new Map();
 
@@ -286,6 +285,21 @@ class FlickgameStateManager extends EventTarget {
 
         const promises = Object.entries(bundle.resources).map(async ([id, resource]) => {
             const instance = await resourceTypes[resource.type].load(resource);
+            this.resources.set(id, { type: resource.type, instance });
+        });
+        await Promise.all(promises);
+
+        this.dispatchEvent(new CustomEvent("change"));
+    }
+
+    /** @param {FlickgameStateManager} other */
+    async copyFrom(other) {
+        this.lastId = other.lastId;
+        this.history = COPY(other.history);
+        this.index = other.index;
+
+        const promises = Array.from(other.resources).map(async ([id, resource]) => {
+            const instance = await resourceTypes[resource.type].copy(resource.instance);
             this.resources.set(id, { type: resource.type, instance });
         });
         await Promise.all(promises);
@@ -332,6 +346,13 @@ class FlickgameStateManager extends EventTarget {
         }
     }
 
+    /** @param {(data: FlickgameDataProject) => Promise} action */
+    async makeChange(action) {
+        this.makeCheckpoint();
+        await action(this.data);
+        this.dispatchEvent(new CustomEvent("change"));
+    }
+
     undo() {
         if (!this.canUndo) return;
         this.index -= 1;
@@ -354,6 +375,15 @@ class FlickgameStateManager extends EventTarget {
         const id = this.nextId();
         this.resources.set(id, { type, instance });
         return id;
+    }
+
+    async forkResource(id) {
+        const source = this.resources.get(id);
+        const forkId = this.nextId();
+        const instance = await resourceTypes[source.type].copy(source.instance);
+        const fork = { type: source.type, instance }; 
+        this.resources.set(forkId, fork);
+        return { id: forkId, instance };
     }
 }
 
@@ -378,6 +408,24 @@ const palette = [
     "#d2aa99", "#6dc2ca", "#dad45e", "#deeed6",
 ];
 
+const brushes = [
+    { name: "1px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABlJREFUOI1jYBgFwx38/////0C7YRQMDQAApd4D/cefQokAAAAASUVORK5CYII=" },
+    { name: "2px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABpJREFUOI1jYBgFwx38hwJ8apjo5ZhRMKgBADvbB/vPRl6wAAAAAElFTkSuQmCC" },
+    { name: "3px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAACNJREFUOI1jYBgFgxz8////PyE1jMRoZmRkxKmOYheMgmEBAARbC/qDr1pMAAAAAElFTkSuQmCC" },
+    { name: "4px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAChJREFUOI1jYBgFgxz8hwJ8ahjxaUZRyMiIVS0TeW4jEhDjhVEwGAAAJhAT9IYiYRoAAAAASUVORK5CYII=" },
+];
+
+const patterns = [
+    { name: "solid", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAADUExURf///6fEG8gAAAAJcEhZcwAADsIAAA7CARUoSoAAAAANSURBVBjTYyAJMDAAAAAwAAHT27rKAAAAAElFTkSuQmCC" },
+    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
+    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
+    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
+    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
+    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
+    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
+    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
+];
+
 class FlickgamePlayer extends EventTarget {
     constructor() {
         super();
@@ -386,8 +434,17 @@ class FlickgamePlayer extends EventTarget {
         this.activeSceneIndex = 0;
     }
 
+    async copyFrom(stateManager) {
+        await this.stateManager.copyFrom(stateManager);
+        this.reset();
+    }
+
     async loadBundle(bundle) {
         await this.stateManager.loadBundle(bundle);
+        this.reset();
+    }
+
+    reset() {
         this.activeSceneIndex = 0;
         this.render();
     }
@@ -418,74 +475,162 @@ class FlickgamePlayer extends EventTarget {
     }
 }
 
+/**
+ * @param {FlickgameDataProject} data 
+ * @param {number} srcIndex 
+ * @param {number} colorIndex 
+ * @param {number} dstIndex 
+ */
+function setSceneJump(data, srcIndex, colorIndex, dstIndex) {
+    data.scenes[srcIndex].jumps[colorIndex.toString()] = dstIndex.toString();
+}
+
+class FlickgameEditor extends EventTarget {
+    constructor() {
+        super();
+
+        this.stateManager = new FlickgameStateManager();
+        this.rendering = RENDERING2D(160, 100);
+        this.preview = RENDERING2D(160, 100); 
+        this.thumbnails = ZEROES(16).map(() => RENDERING2D(160, 100));
+
+        this.sceneSelect = RADIO("scene-select");
+        this.toolSelect = RADIO("tool-select");
+        this.brushSelect = RADIO("brush-select");
+        this.patternSelect = RADIO("pattern-select");
+        this.colorSelect = RADIO("color-select");
+        this.jumpSelect = SELECT("jump-select");
+        this.jumpColorIndicator = ONE("#jump-source-color");
+
+        this.actions = {
+            undo: ACTION("undo"),
+            redo: ACTION("redo"),
+            copy: ACTION("copy"),
+            paste: ACTION("paste"),
+            clear: ACTION("clear"),
+        };
+
+        this.actions.undo.disabled = true;
+        this.actions.redo.disabled = true;
+        this.actions.paste.disabled = true;
+
+        this.copiedScene = undefined;
+
+        this.sceneSelect.addEventListener("change", () => {
+            this.render();
+            this.refreshJumpSelect();
+        });
+
+        this.jumpSelect.addEventListener("change", () => {
+            if (!this.selectedScene) return;
+    
+            this.stateManager.makeChange(async (data) => {
+                setSceneJump(
+                    data, 
+                    this.sceneSelect.selectedIndex, 
+                    this.colorSelect.selectedIndex, 
+                    this.jumpSelect.selectedIndex,
+                );
+            });
+        });
+
+        this.colorSelect.addEventListener("change", () => this.refreshJumpSelect());
+    
+        this.stateManager.addEventListener("change", () => {
+            this.stateManager.data.scenes.forEach((scene, index) => {
+                const image = this.stateManager.getResource(scene.image).canvas;
+                this.thumbnails[index].drawImage(image, 0, 0);
+            });
+    
+            this.render();
+    
+            this.actions.undo.disabled = !this.stateManager.canUndo;
+            this.actions.redo.disabled = !this.stateManager.canRedo;
+    
+            this.refreshJumpSelect();
+        });
+
+        this.actions.undo.addEventListener("invoke", () => this.stateManager.undo());
+        this.actions.redo.addEventListener("invoke", () => this.stateManager.redo());
+        this.actions.copy.addEventListener("invoke", () => this.copyScene());
+        this.actions.paste.addEventListener("invoke", () => this.pasteScene());
+        this.actions.clear.addEventListener("invoke", () => this.clearScene());
+
+        ALL("#scene-select input").forEach((input, index) => {
+            input.after(this.thumbnails[index].canvas);
+        });
+    
+        ALL("#color-select label").forEach((label, index) => {
+            label.style.backgroundColor = palette[index];
+        });
+    
+        ALL("#brush-select label").forEach((label, index) => {
+            ONE("input", label).title = brushes[index].name + " brush";
+            ONE("img", label).src = brushes[index].image;
+        });
+    
+        ALL("#pattern-select label").forEach((label, index) => {
+            ONE("input", label).title = patterns[index].name + " pattern";
+            ONE("img", label).src = patterns[index].image;
+        });
+    }
+
+    get selectedScene() {
+        return this.stateManager.data.scenes[this.sceneSelect.selectedIndex];
+    }
+
+    render() {
+        if (!this.selectedScene) return;
+        const image = this.stateManager.getResource(this.selectedScene.image);
+
+        fillRendering2D(this.rendering);
+        this.rendering.drawImage(image.canvas, 0, 0);
+        this.rendering.drawImage(this.preview.canvas, 0, 0);
+
+        this.dispatchEvent(new CustomEvent("render"));
+    }
+
+    refreshJumpSelect() {
+        if (!this.sceneSelect.selectedIndex || !this.colorSelect.selectedIndex) return;
+
+        const jump = this.selectedScene.jumps[this.colorSelect.value];
+        this.jumpSelect.value = jump ? jump : "none";
+        this.jumpColorIndicator.style.backgroundColor = palette[this.colorSelect.selectedIndex];
+    }
+
+    copyScene() {
+        this.copiedScene = COPY(this.selectedScene);
+        this.actions.paste.disabled = false;
+    }
+
+    pasteScene() {
+        this.stateManager.makeChange(async (data) => {
+            data.scenes[this.sceneSelect.selectedIndex] = COPY(this.copiedScene);
+        });
+    }
+
+    clearScene() {
+        this.stateManager.makeChange(async (data) => {
+            const scene = data.scenes[this.sceneSelect.selectedIndex];
+            const { id, instance } = await this.stateManager.forkResource(scene.image);
+            instance.fillStyle = palette[this.colorSelect.selectedIndex];
+            instance.fillRect(0, 0, 160, 100);
+            scene.image = id;
+        });
+    }
+}
+
 async function start() {
     const player = new FlickgamePlayer();
+    const editor = new FlickgameEditor();
 
-    const brushes = [
-        { name: "1px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABlJREFUOI1jYBgFwx38/////0C7YRQMDQAApd4D/cefQokAAAAASUVORK5CYII=" },
-        { name: "2px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABpJREFUOI1jYBgFwx38hwJ8apjo5ZhRMKgBADvbB/vPRl6wAAAAAElFTkSuQmCC" },
-        { name: "3px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAACNJREFUOI1jYBgFgxz8////PyE1jMRoZmRkxKmOYheMgmEBAARbC/qDr1pMAAAAAElFTkSuQmCC" },
-        { name: "4px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAChJREFUOI1jYBgFgxz8hwJ8ahjxaUZRyMiIVS0TeW4jEhDjhVEwGAAAJhAT9IYiYRoAAAAASUVORK5CYII=" },
-    ];
-
-    const patterns = [
-        { name: "solid", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAADUExURf///6fEG8gAAAAJcEhZcwAADsIAAA7CARUoSoAAAAANSURBVBjTYyAJMDAAAAAwAAHT27rKAAAAAElFTkSuQmCC" },
-        { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-        { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-        { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-        { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-        { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-        { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-        { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-    ];
-
-    const demo = await loadImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAABkBAMAAADzmCa8AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAMUExURRQMHG2qLN7u1tJ9LAlotEkAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAMUSURBVGjezdmJkesgDABQIA1ABx6lgUzov7cPEmAwh4Vh50d7xgsv4jBZiPgfYTZ70ujd4F5P7E7wKaigcVHq5yDAUV80HtsLmu2gfg7WnegmDIFSr4JHBNGU5pyKrYb0wLNoGHICJTY8/QWegJCDIvOeg0cOZj04BUJWKwfzm5kPqiaoryAsgTQPF8DjCob5olfB89dqRgNwJ2IbHJXig2obCHe1sNA82K8Fm0EsMzPKdyA8AxsdRanhdfbyNQLh9AQ7TqaqCY9A0QVhMwhFPABVCcImsOOtggo2gFnF2psZlQYIyyAUY9JIcEasQYAlUeWgeHUSBP64lKD9dMHJ5QYSCPD+wkqzA/jGCvbjnsBaWBEDaL/+h/24R7aXIU90xd4fLsjpSWwjgu7p0RqC90kiqLwixMv3Xr8LeUkm0CeI8b0Bxzn6eRJB8u4SHIgv38gIpgBGdEA3jRGECL55XFdE0HeZuze8JyDvwaMW1E2rE0hV/Lesya76UWWkhim69opToLLJP3CbUSekBim+LDW020tRjEt6vgC32+ziM1iiVf7PaGLUqM0uwdGaXxDpch/0wyLai34oUF6gfYKCtF+oMywbdE2wHgJa3dvZDcGzTOHhHm0AUosbbe7f/8MNgQ2gK/TuJVjFAHxZm561XLNGC9RoYxpbXGUoFkOxe5AbwVF/BfaKSVHsee/BuwT9UY6ZAo8LKCuQeeBEoILrVuBSexI8IpgJxpwdp6vDlxtQVCAeLsWOa5zm9INuUP9Zge5Lz4MhzxqMqH9Un+bcpin6oNSroEwgDo2h8z+hJ0B64UynS+FsCY8m3QeB0jwFfWIR9OOCwx2bz/MU5NtxX1sn0Es42pSleQSeg0Dd6Oc43ir5yecjMFBxhLH9PDBfGzxoRMgo3cL0mDl1VLFenyB1GQ1ENvSMKF5QENTX8XQjMnX/qRyUrb731/QkmE5NW3NYnn3JBmNN07zL6BJzahf/FUjzO2/69EOaXwanRpMRcdXfBpL102B86dwX1zcslkOazW/gSvZazw1c+3fGRIOF+Af8sQAWZmiH2QAAAABJRU5ErkJggg==");
     const renderer = ONE("#renderer").getContext("2d");
-    let copiedScene = undefined;
-
-    const sceneSelect = RADIO("scene-select");
-    const toolSelect = RADIO("tool-select");
-    const brushSelect = RADIO("brush-select");
-    const patternSelect = RADIO("pattern-select");
-    const colorSelect = RADIO("color-select");
-    const jumpSelect = SELECT("jump-select");
-
-    const undo = ACTION("undo");
-    const redo = ACTION("redo");
-    const copy = ACTION("copy");
-    const paste = ACTION("paste");
-    const clear = ACTION("clear");
 
     const play = ACTION("play");
     const edit = ACTION("edit");
     const export_ = ACTION("export");
     const import_ = ACTION("import");
     const reset = ACTION("reset");
-
-    const jumpColorIndicator = ONE("#jump-source-color");
-
-    const test = ONE("#renderer");
-    const thumbnails = ZEROES(16).map(() => {
-        const thumbnail = RENDERING2D(160, 100);
-        thumbnail.drawImage(test, 0, 0);
-        return thumbnail;
-    });
-
-    undo.addEventListener("invoke", () => stateManager.undo());
-    redo.addEventListener("invoke", () => stateManager.redo());
-
-    copy.addEventListener("invoke", () => {
-        const currentScene = stateManager.data.scenes[sceneSelect.selectedIndex];
-        copiedScene = COPY(currentScene);
-
-        paste.disabled = false;
-    });
-
-    paste.addEventListener("invoke", () => {
-        stateManager.makeCheckpoint();
-        stateManager.data.scenes[sceneSelect.selectedIndex] = copiedScene;
-        stateManager.dispatchEvent(new CustomEvent("change"));
-    });
 
     function showPlayer() {
         ONE("#player").hidden = false;
@@ -497,33 +642,37 @@ async function start() {
         ONE("#player").hidden = true;
         ONE("#editor").hidden = false;
 
-        sceneSelect.selectedIndex = 0;
-        toolSelect.selectedIndex = 0;
-        brushSelect.selectedIndex = getRandomInt(0, 4);
-        patternSelect.selectedIndex = getRandomInt(0, 8);
-        colorSelect.selectedIndex = getRandomInt(7, 16);
+        editor.sceneSelect.selectedIndex = 0;
+        editor.toolSelect.selectedIndex = 0;
+        editor.brushSelect.selectedIndex = getRandomInt(0, 4);
+        editor.patternSelect.selectedIndex = getRandomInt(0, 8);
+        editor.colorSelect.selectedIndex = getRandomInt(7, 16);
+        editor.render();
     }
 
     play.addEventListener("invoke", async () => {
-        await player.loadBundle(await stateManager.makeBundle());
+        await player.copyFrom(editor.stateManager);
         showPlayer();
     });
 
     edit.addEventListener("invoke", async () => {
-        if (!stateManager.data) {
+        if (!editor.stateManager.data) {
             const bundle = await player.stateManager.makeBundle();
-            await stateManager.loadBundle(bundle);
+            await editor.stateManager.loadBundle(bundle);
         }
         showEditor();
     });
 
-    reset.addEventListener("invoke", () => {
-        stateManager.loadBundle(makeBlankBundle());
-        stateManager.dispatchEvent(new CustomEvent("change"));
-    });
+    reset.addEventListener("invoke", resetProject);
+    export_.addEventListener("invoke", exportProject);
+    import_.addEventListener("invoke", importProject);
 
-    export_.addEventListener("invoke", async () => {
-        const bundle = await stateManager.makeBundle();
+    async function resetProject() {
+        editor.stateManager.loadBundle(makeBlankBundle());
+    }
+
+    async function exportProject() {
+        const bundle = await editor.stateManager.makeBundle();
 
         const clone = /** @type {HTMLElement} */ (document.documentElement.cloneNode(true));
         ALL("[data-empty]", clone).forEach((element) => element.replaceChildren());
@@ -535,105 +684,22 @@ async function start() {
         const name = "flickgame.html";
         const blob = textToBlob(clone.outerHTML, "text/html");
         saveAs(blob, name);
-    });
+    }
 
-    import_.addEventListener("invoke", async () => {
+    async function importProject() {
         const [file] = await pickFiles("text/html");
         const text = await textFromFile(file);
         const html = await htmlFromText(text);
 
         const json = ONE("#bundle-embed", html).innerHTML;
         const bundleData = JSON.parse(json);
-        stateManager.loadBundle(bundleData);
-    });
-
-    ALL("#scene-select input").forEach((input, index) => {
-        input.after(thumbnails[index].canvas);
-    });
-
-    ALL("#color-select label").forEach((label, index) => {
-        label.style.backgroundColor = palette[index];
-    });
-
-    ALL("#brush-select label").forEach((label, index) => {
-        ONE("input", label).title = brushes[index].name + " brush";
-        ONE("img", label).src = brushes[index].image;
-    });
-
-    ALL("#pattern-select label").forEach((label, index) => {
-        ONE("input", label).title = patterns[index].name + " pattern";
-        ONE("img", label).src = patterns[index].image;
-    });
-
-    colorSelect.addEventListener("change", () => {
-        refreshJumpSelect();
-    });
-
-    const stateManager = new FlickgameStateManager();
-
-    function refreshJumpSelect() {
-        const currentScene = stateManager.data.scenes[sceneSelect.selectedIndex];
-        if (!currentScene) return;
-
-        const jump = currentScene.jumps[colorSelect.value];
-        jumpSelect.value = jump ? jump : "none";
-
-        jumpColorIndicator.style.backgroundColor = palette[colorSelect.selectedIndex];
+        editor.stateManager.loadBundle(bundleData);
     }
 
-    stateManager.addEventListener("change", () => {
-        stateManager.data.scenes.forEach((scene, index) => {
-            const image = stateManager.getResource(scene.image).canvas;
-            thumbnails[index].drawImage(image, 0, 0);
-        });
-
-        const currentScene = stateManager.data.scenes[sceneSelect.selectedIndex];
-        if (currentScene)
-            renderer.drawImage(stateManager.getResource(currentScene.image).canvas, 0, 0);
-
-        undo.disabled = !stateManager.canUndo;
-        redo.disabled = !stateManager.canRedo;
-
-        refreshJumpSelect();
-    });
-
-    sceneSelect.addEventListener("change", () => {
-        const currentScene = stateManager.data.scenes[sceneSelect.selectedIndex];
-        if (currentScene)
-            renderer.drawImage(stateManager.getResource(currentScene.image).canvas, 0, 0);
-
-        refreshJumpSelect();
-    });
-
-    jumpSelect.addEventListener("change", () => {
-        stateManager.makeCheckpoint();
-        
-        const currentScene = stateManager.data.scenes[sceneSelect.selectedIndex];
-        if (currentScene)
-            currentScene.jumps[colorSelect.value] = jumpSelect.value;
-
-        stateManager.dispatchEvent(new CustomEvent("change"));
-    });
-
-    undo.disabled = true;
-    redo.disabled = true;
-    paste.disabled = true;
-
-    clear.addEventListener("invoke", () => {
-        stateManager.makeCheckpoint();
-
-        const scene = stateManager.data.scenes[sceneSelect.selectedIndex];
-        const edit = RENDERING2D(160, 100);
-        edit.drawImage(stateManager.getResource(scene.image).canvas, 0, 0);
-        edit.fillStyle = palette[colorSelect.selectedIndex];
-        edit.fillRect(0, 0, 160, 100);
-        scene.image = stateManager.addResource("canvas-datauri", edit);
-        stateManager.dispatchEvent(new CustomEvent("change"));
-    });
+    editor.addEventListener("render", () => renderer.drawImage(editor.rendering.canvas, 0, 0));
 
     const playCanvas = ONE("#player canvas");
     const playRendering = /** @type {CanvasRenderingContext2D} */ (playCanvas.getContext("2d"));
-    playCanvas.getContext("2d").drawImage(demo, 0, 0);
     
     playCanvas.addEventListener("click", (event) => {
         const bounds = playCanvas.getBoundingClientRect();
@@ -665,11 +731,12 @@ async function start() {
         await player.loadBundle(bundle);
         showPlayer();
     } else {
-        await stateManager.loadBundle(makeBlankBundle());
+        const demo = await loadImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAABkBAMAAADzmCa8AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAMUExURRQMHG2qLN7u1tJ9LAlotEkAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAMUSURBVGjezdmJkesgDABQIA1ABx6lgUzov7cPEmAwh4Vh50d7xgsv4jBZiPgfYTZ70ujd4F5P7E7wKaigcVHq5yDAUV80HtsLmu2gfg7WnegmDIFSr4JHBNGU5pyKrYb0wLNoGHICJTY8/QWegJCDIvOeg0cOZj04BUJWKwfzm5kPqiaoryAsgTQPF8DjCob5olfB89dqRgNwJ2IbHJXig2obCHe1sNA82K8Fm0EsMzPKdyA8AxsdRanhdfbyNQLh9AQ7TqaqCY9A0QVhMwhFPABVCcImsOOtggo2gFnF2psZlQYIyyAUY9JIcEasQYAlUeWgeHUSBP64lKD9dMHJ5QYSCPD+wkqzA/jGCvbjnsBaWBEDaL/+h/24R7aXIU90xd4fLsjpSWwjgu7p0RqC90kiqLwixMv3Xr8LeUkm0CeI8b0Bxzn6eRJB8u4SHIgv38gIpgBGdEA3jRGECL55XFdE0HeZuze8JyDvwaMW1E2rE0hV/Lesya76UWWkhim69opToLLJP3CbUSekBim+LDW020tRjEt6vgC32+ziM1iiVf7PaGLUqM0uwdGaXxDpch/0wyLai34oUF6gfYKCtF+oMywbdE2wHgJa3dvZDcGzTOHhHm0AUosbbe7f/8MNgQ2gK/TuJVjFAHxZm561XLNGC9RoYxpbXGUoFkOxe5AbwVF/BfaKSVHsee/BuwT9UY6ZAo8LKCuQeeBEoILrVuBSexI8IpgJxpwdp6vDlxtQVCAeLsWOa5zm9INuUP9Zge5Lz4MhzxqMqH9Un+bcpin6oNSroEwgDo2h8z+hJ0B64UynS+FsCY8m3QeB0jwFfWIR9OOCwx2bz/MU5NtxX1sn0Es42pSleQSeg0Dd6Oc43ir5yecjMFBxhLH9PDBfGzxoRMgo3cL0mDl1VLFenyB1GQ1ENvSMKF5QENTX8XQjMnX/qRyUrb731/QkmE5NW3NYnn3JBmNN07zL6BJzahf/FUjzO2/69EOaXwanRpMRcdXfBpL102B86dwX1zcslkOazW/gSvZazw1c+3fGRIOF+Af8sQAWZmiH2QAAAABJRU5ErkJggg==");
+        await editor.stateManager.loadBundle(makeBlankBundle());
         const init = RENDERING2D(160, 100);
         init.drawImage(demo, 0, 0);
-        stateManager.data.scenes[0].image = stateManager.addResource("canvas-datauri", init);
-        stateManager.dispatchEvent(new CustomEvent("change"));
+        editor.stateManager.data.scenes[0].image = editor.stateManager.addResource("canvas-datauri", init);
+        editor.stateManager.dispatchEvent(new CustomEvent("change"));
         showEditor();
     }
 }
