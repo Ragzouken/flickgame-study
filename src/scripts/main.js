@@ -1,4 +1,79 @@
 /**
+ * @param {HTMLCanvasElement} canvas 
+ * @param {MouseEvent} event 
+ */
+function mouseEventToCanvasPixelCoords(canvas, event) {
+    const bounds = canvas.getBoundingClientRect();
+    const [mx, my] = [event.clientX - bounds.x, event.clientY - bounds.y];
+    const scale = canvas.width / canvas.clientWidth; 
+    const [px, py] = [Math.floor(mx * scale), Math.floor(my * scale)];
+    return { x: px, y: py };
+}
+
+/**
+ * @param {HTMLCanvasElement} canvas 
+ * @param {MouseEvent} event 
+ */
+ function mouseEventToCanvasFloatCoords(canvas, event) {
+    const bounds = canvas.getBoundingClientRect();
+    const [mx, my] = [event.clientX - bounds.x, event.clientY - bounds.y];
+    const scale = canvas.width / canvas.clientWidth; 
+    const [px, py] = [mx * scale, my * scale];
+    return { x: px, y: py };
+}
+
+/**
+ * @template {keyof WindowEventMap} K
+ * @param {Window | Document | Element} element 
+ * @param {K} type 
+ * @param {(event: WindowEventMap[K]) => any} listener
+ */
+function listen(element, type, listener) {
+    element.addEventListener(type, listener);
+    return () => element.removeEventListener(type, listener);
+}
+
+class PointerDrag extends EventTarget {
+    /** 
+     * @param {MouseEvent} event
+     */
+    constructor(event, { clickMovementLimit = 5 } = {}) {
+        super();
+        this.pointerId = event.pointerId;
+        this.clickMovementLimit = 5;
+        this.totalMovement = 0;
+
+        this.downEvent = event;
+        this.lastEvent = event; 
+
+        this.removes = [
+            listen(document, "pointerup", (event) => {
+                if (event.pointerId !== this.pointerId) return;
+    
+                this.lastEvent = event;
+                this.removes.forEach((remove) => remove());
+                this.dispatchEvent(new CustomEvent("pointerup", { detail: event }));
+                if (this.totalMovement <= clickMovementLimit) {
+                    this.dispatchEvent(new CustomEvent("click", { detail: event }));
+                }
+            }),
+            listen(document, "pointermove", (event) => {
+                if (event.pointerId !== this.pointerId) return;
+    
+                this.totalMovement += Math.abs(event.movementX);
+                this.totalMovement += Math.abs(event.movementY);
+                this.lastEvent = event;
+                this.dispatchEvent(new CustomEvent("pointermove", { detail: event }));
+            }),
+        ];
+    }
+
+    cancel() {
+        this.removes.forEach((remove) => remove());
+    }
+}
+
+/**
  * @param {string} query 
  * @param {ParentNode} element 
  * @returns {HTMLElement}
@@ -289,7 +364,7 @@ class FlickgameStateManager extends EventTarget {
         });
         await Promise.all(promises);
 
-        this.dispatchEvent(new CustomEvent("change"));
+        this.changed();
     }
 
     /** @param {FlickgameStateManager} other */
@@ -303,8 +378,8 @@ class FlickgameStateManager extends EventTarget {
             this.resources.set(id, { type: resource.type, instance });
         });
         await Promise.all(promises);
-
-        this.dispatchEvent(new CustomEvent("change"));
+        
+        this.changed();
     }
 
     /** @returns {Promise<ProjectBundle<FlickgameDataProject>>} */
@@ -346,25 +421,29 @@ class FlickgameStateManager extends EventTarget {
         }
     }
 
+    changed() {
+        this.dispatchEvent(new CustomEvent("change"));
+    }
+
     /** @param {(data: FlickgameDataProject) => Promise} action */
     async makeChange(action) {
         this.makeCheckpoint();
         await action(this.data);
-        this.dispatchEvent(new CustomEvent("change"));
+        this.changed();
     }
 
     undo() {
         if (!this.canUndo) return;
         this.index -= 1;
         this.dirty = undefined;
-        this.dispatchEvent(new CustomEvent("change"));
+        this.changed();
     }
 
     redo() {
         if (!this.canRedo) return;
         this.index += 1;
         this.dirty = undefined;
-        this.dispatchEvent(new CustomEvent("change"));
+        this.changed();
     }
 
     getResource(id) {
@@ -490,7 +569,9 @@ class FlickgameEditor extends EventTarget {
         super();
 
         this.stateManager = new FlickgameStateManager();
-        this.rendering = RENDERING2D(160, 100);
+        /** @type {CanvasRenderingContext2D} */
+        this.rendering = ONE("#renderer").getContext("2d");
+        this.rendering.canvas.style.setProperty("cursor", "crosshair");
         this.preview = RENDERING2D(160, 100); 
         this.thumbnails = ZEROES(16).map(() => RENDERING2D(160, 100));
 
@@ -501,6 +582,19 @@ class FlickgameEditor extends EventTarget {
         this.colorSelect = RADIO("color-select");
         this.jumpSelect = SELECT("jump-select");
         this.jumpColorIndicator = ONE("#jump-source-color");
+
+        /** @type {CanvasRenderingContext2D[]} */
+        this.brushRenders = [];
+        brushes.forEach(async ({ image }, index) => {
+            const img = await loadImage(image);
+            const rendering = RENDERING2D(img.naturalWidth, img.naturalHeight);
+            rendering.drawImage(img, 0, 0);
+            this.brushRenders.push(rendering);
+            this.activeBrush = this.brushRenders[0];
+        });
+
+        this.activeBrush = undefined;
+        this.lineStart = undefined;
 
         this.actions = {
             undo: ACTION("undo"),
@@ -534,7 +628,14 @@ class FlickgameEditor extends EventTarget {
             });
         });
 
-        this.colorSelect.addEventListener("change", () => this.refreshJumpSelect());
+        this.brushSelect.addEventListener("change", () => {
+            this.refreshActiveBrush();
+        });
+
+        this.colorSelect.addEventListener("change", () => {
+            this.refreshActiveBrush();
+            this.refreshJumpSelect();
+        });
     
         this.stateManager.addEventListener("change", () => {
             this.stateManager.data.scenes.forEach((scene, index) => {
@@ -573,6 +674,70 @@ class FlickgameEditor extends EventTarget {
             ONE("input", label).title = patterns[index].name + " pattern";
             ONE("img", label).src = patterns[index].image;
         });
+
+        document.addEventListener("mousemove", (event) => {
+            const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
+            this.refreshPreview(x, y);
+        });
+
+        this.rendering.canvas.addEventListener("pointerdown", async (event) => {
+            if (this.toolSelect.value === "freehand") {
+                const scene = this.stateManager.data.scenes[this.sceneSelect.selectedIndex];
+
+                const plot = (x, y) => instance.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
+
+                this.stateManager.makeCheckpoint();
+                const { id, instance } = await this.stateManager.forkResource(scene.image);
+                scene.image = id;
+
+                const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
+                plot(x, y);
+                this.stateManager.changed();
+
+                let prev = { x, y };
+
+                const drag = new PointerDrag(event);
+                drag.addEventListener("pointerup", (event) => {
+                    const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
+                    plot(x, y);
+                    this.stateManager.changed();
+                });
+                drag.addEventListener("pointermove", (event) => {
+                    const { x: x0, y: y0 } = prev;
+                    const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
+                    lineplot(x0, y0, x1, y1, plot);
+                    prev = { x: x1, y: y1 };
+                    this.stateManager.changed();
+                });
+            } else if (this.toolSelect.value === "line") {
+                const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
+                this.lineStart = { x, y };
+                this.refreshPreview(x, y);
+            }
+        });
+
+        this.rendering.canvas.addEventListener("pointerup", (event) => {
+            const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
+
+            if (this.toolSelect.value === "line" && this.lineStart) {
+                this.stateManager.makeChange(async (data) => {
+                    const scene = this.stateManager.data.scenes[this.sceneSelect.selectedIndex];
+                    const plot = (x, y) => instance.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
+
+                    const { x: x0, y: y0 } = this.lineStart;
+
+                    const { id, instance } = await this.stateManager.forkResource(scene.image);
+                    scene.image = id;
+                    lineplot(x0, y0, x, y, plot);
+
+                    this.lineStart = undefined;
+                });
+            } else if (this.toolSelect.value === "fill") {
+                this.floodFill(x, y);
+            } else if (this.toolSelect.value === "pick") {
+                this.pickColor(x, y);
+            }
+        });
     }
 
     get selectedScene() {
@@ -590,12 +755,51 @@ class FlickgameEditor extends EventTarget {
         this.dispatchEvent(new CustomEvent("render"));
     }
 
+    refreshPreview(x, y) {
+        const valid = x !== undefined && y != undefined;
+        const plot = (x, y) => this.preview.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
+        
+        fillRendering2D(this.preview)
+
+        if (valid && this.toolSelect.value === "freehand") {
+            plot(x, y);
+        } else if (valid && this.toolSelect.value === "line") {
+            const { x: x0, y: y0 } = this.lineStart;
+            lineplot(x0, y0, x, y, plot);
+        }
+
+        this.render();
+    }
+
+    refreshActiveBrush() {
+        const brush = this.brushRenders[this.brushSelect.selectedIndex];
+        const color = palette[this.colorSelect.selectedIndex];
+        this.activeBrush = recolorMask(brush, color);
+    }
+
     refreshJumpSelect() {
         if (!this.sceneSelect.selectedIndex || !this.colorSelect.selectedIndex) return;
 
         const jump = this.selectedScene.jumps[this.colorSelect.value];
         this.jumpSelect.value = jump ? jump : "none";
         this.jumpColorIndicator.style.backgroundColor = palette[this.colorSelect.selectedIndex];
+    }
+
+    floodFill(x, y) {
+        this.stateManager.makeChange(async (data) => {
+            const color = palette[this.colorSelect.selectedIndex];
+            const scene = data.scenes[this.sceneSelect.selectedIndex];
+            const { id, instance } = await this.stateManager.forkResource(scene.image);
+            scene.image = id;
+
+            floodfill(instance, x, y, hexToUint32(color));
+        });
+    }
+
+    pickColor(x, y) {
+        const [r, g, b, a] = this.rendering.getImageData(x, y, 1, 1).data;
+        const hex = "#" + [r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("");
+        this.colorSelect.selectedIndex = palette.findIndex((color) => color === hex);
     }
 
     copyScene() {
@@ -623,8 +827,6 @@ class FlickgameEditor extends EventTarget {
 async function start() {
     const player = new FlickgamePlayer();
     const editor = new FlickgameEditor();
-
-    const renderer = ONE("#renderer").getContext("2d");
 
     const play = ACTION("play");
     const edit = ACTION("edit");
@@ -696,18 +898,12 @@ async function start() {
         editor.stateManager.loadBundle(bundleData);
     }
 
-    editor.addEventListener("render", () => renderer.drawImage(editor.rendering.canvas, 0, 0));
-
     const playCanvas = ONE("#player canvas");
     const playRendering = /** @type {CanvasRenderingContext2D} */ (playCanvas.getContext("2d"));
     
     playCanvas.addEventListener("click", (event) => {
-        const bounds = playCanvas.getBoundingClientRect();
-        const [mx, my] = [event.clientX - bounds.x, event.clientY - bounds.y];
-        const scale = playCanvas.width / playCanvas.clientWidth; 
-        const [px, py] = [Math.floor(mx * scale), Math.floor(my * scale)];
-        
-        player.click(px, py);
+        const { x, y } = mouseEventToCanvasPixelCoords(playCanvas, event);
+        player.click(x, y);
     });
 
     player.addEventListener("render", () => {
@@ -736,7 +932,7 @@ async function start() {
         const init = RENDERING2D(160, 100);
         init.drawImage(demo, 0, 0);
         editor.stateManager.data.scenes[0].image = editor.stateManager.addResource("canvas-datauri", init);
-        editor.stateManager.dispatchEvent(new CustomEvent("change"));
+        editor.stateManager.changed();
         showEditor();
     }
 }
