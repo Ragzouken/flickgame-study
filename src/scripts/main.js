@@ -324,6 +324,11 @@ const resourceTypes = {
     }
 }
 
+/** @param {FlickgameDataProject} data */
+function resourceManifest(data) {
+    return data.scenes.map((scene) => scene.image);
+}
+
 class FlickgameStateManager extends EventTarget {
     constructor() {
         super();
@@ -357,6 +362,7 @@ class FlickgameStateManager extends EventTarget {
         this.history.length = 0;
         this.history.push(bundle.project);
         this.index = 0;
+        this.resources.clear();
 
         const promises = Object.entries(bundle.resources).map(async ([id, resource]) => {
             const instance = await resourceTypes[resource.type].load(resource);
@@ -387,7 +393,9 @@ class FlickgameStateManager extends EventTarget {
         const project = COPY(this.data);
         const resources = {};
 
-        const promises = Array.from(this.resources).map(async ([id, { type, instance }]) => {
+        const resourceIds = new Set(resourceManifest(project));
+        const relevant = Array.from(this.resources).filter(([id]) => resourceIds.has(id));
+        const promises = relevant.map(async ([id, { type, instance }]) => {
             const data = await resourceTypes[type].save(instance);
             resources[id] = { type, data };
         });
@@ -418,6 +426,7 @@ class FlickgameStateManager extends EventTarget {
         } else {
             // delete earliest history
             this.history.splice(0, 1);
+            this.pruneResources();
         }
     }
 
@@ -447,7 +456,7 @@ class FlickgameStateManager extends EventTarget {
     }
 
     getResource(id) {
-        return this.resources.get(id).instance;
+        return this.resources.get(id)?.instance;
     }
 
     addResource(type, instance) {
@@ -463,6 +472,12 @@ class FlickgameStateManager extends EventTarget {
         const fork = { type: source.type, instance }; 
         this.resources.set(forkId, fork);
         return { id: forkId, instance };
+    }
+
+    pruneResources() {
+        const ids = new Set(this.history.flatMap(resourceManifest));
+        const remove = Array.from(this.resources.keys()).filter((id) => !ids.has(id));
+        remove.forEach((id) => this.resources.delete(id));
     }
 }
 
@@ -538,14 +553,18 @@ class FlickgamePlayer extends EventTarget {
         this.dispatchEvent(new CustomEvent("render"));
     }
 
-    click(x, y) {
+    getJumpAt(x, y) {
         const scene = this.stateManager.data.scenes[this.activeSceneIndex];
         const image = this.stateManager.getResource(scene.image);
 
         const [r, g, b, a] = image.getImageData(x, y, 1, 1).data;
         const hex = "#" + [r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("");
         const index = palette.findIndex((color) => color === hex);
-        const jump = scene.jumps[index];
+        return scene.jumps[index];
+    }
+
+    click(x, y) {
+        const jump = this.getJumpAt(x, y);
 
         if (jump) { 
             this.activeSceneIndex = parseInt(jump, 10);
@@ -609,6 +628,7 @@ class FlickgameEditor extends EventTarget {
         this.actions.paste.disabled = true;
 
         this.copiedScene = undefined;
+        this.copiedImage = undefined;
 
         this.sceneSelect.addEventListener("change", () => {
             this.render();
@@ -756,6 +776,8 @@ class FlickgameEditor extends EventTarget {
     }
 
     refreshPreview(x, y) {
+        if (!this.stateManager.data) return;
+
         const valid = x !== undefined && y != undefined;
         const plot = (x, y) => this.preview.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
         
@@ -804,12 +826,15 @@ class FlickgameEditor extends EventTarget {
 
     copyScene() {
         this.copiedScene = COPY(this.selectedScene);
+        this.copiedImage = copyRendering2D(this.stateManager.getResource(this.copiedScene.image));
         this.actions.paste.disabled = false;
     }
 
     pasteScene() {
         this.stateManager.makeChange(async (data) => {
-            data.scenes[this.sceneSelect.selectedIndex] = COPY(this.copiedScene);
+            const scene = COPY(this.copiedScene);
+            scene.image = this.stateManager.addResource("image-datauri", copyRendering2D(this.copiedImage));
+            data.scenes[this.sceneSelect.selectedIndex] = scene;
         });
     }
 
@@ -901,6 +926,12 @@ async function start() {
     const playCanvas = ONE("#player canvas");
     const playRendering = /** @type {CanvasRenderingContext2D} */ (playCanvas.getContext("2d"));
     
+    playCanvas.addEventListener("mousemove", (event) => {
+        const { x, y } = mouseEventToCanvasPixelCoords(playCanvas, event);
+        const clickable = player.getJumpAt(x, y) !== undefined;
+        playCanvas.style.setProperty("cursor", clickable ? "pointer" : "unset");
+    });
+
     playCanvas.addEventListener("click", (event) => {
         const { x, y } = mouseEventToCanvasPixelCoords(playCanvas, event);
         player.click(x, y);
@@ -927,12 +958,16 @@ async function start() {
         await player.loadBundle(bundle);
         showPlayer();
     } else {
-        const demo = await loadImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAABkBAMAAADzmCa8AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAMUExURRQMHG2qLN7u1tJ9LAlotEkAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAMUSURBVGjezdmJkesgDABQIA1ABx6lgUzov7cPEmAwh4Vh50d7xgsv4jBZiPgfYTZ70ujd4F5P7E7wKaigcVHq5yDAUV80HtsLmu2gfg7WnegmDIFSr4JHBNGU5pyKrYb0wLNoGHICJTY8/QWegJCDIvOeg0cOZj04BUJWKwfzm5kPqiaoryAsgTQPF8DjCob5olfB89dqRgNwJ2IbHJXig2obCHe1sNA82K8Fm0EsMzPKdyA8AxsdRanhdfbyNQLh9AQ7TqaqCY9A0QVhMwhFPABVCcImsOOtggo2gFnF2psZlQYIyyAUY9JIcEasQYAlUeWgeHUSBP64lKD9dMHJ5QYSCPD+wkqzA/jGCvbjnsBaWBEDaL/+h/24R7aXIU90xd4fLsjpSWwjgu7p0RqC90kiqLwixMv3Xr8LeUkm0CeI8b0Bxzn6eRJB8u4SHIgv38gIpgBGdEA3jRGECL55XFdE0HeZuze8JyDvwaMW1E2rE0hV/Lesya76UWWkhim69opToLLJP3CbUSekBim+LDW020tRjEt6vgC32+ziM1iiVf7PaGLUqM0uwdGaXxDpch/0wyLai34oUF6gfYKCtF+oMywbdE2wHgJa3dvZDcGzTOHhHm0AUosbbe7f/8MNgQ2gK/TuJVjFAHxZm561XLNGC9RoYxpbXGUoFkOxe5AbwVF/BfaKSVHsee/BuwT9UY6ZAo8LKCuQeeBEoILrVuBSexI8IpgJxpwdp6vDlxtQVCAeLsWOa5zm9INuUP9Zge5Lz4MhzxqMqH9Un+bcpin6oNSroEwgDo2h8z+hJ0B64UynS+FsCY8m3QeB0jwFfWIR9OOCwx2bz/MU5NtxX1sn0Es42pSleQSeg0Dd6Oc43ir5yecjMFBxhLH9PDBfGzxoRMgo3cL0mDl1VLFenyB1GQ1ENvSMKF5QENTX8XQjMnX/qRyUrb731/QkmE5NW3NYnn3JBmNN07zL6BJzahf/FUjzO2/69EOaXwanRpMRcdXfBpL102B86dwX1zcslkOazW/gSvZazw1c+3fGRIOF+Af8sQAWZmiH2QAAAABJRU5ErkJggg==");
         await editor.stateManager.loadBundle(makeBlankBundle());
-        const init = RENDERING2D(160, 100);
-        init.drawImage(demo, 0, 0);
-        editor.stateManager.data.scenes[0].image = editor.stateManager.addResource("canvas-datauri", init);
-        editor.stateManager.changed();
+
+        const demo = await loadImage("data:image/png;base64,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");
+        editor.stateManager.makeChange(async (data) => {
+            const prev = data.scenes[0].image;
+            const { id, instance } = await editor.stateManager.forkResource(prev);
+            instance.drawImage(demo, 0, 0);
+            data.scenes[0].image = id;
+        });
+
         showEditor();
     }
 }
