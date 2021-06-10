@@ -43,7 +43,8 @@ body {
 
 #player-menu {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     gap: 1em;
 
     height: 32px;
@@ -97,14 +98,36 @@ body {
     gap: 1em;
 }
 
-#editor h1 {
-    font-size: 1.5rem;
+h1, h2, h3, h4, h5, h6 {
     margin: 0;
+}
+
+#help {
+    font-family: monospace;
+    font-size: large;
+}
+
+#help [name="help"] {
+    position: absolute;
+    top: 1em; right: 1em;
+}
+
+#help a {
+    color: var(--button-color);
+}
+
+#help a:hover {
+    color: white;
+}
+
+#help a:visited {
+    color: gray;
 }
 
 #menu {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     gap: 1em;
 
     height: 32px;
@@ -249,7 +272,8 @@ body {
 }
 
 #viewport {
-    display: flex;
+    position: relative;
+    display: flex; flex-direction: column;
     border-radius: 1em;
 
     background: var(--trans-gradient);
@@ -257,6 +281,22 @@ body {
 
     justify-content: center;
     align-items: center;
+
+    overflow: hidden;
+}
+
+#help {
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    color: white;
+    background-color: #000000DD;
+    /* border-radius: 1em; */
+
+    display: flex;
+    flex-direction: column;
+    padding: 1em;
+    overflow: auto;
 }
 
 #renderer {

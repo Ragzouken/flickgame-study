@@ -11,18 +11,6 @@ function mouseEventToCanvasPixelCoords(canvas, event) {
 }
 
 /**
- * @param {HTMLCanvasElement} canvas 
- * @param {MouseEvent} event 
- */
- function mouseEventToCanvasFloatCoords(canvas, event) {
-    const bounds = canvas.getBoundingClientRect();
-    const [mx, my] = [event.clientX - bounds.x, event.clientY - bounds.y];
-    const scale = canvas.width / canvas.clientWidth; 
-    const [px, py] = [mx * scale, my * scale];
-    return { x: px, y: py };
-}
-
-/**
  * @template {keyof WindowEventMap} K
  * @param {Window | Document | Element} element 
  * @param {K} type 
@@ -510,14 +498,14 @@ const brushes = [
 ];
 
 const patterns = [
-    { name: "solid", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAADUExURf///6fEG8gAAAAJcEhZcwAADsIAAA7CARUoSoAAAAANSURBVBjTYyAJMDAAAAAwAAHT27rKAAAAAElFTkSuQmCC" },
-    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
-    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOwwAADsMBx2+oZAAAABFJREFUKFNjYGAkAEeSCkYGAEUQAIFA2DR1AAAAAElFTkSuQmCC" },
+    { name: "solid", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAANQTFRF////p8QbyAAAAA1JREFUGJVjYBgFyAAAARAAATPJ8WoAAAAASUVORK5CYII=" },
+    { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAAZQTFRF////AAAAVcLTfgAAAAJ0Uk5T/wDltzBKAAAAEElEQVQYlWNgYCQAGUaUCgBFEACBOeFM/QAAAABJRU5ErkJggg==" },
+    { name: "grate", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAACpJREFUOI1j+P///38GJEAqH0WQXJosm7FqJoseDYPRMBgNA4b/////BwD1yX6QPhXhyAAAAABJRU5ErkJggg==" },
+    { name: "light", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAACJJREFUOI1j+P///38GJEAqn3pg4FwyGgajYTCwNg8alwAAPvx/gQ2QnLUAAAAASUVORK5CYII=" },
+    { name: "circles", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAIVJREFUOI2lkksSgDAIQ0nH+185bqRGClTHbFqY8vgVdokkTQQA7vd7FEkiC84g6nMbalTKsivg6IKrIIWOL8F69/MVoNOoJmx2969v4vtpZGvUvrMEJIndniNsqW6Sws4V2v2TxxC7aVcV/t5C+8t2FUxAN+0dYGmBogo6swPYDikDq/8ElN2X5dPxSkwAAAAASUVORK5CYII=" },
+    { name: "worms", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAHlJREFUOI2tUlsOwCAIaxfvf+XuR5yZvJaMHwlgWx7ANEny3swHgGFBkkRhe90C6jBl6g6Gr6DH54rJBelIj+KX28s0krTBmR8Wp/0FrUnSP1voFJcKu+s6cuVx4NmCBzyiD+bbBiLwluSd/a0kBOrk1wyyAUbnbPEbw9o6+o7mZV0AAAAASUVORK5CYII=" },
+    { name: "slants", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAADVJREFUOI1j+P///38GJEAqnwGfJDF8JpymkQrI9Qp1XEBJQFLuAkqjkXqxQK5rRtPBYEgHABdWj38s+V8BAAAAAElFTkSuQmCC" },
+    { name: "tiles", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAFNJREFUOI3Nk8EKACAIQ/f/P71OQVCzLQryJAz3VBQAQJIoYtR7vqwpRWEoCY4hSX7Q/k60jE+pcgeK6o65pyauT3cQ06SeXOKUX2vfHcMqSB6qAfbO4x1nFCH3AAAAAElFTkSuQmCC" },
 ];
 
 class FlickgamePlayer extends EventTarget {
@@ -602,17 +590,30 @@ class FlickgameEditor extends EventTarget {
         this.jumpSelect = SELECT("jump-select");
         this.jumpColorIndicator = ONE("#jump-source-color");
 
+        this.heldColorPick = false;
+
         /** @type {CanvasRenderingContext2D[]} */
-        this.brushRenders = [];
+        this.brushRenders = ZEROES(4);
         brushes.forEach(async ({ image }, index) => {
             const img = await loadImage(image);
             const rendering = RENDERING2D(img.naturalWidth, img.naturalHeight);
             rendering.drawImage(img, 0, 0);
-            this.brushRenders.push(rendering);
+            this.brushRenders[index] = rendering;
             this.activeBrush = this.brushRenders[0];
         });
 
+        /** @type {CanvasRenderingContext2D[]} */
+        this.patternRenders = ZEROES(8);
+        patterns.forEach(async ({ image }, index) => {
+            const img = await loadImage(image);
+            const rendering = RENDERING2D(img.naturalWidth, img.naturalHeight);
+            rendering.drawImage(img, 0, 0);
+            this.patternRenders[index] = rendering;
+            this.activePattern = this.patternRenders[0];
+        });
+
         this.activeBrush = undefined;
+        this.activePattern = undefined;
         this.lineStart = undefined;
 
         this.actions = {
@@ -626,6 +627,39 @@ class FlickgameEditor extends EventTarget {
         this.actions.undo.disabled = true;
         this.actions.redo.disabled = true;
         this.actions.paste.disabled = true;
+
+        document.addEventListener("keydown", (event) => {
+            if (event.ctrlKey && event.key === "z") this.actions.undo.invoke();
+            if (event.ctrlKey && event.key === "y") this.actions.redo.invoke();
+            if (event.ctrlKey && event.key === "c") this.actions.copy.invoke();
+            if (event.ctrlKey && event.key === "v") this.actions.paste.invoke();
+            if (event.ctrlKey && event.key === "x") {
+                this.actions.copy.invoke();
+                this.actions.clear.invoke();
+            }
+
+            for (let i = 0; i < 8; ++i) {
+                if (event.code === `Digit${i+1}`) {
+                    this.sceneSelect.selectedIndex = event.shiftKey ? i+8 : i;
+                }
+            }
+
+            if (event.code === "KeyQ") this.toolSelect.selectedIndex = 0;
+            if (event.code === "KeyW") this.toolSelect.selectedIndex = 1;
+            if (event.code === "KeyE") this.toolSelect.selectedIndex = 2;
+            if (event.code === "KeyR") this.toolSelect.selectedIndex = 3;
+
+            if (event.code === "KeyA") this.brushSelect.selectedIndex = 0;
+            if (event.code === "KeyS") this.brushSelect.selectedIndex = 1;
+            if (event.code === "KeyD") this.brushSelect.selectedIndex = 2;
+            if (event.code === "KeyF") this.brushSelect.selectedIndex = 3;
+
+            this.heldColorPick = event.altKey;
+        });
+
+        document.addEventListener("keyup", (event) => {
+            this.heldColorPick = event.altKey;
+        });
 
         this.copiedScene = undefined;
         this.copiedImage = undefined;
@@ -648,9 +682,8 @@ class FlickgameEditor extends EventTarget {
             });
         });
 
-        this.brushSelect.addEventListener("change", () => {
-            this.refreshActiveBrush();
-        });
+        this.brushSelect.addEventListener("change", () => this.refreshActiveBrush());
+        this.patternSelect.addEventListener("change", () => this.refreshActiveBrush());
 
         this.colorSelect.addEventListener("change", () => {
             this.refreshActiveBrush();
@@ -699,12 +732,16 @@ class FlickgameEditor extends EventTarget {
             const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
             this.refreshPreview(x, y);
         });
-
+        
         this.rendering.canvas.addEventListener("pointerdown", async (event) => {
+            if (this.heldColorPick) return;
+
             if (this.toolSelect.value === "freehand") {
                 const scene = this.stateManager.data.scenes[this.sceneSelect.selectedIndex];
 
-                const plot = (x, y) => instance.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
+                const mask = RENDERING2D(160, 100);
+                const plot = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
+                const pattern = mask.createPattern(this.activePattern.canvas, 'repeat');
 
                 this.stateManager.makeCheckpoint();
                 const { id, instance } = await this.stateManager.forkResource(scene.image);
@@ -712,6 +749,10 @@ class FlickgameEditor extends EventTarget {
 
                 const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
                 plot(x, y);
+                mask.globalCompositeOperation = "source-in";
+                fillRendering2D(mask, pattern);
+                mask.globalCompositeOperation = "source-over";
+                instance.drawImage(mask.canvas, 0, 0);
                 this.stateManager.changed();
 
                 let prev = { x, y };
@@ -720,12 +761,20 @@ class FlickgameEditor extends EventTarget {
                 drag.addEventListener("pointerup", (event) => {
                     const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
                     plot(x, y);
+                    mask.globalCompositeOperation = "source-in";
+                    fillRendering2D(mask, pattern);
+                    mask.globalCompositeOperation = "source-over";
+                    instance.drawImage(mask.canvas, 0, 0);
                     this.stateManager.changed();
                 });
                 drag.addEventListener("pointermove", (event) => {
                     const { x: x0, y: y0 } = prev;
                     const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
                     lineplot(x0, y0, x1, y1, plot);
+                    mask.globalCompositeOperation = "source-in";
+                    fillRendering2D(mask, pattern);
+                    mask.globalCompositeOperation = "source-over";
+                    instance.drawImage(mask.canvas, 0, 0);
                     prev = { x: x1, y: y1 };
                     this.stateManager.changed();
                 });
@@ -733,30 +782,39 @@ class FlickgameEditor extends EventTarget {
                 const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
                 this.lineStart = { x, y };
                 this.refreshPreview(x, y);
+
+                const drag = new PointerDrag(event);
+                drag.addEventListener("pointerup", (event) => {
+                    this.stateManager.makeChange(async (data) => {
+                        const scene = this.stateManager.data.scenes[this.sceneSelect.selectedIndex];
+    
+                        const { x: x0, y: y0 } = this.lineStart;
+                        const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
+                        const { id, instance } = await this.stateManager.forkResource(scene.image);
+                        scene.image = id;
+
+                        const mask = RENDERING2D(160, 100);
+                        const plot = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
+                        lineplot(x0, y0, x1, y1, plot);
+                        mask.globalCompositeOperation = "source-in";
+                        fillRendering2D(mask, mask.createPattern(this.activePattern.canvas, 'repeat'));
+                        instance.drawImage(mask.canvas, 0, 0);
+
+                        this.lineStart = undefined;
+                    });
+                });
             }
         });
 
         this.rendering.canvas.addEventListener("pointerup", (event) => {
+            if (event.button !== 1) event.preventDefault();
             const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
 
-            if (this.toolSelect.value === "line" && this.lineStart) {
-                this.stateManager.makeChange(async (data) => {
-                    const scene = this.stateManager.data.scenes[this.sceneSelect.selectedIndex];
-                    const plot = (x, y) => instance.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
-
-                    const { x: x0, y: y0 } = this.lineStart;
-
-                    const { id, instance } = await this.stateManager.forkResource(scene.image);
-                    scene.image = id;
-                    lineplot(x0, y0, x, y, plot);
-
-                    this.lineStart = undefined;
-                });
+            if (this.toolSelect.value === "pick" || this.heldColorPick) {
+                this.pickColor(x, y);
             } else if (this.toolSelect.value === "fill") {
                 this.floodFill(x, y);
-            } else if (this.toolSelect.value === "pick") {
-                this.pickColor(x, y);
-            }
+            } 
         });
     }
 
@@ -778,29 +836,38 @@ class FlickgameEditor extends EventTarget {
     refreshPreview(x, y) {
         if (!this.stateManager.data) return;
 
+        fillRendering2D(this.preview);
+
         const valid = x !== undefined && y != undefined;
         const plot = (x, y) => this.preview.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
-        
-        fillRendering2D(this.preview)
 
-        if (valid && this.toolSelect.value === "freehand") {
+        if (this.heldColorPick) {
+        } else if (valid && this.toolSelect.value === "freehand") {
             plot(x, y);
-        } else if (valid && this.toolSelect.value === "line") {
+            this.preview.globalCompositeOperation = "source-in";
+            fillRendering2D(this.preview, this.preview.createPattern(this.activePattern.canvas, 'repeat'));
+            this.preview.globalCompositeOperation = "source-over";
+        } else if (valid && this.lineStart && this.toolSelect.value === "line") {
             const { x: x0, y: y0 } = this.lineStart;
             lineplot(x0, y0, x, y, plot);
+            this.preview.globalCompositeOperation = "source-in";
+            fillRendering2D(this.preview, this.preview.createPattern(this.activePattern.canvas, 'repeat'));
+            this.preview.globalCompositeOperation = "source-over";
         }
 
         this.render();
     }
 
     refreshActiveBrush() {
+        const pattern = this.patternRenders[this.patternSelect.selectedIndex];
         const brush = this.brushRenders[this.brushSelect.selectedIndex];
         const color = palette[this.colorSelect.selectedIndex];
         this.activeBrush = recolorMask(brush, color);
+        this.activePattern = recolorMask(pattern, color);
     }
 
     refreshJumpSelect() {
-        if (!this.sceneSelect.selectedIndex || !this.colorSelect.selectedIndex) return;
+        if (this.sceneSelect.selectedIndex < 0 || this.colorSelect.selectedIndex < 0) return;
 
         const jump = this.selectedScene.jumps[this.colorSelect.value];
         this.jumpSelect.value = jump ? jump : "none";
@@ -809,12 +876,14 @@ class FlickgameEditor extends EventTarget {
 
     floodFill(x, y) {
         this.stateManager.makeChange(async (data) => {
-            const color = palette[this.colorSelect.selectedIndex];
             const scene = data.scenes[this.sceneSelect.selectedIndex];
             const { id, instance } = await this.stateManager.forkResource(scene.image);
             scene.image = id;
 
-            floodfill(instance, x, y, hexToUint32(color));
+            const mask = floodfillOutput(instance, x, y, 0xFFFFFFFF);
+            mask.globalCompositeOperation = "source-in";
+            fillRendering2D(mask, mask.createPattern(this.activePattern.canvas, 'repeat'));
+            instance.drawImage(mask.canvas, 0, 0);
         });
     }
 
@@ -858,6 +927,7 @@ async function start() {
     const export_ = ACTION("export");
     const import_ = ACTION("import");
     const reset = ACTION("reset");
+    const help = ACTION("help");
 
     function showPlayer() {
         ONE("#player").hidden = false;
@@ -893,6 +963,10 @@ async function start() {
     reset.addEventListener("invoke", resetProject);
     export_.addEventListener("invoke", exportProject);
     import_.addEventListener("invoke", importProject);
+
+    const helpContainer = ONE("#help");
+
+    help.addEventListener("invoke", () => helpContainer.hidden = !helpContainer.hidden);
 
     async function resetProject() {
         editor.stateManager.loadBundle(makeBlankBundle());
@@ -954,13 +1028,14 @@ async function start() {
 
     const embedded = ONE("#bundle-embed")?.textContent;
     if (embedded) {
+        help.invoke();
         const bundle = JSON.parse(embedded);
         await player.loadBundle(bundle);
         showPlayer();
     } else {
         await editor.stateManager.loadBundle(makeBlankBundle());
 
-        const demo = await loadImage("data:image/png;base64,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");
+        const demo = await loadImage("data:image/png;base64,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");
         editor.stateManager.makeChange(async (data) => {
             const prev = data.scenes[0].image;
             const { id, instance } = await editor.stateManager.forkResource(prev);

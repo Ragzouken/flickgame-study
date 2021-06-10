@@ -20,7 +20,7 @@ html
             #player-container
                 canvas(width=160 height=100)
             #player-menu
-                a(href="http://flickgame.org" target="_blank") flickgame.org
+                //a(href="http://flickgame.org" target="_blank") flickgame.org
                 button(name="edit" title="edit this game") edit
         #editor(hidden)
             main
@@ -29,7 +29,10 @@ html
                         label
                             input(type="radio" name="scene-select" value=`${index}` title=`open scene ${index}`)
                 #viewport
-                    canvas#renderer(width="160" height="100")
+                    canvas#renderer(width="160" height="100" draggable="false")
+                    #help(hidden)
+                        button(name="help" title="hide help") close
+                        include:markdown-it(html) about.md
                 section#tools
                     #tool-select.grid4.radio-select(title="tools")
                         label
@@ -83,4 +86,5 @@ html
                 button(name="export" title="export as webpage") export
                 button(name="import" title="import from webpage") import
                 button(name="reset" title="reset to blank") reset
+                button(name="help" title="how to use this tool") help
         script#bundle-embed(type="application/json")

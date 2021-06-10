@@ -118,7 +118,7 @@ function lineplot(x0, y0, x1, y1, plot) {
  * @param {CanvasRenderingContext2D} rendering 
  * @param {number} x 
  * @param {number} y 
- * @param {number} color 
+ * @param {number} color
  */
 function floodfill(rendering, x, y, color) {
     const [width, height] = [rendering.canvas.width, rendering.canvas.height];
@@ -146,6 +146,44 @@ function floodfill(rendering, x, y, color) {
             enqueue(x, y + 1);
         }
     });
+};
+
+/**
+ * @param {CanvasRenderingContext2D} rendering 
+ * @param {number} x 
+ * @param {number} y 
+ * @param {number} color
+ * @returns {CanvasRenderingContext2D}
+ */
+ function floodfillOutput(rendering, x, y, color) {
+    const [width, height] = [rendering.canvas.width, rendering.canvas.height];
+    const output = createRendering2D(width, height);
+    withPixels(rendering, srcPixels =>
+    withPixels(output, dstPixels => {
+        const queue = [[x, y]];
+        const done = new Array(width * height);
+        const initial = srcPixels[y * width + x];
+
+        function enqueue(x, y) {
+            const within = x >= 0 && y >= 0 && x < width && y < height;
+
+            if (within && srcPixels[y * width + x] === initial && !done[y * width + x]) {
+                queue.push([x, y]);
+            }
+        }
+
+        while (queue.length > 0) {
+            const [x, y] = queue.pop();
+            dstPixels[y * width + x] = color;
+            done[y * width + x] = true;
+
+            enqueue(x - 1, y);
+            enqueue(x + 1, y);
+            enqueue(x, y - 1);
+            enqueue(x, y + 1);
+        }
+    }));
+    return output;
 };
 
 /**
