@@ -105,11 +105,21 @@ h1, h2, h3, h4, h5, h6 {
 #help {
     font-family: monospace;
     font-size: large;
+
+    display: flex;
+    padding: 1em;
+    gap: 1em;
+
+    overflow: hidden scroll;
 }
 
 #help [name="help"] {
     position: absolute;
     top: 1em; right: 1em;
+}
+
+#help > * {
+    margin: 0;
 }
 
 #help a {
@@ -122,6 +132,21 @@ h1, h2, h3, h4, h5, h6 {
 
 #help a:visited {
     color: gray;
+}
+
+#help ul {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    margin: 0 1em;
+    padding: 0;
+    gap: .5em 1em;
+    list-style: none;
+
+    align-content: center;
+}
+
+#help li {
+    display: inline;
 }
 
 #menu {
