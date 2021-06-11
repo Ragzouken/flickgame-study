@@ -71,6 +71,12 @@ maker.ResourceManager = class {
         return this.resources.get(id)?.instance;
     }
 
+    /**
+     * Add a resource instance at a specific id.
+     * @param {string} id 
+     * @param {any} instance 
+     * @param {string} type 
+     */
     set(id, instance, type) {
         this.resources.set(id, { type, instance });
     }
@@ -186,19 +192,32 @@ maker.StateManager = class extends EventTarget {
         this.historyLimit = 20;
     }
 
-    get data() {
+    /**
+     * The present state in history.
+     */
+    get present() {
         return this.history[this.index];
     }
 
+    /**
+     * Is there any edit history to undo to?
+     */
     get canUndo() {
         return this.index > 0;
     }
 
+    /**
+     * Are there any undone edits to redo?
+     */
     get canRedo() {
         return this.index < this.history.length - 1;
     }
 
-    /** @param {maker.ProjectBundle<TState>} bundle */
+    /**
+     * Replace all state with the project and resources in the given project
+     * bundle.
+     * @param {maker.ProjectBundle<TState>} bundle
+     */
     async loadBundle(bundle) {
         this.history.length = 0;
         this.history.push(bundle.project);
@@ -209,27 +228,38 @@ maker.StateManager = class extends EventTarget {
         this.changed();
     }
 
-    /** @param {maker.StateManager<TState>} other */
+    /**
+     * Replace all state by copying from another state manager.
+     * @param {maker.StateManager<TState>} other 
+     */
     async copyFrom(other) {
         this.history = COPY(other.history);
         this.index = other.index;
-        this.resources.copyFrom(other.resources);
+        this.resources.clear();
+        await this.resources.copyFrom(other.resources);
         
         this.changed();
     }
-
-    /** @returns {Promise<maker.ProjectBundle<TState>>} */
+    
+    /**
+     * Copy the present state and dependent resources into a project bundle.
+     * @returns {Promise<maker.ProjectBundle<TState>>}
+     */
     async makeBundle() {
-        const project = COPY(this.data);
-        const resources = await this.resources.save(this.getManifest(this.data));
+        const project = COPY(this.present);
+        const resources = await this.resources.save(this.getManifest(this.present));
 
         return { project, resources };
     }
 
+    /**
+     * Save the current state as a checkpoint in history that can be returned to
+     * with undo/redo.
+     */
     makeCheckpoint() {
         this.history.length = this.index + 1;
         
-        const currentData = this.data;
+        const currentData = this.present;
 
         this.history[this.index] = COPY(currentData);
         this.history.push(currentData);
@@ -243,31 +273,49 @@ maker.StateManager = class extends EventTarget {
         }
     }
 
+    /**
+     * Dispatch the change event signalling that the present state has been
+     * updated.
+     */
     changed() {
         this.dispatchEvent(new CustomEvent("change"));
     }
 
-    /** @param {(data: TState) => Promise} action */
+    /**
+     * Discard all resources that are no longer required accord to the manifest
+     * function.
+     */
+    pruneResources() {
+        this.resources.prune(this.history.flatMap(this.getManifest));
+    }
+
+    /**
+     * Make a history checkpoint, replace the current state with a forked
+     * version via callback, and then dispatch the change event.
+     * @param {(data: TState) => Promise} action 
+     */
     async makeChange(action) {
         this.makeCheckpoint();
-        await action(this.data);
+        await action(this.present);
         this.changed();
     }
 
+    /**
+     * Revert the state to the previous checkpoint in history.
+     */
     undo() {
         if (!this.canUndo) return;
         this.index -= 1;
         this.changed();
     }
 
+    /**
+     * Return the state to the most recently undone checkpoint in history.
+     */
     redo() {
         if (!this.canRedo) return;
         this.index += 1;
         this.changed();
-    }
-    
-    pruneResources() {
-        this.resources.prune(this.history.flatMap(this.getManifest));
     }
 };
 

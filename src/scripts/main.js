@@ -324,7 +324,7 @@ class FlickgamePlayer extends EventTarget {
     }
 
     render() {
-        const scene = this.stateManager.data.scenes[this.activeSceneIndex];
+        const scene = this.stateManager.present.scenes[this.activeSceneIndex];
         const image = this.stateManager.resources.get(scene.image);
         
         this.rendering.clearRect(0, 0, 160, 100);
@@ -334,7 +334,7 @@ class FlickgamePlayer extends EventTarget {
     }
 
     getJumpAt(x, y) {
-        const scene = this.stateManager.data.scenes[this.activeSceneIndex];
+        const scene = this.stateManager.present.scenes[this.activeSceneIndex];
         const image = this.stateManager.resources.get(scene.image);
 
         const [r, g, b, a] = image.getImageData(x, y, 1, 1).data;
@@ -486,7 +486,7 @@ class FlickgameEditor extends EventTarget {
         });
     
         this.stateManager.addEventListener("change", () => {
-            this.stateManager.data.scenes.forEach((scene, index) => {
+            this.stateManager.present.scenes.forEach((scene, index) => {
                 const image = this.stateManager.resources.get(scene.image).canvas;
                 this.thumbnails[index].drawImage(image, 0, 0);
             });
@@ -532,7 +532,7 @@ class FlickgameEditor extends EventTarget {
             if (this.heldColorPick) return;
 
             if (this.toolSelect.value === "freehand") {
-                const scene = this.stateManager.data.scenes[this.sceneSelect.selectedIndex];
+                const scene = this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
 
                 const mask = RENDERING2D(160, 100);
                 const plot = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
@@ -581,7 +581,7 @@ class FlickgameEditor extends EventTarget {
                 const drag = new PointerDrag(event);
                 drag.addEventListener("pointerup", (event) => {
                     this.stateManager.makeChange(async (data) => {
-                        const scene = this.stateManager.data.scenes[this.sceneSelect.selectedIndex];
+                        const scene = this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
     
                         const { x: x0, y: y0 } = this.lineStart;
                         const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
@@ -614,7 +614,7 @@ class FlickgameEditor extends EventTarget {
     }
 
     get selectedScene() {
-        return this.stateManager.data.scenes[this.sceneSelect.selectedIndex];
+        return this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
     }
 
     render() {
@@ -629,7 +629,7 @@ class FlickgameEditor extends EventTarget {
     }
 
     refreshPreview(x, y) {
-        if (!this.stateManager.data) return;
+        if (!this.stateManager.present) return;
 
         fillRendering2D(this.preview);
 
@@ -751,7 +751,7 @@ async function start() {
     });
 
     edit.addEventListener("invoke", async () => {
-        if (!editor.stateManager.data) {
+        if (!editor.stateManager.present) {
             const bundle = await player.stateManager.makeBundle();
             await editor.stateManager.loadBundle(bundle);
         }
