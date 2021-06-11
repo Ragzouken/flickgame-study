@@ -14,10 +14,3 @@
  * @property {string} type
  * @property {any} data
  */
-
-/**
- * @template T
- * @typedef {Object} ProjectBundle
- * @property {T} project
- * @property {{[id: string]: ResourceData}} resources
- */

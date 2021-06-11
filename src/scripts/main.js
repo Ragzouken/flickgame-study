@@ -10,17 +10,6 @@ function mouseEventToCanvasPixelCoords(canvas, event) {
     return { x: px, y: py };
 }
 
-/**
- * @template {keyof WindowEventMap} K
- * @param {Window | Document | Element} element 
- * @param {K} type 
- * @param {(event: WindowEventMap[K]) => any} listener
- */
-function listen(element, type, listener) {
-    element.addEventListener(type, listener);
-    return () => element.removeEventListener(type, listener);
-}
-
 class PointerDrag extends EventTarget {
     /** 
      * @param {MouseEvent} event
@@ -34,30 +23,35 @@ class PointerDrag extends EventTarget {
         this.downEvent = event;
         this.lastEvent = event; 
 
-        this.removes = [
-            listen(document, "pointerup", (event) => {
+        this.listeners = {
+            "pointerup": (event) => {
                 if (event.pointerId !== this.pointerId) return;
     
                 this.lastEvent = event;
-                this.removes.forEach((remove) => remove());
+                this.unlisten();
                 this.dispatchEvent(new CustomEvent("pointerup", { detail: event }));
                 if (this.totalMovement <= clickMovementLimit) {
                     this.dispatchEvent(new CustomEvent("click", { detail: event }));
                 }
-            }),
-            listen(document, "pointermove", (event) => {
+            },
+
+            "pointermove": (event) => {
                 if (event.pointerId !== this.pointerId) return;
     
                 this.totalMovement += Math.abs(event.movementX);
                 this.totalMovement += Math.abs(event.movementY);
                 this.lastEvent = event;
                 this.dispatchEvent(new CustomEvent("pointermove", { detail: event }));
-            }),
-        ];
+            }
+        }
+
+        document.addEventListener("pointerup", this.listeners.pointerup);
+        document.addEventListener("pointermove", this.listeners.pointermove);
     }
 
-    cancel() {
-        this.removes.forEach((remove) => remove());
+    unlisten() {
+        document.removeEventListener("pointerup", this.listeners.pointerup);
+        document.removeEventListener("pointermove", this.listeners.pointermove);
     }
 }
 
@@ -73,17 +67,6 @@ const ONE = (query, element = undefined) => (element || document).querySelector(
  * @returns {HTMLElement[]}
  */
 const ALL = (query, element = undefined) => Array.from((element || document).querySelectorAll(query));
-/**
- * @template {keyof WindowEventMap} K
- * @param {Window | Document | Element} element 
- * @param {K} type 
- * @param {(event: WindowEventMap[K]) => any} listener
- * @returns {() => void}
- */
-function LISTEN(element, type, listener) {
-    element.addEventListener(type, listener);
-    return () => element.removeEventListener(type, listener);
-}
 
 /**
  * @template T
@@ -117,28 +100,6 @@ const ZEROES = (length) => Array(length).fill(0);
  */
  function textToBlob(text, type = "text/plain") {
     return new Blob([text], { type });
-}
-
-function saveAs(blob, name) {
-    const element = document.createElement("a");
-    const url = window.URL.createObjectURL(blob);
-    element.href = url;
-    element.download = name;
-    element.click();
-    window.URL.revokeObjectURL(url);
-};
-
-/**
- * @param {string} accept 
- * @param {boolean} multiple 
- * @returns {Promise<File[]>}
- */
- async function pickFiles(accept = "*", multiple = false) {
-    return new Promise((resolve) => {
-        const fileInput = html("input", { type: "file", accept, multiple });
-        fileInput.addEventListener("change", () => resolve(Array.from(fileInput.files)));
-        fileInput.click();
-    });
 }
 
 /**
@@ -295,181 +256,12 @@ async function imageDataURIresourceLoader(resource) {
     return rendering;
 }
 
-const resourceTypes = {
-    "canvas-datauri": {
-        load: async (resource) => {
-            const image = await loadImage(resource.data);
-            return imageToRendering2D(image);
-        },
-
-        copy: async (instance) => {
-            return copyRendering2D(instance);
-        },
-
-        save: async (instance) => {
-            return instance.canvas.toDataURL();
-        }
-    }
-}
-
 /** @param {FlickgameDataProject} data */
-function resourceManifest(data) {
+function getFlickgameManifest(data) {
     return data.scenes.map((scene) => scene.image);
 }
 
-class FlickgameStateManager extends EventTarget {
-    constructor() {
-        super();
-
-        this.lastId = 0;
-        /** @type {Map<string, { type: string, instance: any }>} */
-        this.resources = new Map();
-
-        /** @type {FlickgameDataProject[]} */
-        this.history = [];
-        this.index = -1;
-        this.historyLimit = 20;
-        this.dirty = undefined;
-    }
-
-    get data() {
-        return this.history[this.index];
-    }
-
-    get canUndo() {
-        return this.index > 0 || this.dirty;
-    }
-
-    get canRedo() {
-        return this.index < this.history.length - 1 && !this.dirty;
-    }
-
-    /** @param {ProjectBundle<FlickgameDataProject>} bundle */
-    async loadBundle(bundle) {
-        this.lastId = 0;
-        this.history.length = 0;
-        this.history.push(bundle.project);
-        this.index = 0;
-        this.resources.clear();
-
-        const promises = Object.entries(bundle.resources).map(async ([id, resource]) => {
-            const instance = await resourceTypes[resource.type].load(resource);
-            this.resources.set(id, { type: resource.type, instance });
-        });
-        await Promise.all(promises);
-
-        this.changed();
-    }
-
-    /** @param {FlickgameStateManager} other */
-    async copyFrom(other) {
-        this.lastId = other.lastId;
-        this.history = COPY(other.history);
-        this.index = other.index;
-
-        const promises = Array.from(other.resources).map(async ([id, resource]) => {
-            const instance = await resourceTypes[resource.type].copy(resource.instance);
-            this.resources.set(id, { type: resource.type, instance });
-        });
-        await Promise.all(promises);
-        
-        this.changed();
-    }
-
-    /** @returns {Promise<ProjectBundle<FlickgameDataProject>>} */
-    async makeBundle() {
-        const project = COPY(this.data);
-        const resources = {};
-
-        const resourceIds = new Set(resourceManifest(project));
-        const relevant = Array.from(this.resources).filter(([id]) => resourceIds.has(id));
-        const promises = relevant.map(async ([id, { type, instance }]) => {
-            const data = await resourceTypes[type].save(instance);
-            resources[id] = { type, data };
-        });
-        await Promise.all(promises);
-
-        return { project, resources };
-    }
-
-    nextId() {
-        while (this.resources.has(this.lastId.toString())) {
-            this.lastId += 1;
-        }
-
-        return this.lastId.toString();
-    }
-
-    makeCheckpoint() {
-        this.dirty = undefined;
-        this.history.length = this.index + 1;
-        
-        const currentData = this.data;
-
-        this.history[this.index] = COPY(currentData);
-        this.history.push(currentData);
-        
-        if (this.index < this.historyLimit) {
-            this.index += 1;
-        } else {
-            // delete earliest history
-            this.history.splice(0, 1);
-            this.pruneResources();
-        }
-    }
-
-    changed() {
-        this.dispatchEvent(new CustomEvent("change"));
-    }
-
-    /** @param {(data: FlickgameDataProject) => Promise} action */
-    async makeChange(action) {
-        this.makeCheckpoint();
-        await action(this.data);
-        this.changed();
-    }
-
-    undo() {
-        if (!this.canUndo) return;
-        this.index -= 1;
-        this.dirty = undefined;
-        this.changed();
-    }
-
-    redo() {
-        if (!this.canRedo) return;
-        this.index += 1;
-        this.dirty = undefined;
-        this.changed();
-    }
-
-    getResource(id) {
-        return this.resources.get(id)?.instance;
-    }
-
-    addResource(type, instance) {
-        const id = this.nextId();
-        this.resources.set(id, { type, instance });
-        return id;
-    }
-
-    async forkResource(id) {
-        const source = this.resources.get(id);
-        const forkId = this.nextId();
-        const instance = await resourceTypes[source.type].copy(source.instance);
-        const fork = { type: source.type, instance }; 
-        this.resources.set(forkId, fork);
-        return { id: forkId, instance };
-    }
-
-    pruneResources() {
-        const ids = new Set(this.history.flatMap(resourceManifest));
-        const remove = Array.from(this.resources.keys()).filter((id) => !ids.has(id));
-        remove.forEach((id) => this.resources.delete(id));
-    }
-}
-
-/** @returns {ProjectBundle<FlickgameDataProject>} */
+/** @returns {maker.ProjectBundle<FlickgameDataProject>} */
 function makeBlankBundle() {
     const blank = RENDERING2D(160, 100);
     blank.fillStyle = "#140c1c";
@@ -511,7 +303,7 @@ const patterns = [
 class FlickgamePlayer extends EventTarget {
     constructor() {
         super();
-        this.stateManager = new FlickgameStateManager();
+        this.stateManager = new maker.StateManager();
         this.rendering = RENDERING2D(160, 100);
         this.activeSceneIndex = 0;
     }
@@ -533,7 +325,7 @@ class FlickgamePlayer extends EventTarget {
 
     render() {
         const scene = this.stateManager.data.scenes[this.activeSceneIndex];
-        const image = this.stateManager.getResource(scene.image);
+        const image = this.stateManager.resources.get(scene.image);
         
         this.rendering.clearRect(0, 0, 160, 100);
         this.rendering.drawImage(image.canvas, 0, 0);
@@ -543,7 +335,7 @@ class FlickgamePlayer extends EventTarget {
 
     getJumpAt(x, y) {
         const scene = this.stateManager.data.scenes[this.activeSceneIndex];
-        const image = this.stateManager.getResource(scene.image);
+        const image = this.stateManager.resources.get(scene.image);
 
         const [r, g, b, a] = image.getImageData(x, y, 1, 1).data;
         const hex = "#" + [r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("");
@@ -575,7 +367,10 @@ class FlickgameEditor extends EventTarget {
     constructor() {
         super();
 
-        this.stateManager = new FlickgameStateManager();
+        const getManifest = (data) => [...getFlickgameManifest(data), ...this.getManifest()];
+
+        /** @type {maker.StateManager<FlickgameDataProject>} */
+        this.stateManager = new maker.StateManager(getManifest);
         /** @type {CanvasRenderingContext2D} */
         this.rendering = ONE("#renderer").getContext("2d");
         this.rendering.canvas.style.setProperty("cursor", "crosshair");
@@ -661,8 +456,8 @@ class FlickgameEditor extends EventTarget {
             this.heldColorPick = event.altKey;
         });
 
+        /** @type {FlickgameDataScene} */
         this.copiedScene = undefined;
-        this.copiedImage = undefined;
 
         this.sceneSelect.addEventListener("change", () => {
             this.render();
@@ -692,7 +487,7 @@ class FlickgameEditor extends EventTarget {
     
         this.stateManager.addEventListener("change", () => {
             this.stateManager.data.scenes.forEach((scene, index) => {
-                const image = this.stateManager.getResource(scene.image).canvas;
+                const image = this.stateManager.resources.get(scene.image).canvas;
                 this.thumbnails[index].drawImage(image, 0, 0);
             });
     
@@ -744,7 +539,7 @@ class FlickgameEditor extends EventTarget {
                 const pattern = mask.createPattern(this.activePattern.canvas, 'repeat');
 
                 this.stateManager.makeCheckpoint();
-                const { id, instance } = await this.stateManager.forkResource(scene.image);
+                const { id, instance } = await this.stateManager.resources.fork(scene.image);
                 scene.image = id;
 
                 const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
@@ -790,7 +585,7 @@ class FlickgameEditor extends EventTarget {
     
                         const { x: x0, y: y0 } = this.lineStart;
                         const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
-                        const { id, instance } = await this.stateManager.forkResource(scene.image);
+                        const { id, instance } = await this.stateManager.resources.fork(scene.image);
                         scene.image = id;
 
                         const mask = RENDERING2D(160, 100);
@@ -824,7 +619,7 @@ class FlickgameEditor extends EventTarget {
 
     render() {
         if (!this.selectedScene) return;
-        const image = this.stateManager.getResource(this.selectedScene.image);
+        const image = this.stateManager.resources.get(this.selectedScene.image);
 
         fillRendering2D(this.rendering);
         this.rendering.drawImage(image.canvas, 0, 0);
@@ -877,7 +672,7 @@ class FlickgameEditor extends EventTarget {
     floodFill(x, y) {
         this.stateManager.makeChange(async (data) => {
             const scene = data.scenes[this.sceneSelect.selectedIndex];
-            const { id, instance } = await this.stateManager.forkResource(scene.image);
+            const { id, instance } = await this.stateManager.resources.get(scene.image);
             scene.image = id;
 
             const mask = floodfillOutput(instance, x, y, 0xFFFFFFFF);
@@ -895,14 +690,12 @@ class FlickgameEditor extends EventTarget {
 
     copyScene() {
         this.copiedScene = COPY(this.selectedScene);
-        this.copiedImage = copyRendering2D(this.stateManager.getResource(this.copiedScene.image));
         this.actions.paste.disabled = false;
     }
 
     pasteScene() {
         this.stateManager.makeChange(async (data) => {
             const scene = COPY(this.copiedScene);
-            scene.image = this.stateManager.addResource("image-datauri", copyRendering2D(this.copiedImage));
             data.scenes[this.sceneSelect.selectedIndex] = scene;
         });
     }
@@ -910,11 +703,16 @@ class FlickgameEditor extends EventTarget {
     clearScene() {
         this.stateManager.makeChange(async (data) => {
             const scene = data.scenes[this.sceneSelect.selectedIndex];
-            const { id, instance } = await this.stateManager.forkResource(scene.image);
+            const { id, instance } = await this.stateManager.resources.fork(scene.image);
             instance.fillStyle = palette[this.colorSelect.selectedIndex];
             instance.fillRect(0, 0, 160, 100);
             scene.image = id;
         });
+    }
+
+    /** @returns {string[]} */
+    getManifest() {
+        return this.copiedScene ? [this.copiedScene.image] : [];
     }
 }
 
@@ -984,11 +782,11 @@ async function start() {
 
         const name = "flickgame.html";
         const blob = textToBlob(clone.outerHTML, "text/html");
-        saveAs(blob, name);
+        maker.saveAs(blob, name);
     }
 
     async function importProject() {
-        const [file] = await pickFiles("text/html");
+        const [file] = await maker.pickFiles("text/html");
         const text = await textFromFile(file);
         const html = await htmlFromText(text);
 
@@ -1038,7 +836,7 @@ async function start() {
         const demo = await loadImage("data:image/png;base64,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");
         editor.stateManager.makeChange(async (data) => {
             const prev = data.scenes[0].image;
-            const { id, instance } = await editor.stateManager.forkResource(prev);
+            const { id, instance } = await editor.stateManager.resources.fork(prev);
             instance.drawImage(demo, 0, 0);
             data.scenes[0].image = id;
         });
