@@ -370,3 +370,27 @@ function recolorToPalette(rendering, palette) {
         }
     });
 }
+
+/** 
+ * Copy image contents to a new canvas rendering context.
+ * @param {HTMLImageElement} image 
+ */
+function imageToRendering2D(image) {
+    const rendering = createRendering2D(image.naturalWidth, image.naturalHeight);
+    rendering.drawImage(image, 0, 0);
+    return rendering;
+}
+
+/**
+ * Create an html image from a given src (probably a datauri).
+ * @param {string} src
+ * @returns {Promise<HTMLImageElement>}
+ */
+async function loadImage(src) {
+    return new Promise((resolve, reject) => {
+        const image = document.createElement("img");
+        image.addEventListener("load", () => resolve(image));
+        image.addEventListener("error", reject);
+        image.src = src;
+    });
+}

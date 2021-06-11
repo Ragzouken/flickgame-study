@@ -1,9 +1,17 @@
 "strict"
-const maker = {};
+const maker = {
+    ui: {},
+};
 
 /**
  * @template TProject
  * @typedef {(project: TProject) => string[]} maker.ManifestFunction
+ */
+
+/**
+ * @typedef {Object} ResourceData
+ * @property {string} type
+ * @property {any} data
  */
 
 /**
@@ -48,6 +56,7 @@ maker.ResourceManager = class {
      * @returns {string}
      */
     generateId() {
+        // just next lowest unused number
         while (this.resources.has(this.lastId.toString())) {
             this.lastId += 1;
         }
@@ -176,10 +185,15 @@ maker.ResourceManager = class {
 }
 
 /**
+ * 
  * @template TState
  */
 maker.StateManager = class extends EventTarget {
-    /** @param {maker.ManifestFunction<TState>} getManifest */
+    /**
+     * Create a state manager, optionally providing a function that describes
+     * how to determine resource dependencies of a given state. 
+     * @param {maker.ManifestFunction<TState>} getManifest 
+     */
     constructor(getManifest = undefined) {
         super();
 
@@ -347,3 +361,114 @@ maker.saveAs = function(blob, name) {
         fileInput.click();
     });
 }
+
+/**
+ * Read plain text from a file.
+ * @param {File} file 
+ * @return {Promise<string>}
+ */
+maker.textFromFile = async function(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = () => resolve(/** @type {string} */ (reader.result));
+        reader.readAsText(file); 
+    });
+}
+
+/**
+ * Create a DOM for an html page from html source code
+ * @param {string} source
+ * @returns 
+ */
+maker.htmlFromText = function(source) {
+    const template = document.createElement('template');
+    template.innerHTML = source;
+    return template.content;
+}
+
+/**
+ * @param {string} text 
+ */
+maker.textToBlob = function(text, type = "text/plain") {
+    return new Blob([text], { type });
+}
+
+class RadioGroupWrapper extends EventTarget {
+    /** @param {HTMLInputElement[]} inputs */
+    constructor(inputs) {
+        super();
+        this.inputs = inputs;
+
+        inputs.forEach((input) => {
+            input.addEventListener("change", () => {
+                if (!input.checked) return;
+                this.dispatchEvent(new CustomEvent("change"));
+            });
+        });
+    }
+
+    get selectedIndex() {
+        return this.inputs.findIndex((button) => button.checked); 
+    }
+
+    set selectedIndex(value) {
+        this.inputs[value].click();
+    }
+
+    get selectedInput() {
+        return this.inputs[this.selectedIndex];
+    }
+
+    get value() {
+        return this.selectedInput?.value;
+    }
+}
+
+class ButtonAction extends EventTarget {
+    /** @param {HTMLButtonElement[]} buttons */
+    constructor(buttons) {
+        super();
+        this.buttons = buttons;
+        this.disabled = false;
+
+        buttons.forEach((button) => {
+            button.addEventListener("click", () => this.invoke());
+        });
+    }
+
+    get disabled() {
+        return this._disabled;
+    }
+
+    set disabled(value) {
+        this._disabled = value;
+        this.buttons.forEach((button) => button.disabled = value);
+    }
+
+    invoke(force = false) {
+        if (!force && this.disabled) return;
+        this.dispatchEvent(new CustomEvent("invoke"));
+    }
+}
+
+/**
+ * Get a wrapper for the radio input elements sharing the given name.
+ * @param {string} name
+ * @returns {RadioGroupWrapper}
+ */
+maker.ui.radio = (name) => new RadioGroupWrapper(ALL(`input[type="radio"][name="${name}"]`));
+
+/**
+ * Get an action linked to all button elements sharing the given name.
+ * @param {string} name
+ * @returns {ButtonAction}
+ */
+maker.ui.action = (name) => new ButtonAction(ALL(`button[name="${name}"]`));
+
+/**
+ * Get the html select element with the given name.
+ * @param {string} name
+ * @returns {HTMLSelectElement}
+ */
+maker.ui.select = (name) => ONE(`select[name="${name}"]`);

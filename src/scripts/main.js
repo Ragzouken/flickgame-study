@@ -96,183 +96,12 @@ const ZEROES = (length) => Array(length).fill(0);
 }
 
 /**
- * @param {string} text 
- */
- function textToBlob(text, type = "text/plain") {
-    return new Blob([text], { type });
-}
-
-/**
  * @param {number} min 
  * @param {number} max 
  * @returns {number}
  */
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
-}
-
-/**
- * @param {File} file 
- * @return {Promise<string>}
- */
-async function textFromFile(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = reject;
-        reader.onload = () => resolve(/** @type {string} */ (reader.result));
-        reader.readAsText(file); 
-    });
-}
-
-/**
- * @param {string} source
- */
-async function htmlFromText(source) {
-    const template = document.createElement('template');
-    template.innerHTML = source;
-    return template.content;
-}
-
-class RadioGroupWrapper extends EventTarget {
-    /** @param {HTMLInputElement[]} inputs */
-    constructor(inputs) {
-        super();
-        this.inputs = inputs;
-
-        inputs.forEach((input) => {
-            input.addEventListener("change", () => {
-                if (!input.checked) return;
-                this.dispatchEvent(new CustomEvent("change"));
-            });
-        });
-    }
-
-    get selectedIndex() {
-        return this.inputs.findIndex((button) => button.checked); 
-    }
-
-    set selectedIndex(value) {
-        this.inputs[value].click();
-    }
-
-    get selectedInput() {
-        return this.inputs[this.selectedIndex];
-    }
-
-    get value() {
-        return this.selectedInput?.value;
-    }
-}
-
-class ButtonAction extends EventTarget {
-    /** @param {HTMLButtonElement[]} buttons */
-    constructor(buttons) {
-        super();
-        this.buttons = buttons;
-        this.disabled = false;
-
-        buttons.forEach((button) => {
-            button.addEventListener("click", () => this.invoke());
-        });
-    }
-
-    get disabled() {
-        return this._disabled;
-    }
-
-    set disabled(value) {
-        this._disabled = value;
-        this.buttons.forEach((button) => button.disabled = value);
-    }
-
-    invoke(force = false) {
-        if (!force && this.disabled) return;
-        this.dispatchEvent(new CustomEvent("invoke"));
-    }
-}
-
-/**
- * @param {string} name
- */
-function RADIO(name) {
-    const buttons = ALL(`input[type="radio"][name="${name}"]`);
-    return new RadioGroupWrapper(buttons);
-}
-
-/**
- * @param {string} name
- * @returns {HTMLButtonElement}
- */
-function BUTTON(name) {
-    return ONE(`button[name="${name}"]`);
-}
-
-/**
- * @param {string} name
- * @returns {ButtonAction}
- */
-function ACTION(name) {
-    const buttons = ALL(`button[name="${name}"]`);
-    return new ButtonAction(buttons);
-}
-
-/**
- * @param {string} name
- * @returns {HTMLSelectElement}
- */
-function SELECT(name) {
-    return ONE(`select[name="${name}"]`);
-}
-
-function RENDERING2D(width, height) {
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    return canvas.getContext("2d");
-} 
-
-/** @param {HTMLImageElement} image */
-function imageToRendering2D(image) {
-    const rendering = RENDERING2D(image.naturalWidth, image.naturalHeight);
-    rendering.drawImage(image, 0, 0);
-    return rendering;
-}
-
-/**
- * @param {string} src
- * @returns {Promise<HTMLImageElement>} image
- */
- async function loadImage(src) {
-    return new Promise((resolve, reject) => {
-        const image = document.createElement("img");
-        image.addEventListener("load", () => resolve(image));
-        image.src = src;
-    });
-}
-
-async function imageDataURIresourceLoader(resource) {
-    const image = await loadImage(resource.data);
-    const rendering = imageToRendering2D(image);
-    return rendering;
-}
-
-/** @param {FlickgameDataProject} data */
-function getFlickgameManifest(data) {
-    return data.scenes.map((scene) => scene.image);
-}
-
-/** @returns {maker.ProjectBundle<FlickgameDataProject>} */
-function makeBlankBundle() {
-    const blank = RENDERING2D(160, 100);
-    blank.fillStyle = "#140c1c";
-    blank.fillRect(0, 0, 160, 100);
-    const scenes = ZEROES(16).map(() => ({ image: "0", jumps: {} }));
-    const project = { scenes };
-    const resources = {
-        "0": { type: "canvas-datauri", data: blank.canvas.toDataURL() },
-    };
-
-    return { project, resources };
 }
 
 const palette = [
@@ -304,7 +133,7 @@ class FlickgamePlayer extends EventTarget {
     constructor() {
         super();
         this.stateManager = new maker.StateManager();
-        this.rendering = RENDERING2D(160, 100);
+        this.rendering = createRendering2D(160, 100);
         this.activeSceneIndex = 0;
     }
 
@@ -374,15 +203,15 @@ class FlickgameEditor extends EventTarget {
         /** @type {CanvasRenderingContext2D} */
         this.rendering = ONE("#renderer").getContext("2d");
         this.rendering.canvas.style.setProperty("cursor", "crosshair");
-        this.preview = RENDERING2D(160, 100); 
-        this.thumbnails = ZEROES(16).map(() => RENDERING2D(160, 100));
+        this.preview = createRendering2D(160, 100); 
+        this.thumbnails = ZEROES(16).map(() => createRendering2D(160, 100));
 
-        this.sceneSelect = RADIO("scene-select");
-        this.toolSelect = RADIO("tool-select");
-        this.brushSelect = RADIO("brush-select");
-        this.patternSelect = RADIO("pattern-select");
-        this.colorSelect = RADIO("color-select");
-        this.jumpSelect = SELECT("jump-select");
+        this.sceneSelect = maker.ui.radio("scene-select");
+        this.toolSelect = maker.ui.radio("tool-select");
+        this.brushSelect = maker.ui.radio("brush-select");
+        this.patternSelect = maker.ui.radio("pattern-select");
+        this.colorSelect = maker.ui.radio("color-select");
+        this.jumpSelect = maker.ui.select("jump-select");
         this.jumpColorIndicator = ONE("#jump-source-color");
 
         this.heldColorPick = false;
@@ -391,8 +220,7 @@ class FlickgameEditor extends EventTarget {
         this.brushRenders = ZEROES(4);
         brushes.forEach(async ({ image }, index) => {
             const img = await loadImage(image);
-            const rendering = RENDERING2D(img.naturalWidth, img.naturalHeight);
-            rendering.drawImage(img, 0, 0);
+            const rendering = imageToRendering2D(img);
             this.brushRenders[index] = rendering;
             this.activeBrush = this.brushRenders[0];
         });
@@ -401,8 +229,7 @@ class FlickgameEditor extends EventTarget {
         this.patternRenders = ZEROES(8);
         patterns.forEach(async ({ image }, index) => {
             const img = await loadImage(image);
-            const rendering = RENDERING2D(img.naturalWidth, img.naturalHeight);
-            rendering.drawImage(img, 0, 0);
+            const rendering = imageToRendering2D(img);
             this.patternRenders[index] = rendering;
             this.activePattern = this.patternRenders[0];
         });
@@ -412,11 +239,11 @@ class FlickgameEditor extends EventTarget {
         this.lineStart = undefined;
 
         this.actions = {
-            undo: ACTION("undo"),
-            redo: ACTION("redo"),
-            copy: ACTION("copy"),
-            paste: ACTION("paste"),
-            clear: ACTION("clear"),
+            undo: maker.ui.action("undo"),
+            redo: maker.ui.action("redo"),
+            copy: maker.ui.action("copy"),
+            paste: maker.ui.action("paste"),
+            clear: maker.ui.action("clear"),
         };
 
         this.actions.undo.disabled = true;
@@ -534,7 +361,7 @@ class FlickgameEditor extends EventTarget {
             if (this.toolSelect.value === "freehand") {
                 const scene = this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
 
-                const mask = RENDERING2D(160, 100);
+                const mask = createRendering2D(160, 100);
                 const plot = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
                 const pattern = mask.createPattern(this.activePattern.canvas, 'repeat');
 
@@ -588,7 +415,7 @@ class FlickgameEditor extends EventTarget {
                         const { id, instance } = await this.stateManager.resources.fork(scene.image);
                         scene.image = id;
 
-                        const mask = RENDERING2D(160, 100);
+                        const mask = createRendering2D(160, 100);
                         const plot = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
                         lineplot(x0, y0, x1, y1, plot);
                         mask.globalCompositeOperation = "source-in";
@@ -720,12 +547,12 @@ async function start() {
     const player = new FlickgamePlayer();
     const editor = new FlickgameEditor();
 
-    const play = ACTION("play");
-    const edit = ACTION("edit");
-    const export_ = ACTION("export");
-    const import_ = ACTION("import");
-    const reset = ACTION("reset");
-    const help = ACTION("help");
+    const play = maker.ui.action("play");
+    const edit = maker.ui.action("edit");
+    const export_ = maker.ui.action("export");
+    const import_ = maker.ui.action("import");
+    const reset = maker.ui.action("reset");
+    const help = maker.ui.action("help");
 
     function showPlayer() {
         ONE("#player").hidden = false;
@@ -781,21 +608,21 @@ async function start() {
         ONE("#bundle-embed", clone).innerHTML = JSON.stringify(bundle);
 
         const name = "flickgame.html";
-        const blob = textToBlob(clone.outerHTML, "text/html");
+        const blob = maker.textToBlob(clone.outerHTML, "text/html");
         maker.saveAs(blob, name);
     }
 
     async function importProject() {
         const [file] = await maker.pickFiles("text/html");
-        const text = await textFromFile(file);
-        const html = await htmlFromText(text);
+        const text = await maker.textFromFile(file);
+        const html = await maker.htmlFromText(text);
 
         const json = ONE("#bundle-embed", html).innerHTML;
         const bundleData = JSON.parse(json);
         editor.stateManager.loadBundle(bundleData);
     }
 
-    const playCanvas = ONE("#player canvas");
+    const playCanvas = /** @type {HTMLCanvasElement} */ (ONE("#player canvas"));
     const playRendering = /** @type {CanvasRenderingContext2D} */ (playCanvas.getContext("2d"));
     
     playCanvas.addEventListener("mousemove", (event) => {
