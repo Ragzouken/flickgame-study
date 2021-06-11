@@ -393,7 +393,7 @@ class FlickgameEditor extends EventTarget {
     floodFill(x, y) {
         this.stateManager.makeChange(async (data) => {
             const scene = data.scenes[this.sceneSelect.selectedIndex];
-            const { id, instance } = await this.stateManager.resources.get(scene.image);
+            const { id, instance } = await this.stateManager.resources.fork(scene.image);
             scene.image = id;
 
             const mask = floodfillOutput(instance, x, y, 0xFFFFFFFF);
