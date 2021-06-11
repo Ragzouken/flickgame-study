@@ -1,7 +1,6 @@
 "strict"
-const maker = {
-    ui: {},
-};
+const maker = {};
+const ui = {};
 
 /**
  * @template TProject
@@ -34,15 +33,8 @@ const maker = {
  * @property {(instance: TInstance) => Promise<TData>} save
  */
 
-/** @type {Object.<string, maker.ResourceHandler<any, any>>} */
-maker.resourceHandlers = {};
-
-/** @type {maker.ResourceHandler<string, CanvasRenderingContext2D>} */
-maker.resourceHandlers["canvas-datauri"] = {
-    load: async (data) => imageToRendering2D(await loadImage(data)),
-    copy: async (instance) => copyRendering2D(instance),
-    save: async (instance) => instance.canvas.toDataURL(),
-};
+/** @type {Map<string, maker.ResourceHandler<any, any>>} */
+maker.resourceHandlers = new Map();
 
 maker.ResourceManager = class {
     constructor() {
@@ -110,7 +102,7 @@ maker.ResourceManager = class {
     async fork(id) {
         const source = this.resources.get(id);
         const forkId = this.generateId();
-        const instance = await maker.resourceHandlers[source.type].copy(source.instance); 
+        const instance = await maker.resourceHandlers.get(source.type).copy(source.instance); 
         this.set(forkId, instance, source.type);
         return { id: forkId, instance };
     }
@@ -134,7 +126,7 @@ maker.ResourceManager = class {
     async copyFrom(other) {
         const tasks = [];
         Array.from(other.resources).forEach(([id, { type, instance }]) => {
-            const task = maker.resourceHandlers[type]
+            const task = maker.resourceHandlers.get(type)
                          .copy(instance)
                          .then((copy) => this.set(id, copy, type));
             tasks.push(task);
@@ -158,7 +150,7 @@ maker.ResourceManager = class {
 
         const tasks = [];
         Array.from(relevant).forEach(([id, { type, instance }]) => {
-            const task = maker.resourceHandlers[type]
+            const task = maker.resourceHandlers.get(type)
                          .save(instance)
                          .then((data) => bundle[id] = { type, data });
             tasks.push(task);
@@ -175,7 +167,7 @@ maker.ResourceManager = class {
     async load(bundle) {
         const tasks = [];
         Object.entries(bundle).forEach(([id, { type, data }]) => {
-            const task = maker.resourceHandlers[type]
+            const task = maker.resourceHandlers.get(type)
                          .load(data)
                          .then((instance) => this.set(id, instance, type));
             tasks.push(task);
@@ -457,18 +449,128 @@ class ButtonAction extends EventTarget {
  * @param {string} name
  * @returns {RadioGroupWrapper}
  */
-maker.ui.radio = (name) => new RadioGroupWrapper(ALL(`input[type="radio"][name="${name}"]`));
+ui.radio = (name) => new RadioGroupWrapper(ALL(`input[type="radio"][name="${name}"]`));
 
 /**
  * Get an action linked to all button elements sharing the given name.
  * @param {string} name
  * @returns {ButtonAction}
  */
-maker.ui.action = (name) => new ButtonAction(ALL(`button[name="${name}"]`));
+ui.action = (name) => new ButtonAction(ALL(`button[name="${name}"]`));
 
 /**
  * Get the html select element with the given name.
  * @param {string} name
  * @returns {HTMLSelectElement}
  */
-maker.ui.select = (name) => ONE(`select[name="${name}"]`);
+ui.select = (name) => ONE(`select[name="${name}"]`);
+
+/**
+ * Get a child element matching CSS selector.
+ * @param {string} query 
+ * @param {ParentNode} element 
+ * @returns {HTMLElement}
+ */
+const ONE = (query, element = undefined) => (element || document).querySelector(query);
+
+/**
+ * Get all children elements matching CSS selector.
+ * @param {string} query 
+ * @param {HTMLElement | Document} element 
+ * @returns {HTMLElement[]}
+ */
+const ALL = (query, element = undefined) => Array.from((element || document).querySelectorAll(query));
+
+ui.PointerDrag = class extends EventTarget {
+    /** 
+     * @param {MouseEvent} event
+     */
+    constructor(event, { clickMovementLimit = 5 } = {}) {
+        super();
+        this.pointerId = event["pointerId"];
+        this.clickMovementLimit = 5;
+        this.totalMovement = 0;
+
+        this.downEvent = event;
+        this.lastEvent = event; 
+
+        this.listeners = {
+            "pointerup": (event) => {
+                if (event.pointerId !== this.pointerId) return;
+
+                this.lastEvent = event;
+                this.unlisten();
+                this.dispatchEvent(new CustomEvent("up", { detail: event }));
+                if (this.totalMovement <= clickMovementLimit) {
+                    this.dispatchEvent(new CustomEvent("click", { detail: event }));
+                }
+            },
+
+            "pointermove": (event) => {
+                if (event.pointerId !== this.pointerId) return;
+
+                this.totalMovement += Math.abs(event.movementX);
+                this.totalMovement += Math.abs(event.movementY);
+                this.lastEvent = event;
+                this.dispatchEvent(new CustomEvent("move", { detail: event }));
+            }
+        }
+
+        document.addEventListener("pointerup", this.listeners.pointerup);
+        document.addEventListener("pointermove", this.listeners.pointermove);
+    }
+
+    unlisten() {
+        document.removeEventListener("pointerup", this.listeners.pointerup);
+        document.removeEventListener("pointermove", this.listeners.pointermove);
+    }
+}
+
+/**
+ * Wrap a pointer down event and track its subsequent movement until release.
+ * @param {PointerEvent} event 
+ * @returns {ui.PointerDrag}
+ */
+ui.drag = (event) => new ui.PointerDrag(event);
+
+/**
+ * @param {HTMLCanvasElement} canvas 
+ * @param {MouseEvent} event 
+ */
+ function mouseEventToCanvasPixelCoords(canvas, event) {
+    const bounds = canvas.getBoundingClientRect();
+    const [mx, my] = [event.clientX - bounds.x, event.clientY - bounds.y];
+    const scale = canvas.width / canvas.clientWidth; 
+    const [px, py] = [Math.floor(mx * scale), Math.floor(my * scale)];
+    return { x: px, y: py };
+}
+
+/**
+ * Deep copy an object by serializing it to json and parsing it again.
+ * @template T
+ * @param {T} object
+ * @returns {T}
+ */
+const COPY = (object) => JSON.parse(JSON.stringify(object));
+
+/**
+ * Create an array of zeroes to the given length.
+ * @param {number} length 
+ * @returns {number[]}
+ */
+const ZEROES = (length) => Array(length).fill(0);
+
+/**
+ * Create an html element with the given attributes and children.
+ * @template {keyof HTMLElementTagNameMap} K
+ * @param {K} tagName 
+ * @param {*} attributes 
+ * @param  {...(Node | string)} children 
+ * @returns {HTMLElementTagNameMap[K]}
+ */
+ function html(tagName, attributes = {}, ...children) {
+    const element = /** @type {HTMLElementTagNameMap[K]} */ (document.createElement(tagName)); 
+    Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
+    children.forEach((child) => element.append(child));
+    return element;
+}

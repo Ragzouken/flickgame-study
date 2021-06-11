@@ -1,101 +1,4 @@
 /**
- * @param {HTMLCanvasElement} canvas 
- * @param {MouseEvent} event 
- */
-function mouseEventToCanvasPixelCoords(canvas, event) {
-    const bounds = canvas.getBoundingClientRect();
-    const [mx, my] = [event.clientX - bounds.x, event.clientY - bounds.y];
-    const scale = canvas.width / canvas.clientWidth; 
-    const [px, py] = [Math.floor(mx * scale), Math.floor(my * scale)];
-    return { x: px, y: py };
-}
-
-class PointerDrag extends EventTarget {
-    /** 
-     * @param {MouseEvent} event
-     */
-    constructor(event, { clickMovementLimit = 5 } = {}) {
-        super();
-        this.pointerId = event.pointerId;
-        this.clickMovementLimit = 5;
-        this.totalMovement = 0;
-
-        this.downEvent = event;
-        this.lastEvent = event; 
-
-        this.listeners = {
-            "pointerup": (event) => {
-                if (event.pointerId !== this.pointerId) return;
-    
-                this.lastEvent = event;
-                this.unlisten();
-                this.dispatchEvent(new CustomEvent("pointerup", { detail: event }));
-                if (this.totalMovement <= clickMovementLimit) {
-                    this.dispatchEvent(new CustomEvent("click", { detail: event }));
-                }
-            },
-
-            "pointermove": (event) => {
-                if (event.pointerId !== this.pointerId) return;
-    
-                this.totalMovement += Math.abs(event.movementX);
-                this.totalMovement += Math.abs(event.movementY);
-                this.lastEvent = event;
-                this.dispatchEvent(new CustomEvent("pointermove", { detail: event }));
-            }
-        }
-
-        document.addEventListener("pointerup", this.listeners.pointerup);
-        document.addEventListener("pointermove", this.listeners.pointermove);
-    }
-
-    unlisten() {
-        document.removeEventListener("pointerup", this.listeners.pointerup);
-        document.removeEventListener("pointermove", this.listeners.pointermove);
-    }
-}
-
-/**
- * @param {string} query 
- * @param {ParentNode} element 
- * @returns {HTMLElement}
- */
-const ONE = (query, element = undefined) => (element || document).querySelector(query);
-/**
- * @param {string} query 
- * @param {HTMLElement | Document} element 
- * @returns {HTMLElement[]}
- */
-const ALL = (query, element = undefined) => Array.from((element || document).querySelectorAll(query));
-
-/**
- * @template T
- * @param {T} object
- * @returns {T}
- */
-const COPY = (object) => JSON.parse(JSON.stringify(object));
-
-/**
- * @param {number} length 
- * @returns {number[]}
- */
-const ZEROES = (length) => Array(length).fill(0);
-
-/**
- * @template {keyof HTMLElementTagNameMap} K
- * @param {K} tagName 
- * @param {*} attributes 
- * @param  {...(Node | string)} children 
- * @returns {HTMLElementTagNameMap[K]}
- */
- function html(tagName, attributes = {}, ...children) {
-    const element = /** @type {HTMLElementTagNameMap[K]} */ (document.createElement(tagName)); 
-    Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
-    children.forEach((child) => element.append(child));
-    return element;
-}
-
-/**
  * @param {number} min 
  * @param {number} max 
  * @returns {number}
@@ -182,16 +85,6 @@ class FlickgamePlayer extends EventTarget {
     }
 }
 
-/**
- * @param {FlickgameDataProject} data 
- * @param {number} srcIndex 
- * @param {number} colorIndex 
- * @param {number} dstIndex 
- */
-function setSceneJump(data, srcIndex, colorIndex, dstIndex) {
-    data.scenes[srcIndex].jumps[colorIndex.toString()] = dstIndex.toString();
-}
-
 class FlickgameEditor extends EventTarget {
     constructor() {
         super();
@@ -206,12 +99,12 @@ class FlickgameEditor extends EventTarget {
         this.preview = createRendering2D(160, 100); 
         this.thumbnails = ZEROES(16).map(() => createRendering2D(160, 100));
 
-        this.sceneSelect = maker.ui.radio("scene-select");
-        this.toolSelect = maker.ui.radio("tool-select");
-        this.brushSelect = maker.ui.radio("brush-select");
-        this.patternSelect = maker.ui.radio("pattern-select");
-        this.colorSelect = maker.ui.radio("color-select");
-        this.jumpSelect = maker.ui.select("jump-select");
+        this.sceneSelect = ui.radio("scene-select");
+        this.toolSelect = ui.radio("tool-select");
+        this.brushSelect = ui.radio("brush-select");
+        this.patternSelect = ui.radio("pattern-select");
+        this.colorSelect = ui.radio("color-select");
+        this.jumpSelect = ui.select("jump-select");
         this.jumpColorIndicator = ONE("#jump-source-color");
 
         this.heldColorPick = false;
@@ -239,11 +132,11 @@ class FlickgameEditor extends EventTarget {
         this.lineStart = undefined;
 
         this.actions = {
-            undo: maker.ui.action("undo"),
-            redo: maker.ui.action("redo"),
-            copy: maker.ui.action("copy"),
-            paste: maker.ui.action("paste"),
-            clear: maker.ui.action("clear"),
+            undo: ui.action("undo"),
+            redo: ui.action("redo"),
+            copy: ui.action("copy"),
+            paste: ui.action("paste"),
+            clear: ui.action("clear"),
         };
 
         this.actions.undo.disabled = true;
@@ -379,8 +272,8 @@ class FlickgameEditor extends EventTarget {
 
                 let prev = { x, y };
 
-                const drag = new PointerDrag(event);
-                drag.addEventListener("pointerup", (event) => {
+                const drag = ui.drag(event);
+                drag.addEventListener("up", (event) => {
                     const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
                     plot(x, y);
                     mask.globalCompositeOperation = "source-in";
@@ -389,7 +282,7 @@ class FlickgameEditor extends EventTarget {
                     instance.drawImage(mask.canvas, 0, 0);
                     this.stateManager.changed();
                 });
-                drag.addEventListener("pointermove", (event) => {
+                drag.addEventListener("move", (event) => {
                     const { x: x0, y: y0 } = prev;
                     const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
                     lineplot(x0, y0, x1, y1, plot);
@@ -405,8 +298,8 @@ class FlickgameEditor extends EventTarget {
                 this.lineStart = { x, y };
                 this.refreshPreview(x, y);
 
-                const drag = new PointerDrag(event);
-                drag.addEventListener("pointerup", (event) => {
+                const drag = ui.drag(event);
+                drag.addEventListener("up", (event) => {
                     this.stateManager.makeChange(async (data) => {
                         const scene = this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
     
@@ -484,6 +377,7 @@ class FlickgameEditor extends EventTarget {
         const pattern = this.patternRenders[this.patternSelect.selectedIndex];
         const brush = this.brushRenders[this.brushSelect.selectedIndex];
         const color = palette[this.colorSelect.selectedIndex];
+        if (!pattern || !brush || !color) return;
         this.activeBrush = recolorMask(brush, color);
         this.activePattern = recolorMask(pattern, color);
     }
@@ -547,12 +441,12 @@ async function start() {
     const player = new FlickgamePlayer();
     const editor = new FlickgameEditor();
 
-    const play = maker.ui.action("play");
-    const edit = maker.ui.action("edit");
-    const export_ = maker.ui.action("export");
-    const import_ = maker.ui.action("import");
-    const reset = maker.ui.action("reset");
-    const help = maker.ui.action("help");
+    const play = ui.action("play");
+    const edit = ui.action("edit");
+    const export_ = ui.action("export");
+    const import_ = ui.action("import");
+    const reset = ui.action("reset");
+    const help = ui.action("help");
 
     function showPlayer() {
         ONE("#player").hidden = false;
@@ -579,8 +473,7 @@ async function start() {
 
     edit.addEventListener("invoke", async () => {
         if (!editor.stateManager.present) {
-            const bundle = await player.stateManager.makeBundle();
-            await editor.stateManager.loadBundle(bundle);
+            await editor.stateManager.copyFrom(player.stateManager);
         }
         showEditor();
     });
@@ -606,6 +499,7 @@ async function start() {
         ONE("body", clone).setAttribute("data-play", "true");
         //ONE("title", clone).innerHTML = "";
         ONE("#bundle-embed", clone).innerHTML = JSON.stringify(bundle);
+        ONE("#editor", clone).hidden = true;
 
         const name = "flickgame.html";
         const blob = maker.textToBlob(clone.outerHTML, "text/html");

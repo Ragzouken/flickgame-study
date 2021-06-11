@@ -1,3 +1,10 @@
+/** @type {maker.ResourceHandler<string, CanvasRenderingContext2D>} */
+maker.resourceHandlers.set("canvas-datauri", {
+    load: async (data) => imageToRendering2D(await loadImage(data)),
+    copy: async (instance) => copyRendering2D(instance),
+    save: async (instance) => instance.canvas.toDataURL(),
+});
+
 /**
  * @typedef {Object} FlickgameDataScene
  * @property {string} image
@@ -26,4 +33,14 @@ function makeBlankBundle() {
     };
 
     return { project, resources };
+}
+
+/**
+ * @param {FlickgameDataProject} data 
+ * @param {number} srcIndex 
+ * @param {number} colorIndex 
+ * @param {number} dstIndex 
+ */
+ function setSceneJump(data, srcIndex, colorIndex, dstIndex) {
+    data.scenes[srcIndex].jumps[colorIndex.toString()] = dstIndex.toString();
 }
