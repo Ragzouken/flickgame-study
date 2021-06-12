@@ -7,6 +7,8 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
 }
 
+const defaultScene = "data:image/png;base64,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";
+
 const palette = [
     "#140c1c", "#442434", "#30346d", "#4e4a4e",
     "#854c30", "#346524", "#d04648", "#757161",
@@ -108,24 +110,6 @@ class FlickgameEditor extends EventTarget {
         this.jumpColorIndicator = ONE("#jump-source-color");
 
         this.heldColorPick = false;
-
-        /** @type {CanvasRenderingContext2D[]} */
-        this.brushRenders = ZEROES(4);
-        brushes.forEach(async ({ image }, index) => {
-            const img = await loadImage(image);
-            const rendering = imageToRendering2D(img);
-            this.brushRenders[index] = rendering;
-            this.activeBrush = this.brushRenders[0];
-        });
-
-        /** @type {CanvasRenderingContext2D[]} */
-        this.patternRenders = ZEROES(8);
-        patterns.forEach(async ({ image }, index) => {
-            const img = await loadImage(image);
-            const rendering = imageToRendering2D(img);
-            this.patternRenders[index] = rendering;
-            this.activePattern = this.patternRenders[0];
-        });
 
         this.activeBrush = undefined;
         this.activePattern = undefined;
@@ -333,6 +317,14 @@ class FlickgameEditor extends EventTarget {
         });
     }
 
+    async init() {
+        this.brushRenders = await Promise.all(brushes.map(({ image }) => loadImage(image).then(imageToRendering2D)));
+        this.patternRenders = await Promise.all(patterns.map(({ image }) => loadImage(image).then(imageToRendering2D)));
+        
+        this.activeBrush = this.brushRenders[0];
+        this.activePattern = this.patternRenders[0];
+    }
+
     get selectedScene() {
         return this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
     }
@@ -437,9 +429,20 @@ class FlickgameEditor extends EventTarget {
     }
 }
 
-async function start() {
-    const player = new FlickgamePlayer();
+async function makeEditor() {
     const editor = new FlickgameEditor();
+    await editor.init();
+    return editor;
+}
+
+async function makePlayer() {
+    const player = new FlickgamePlayer();
+    return player;
+}
+
+async function start() {
+    const player = await makePlayer();
+    const editor = await makeEditor();
 
     const play = ui.action("play");
     const edit = ui.action("edit");
@@ -451,7 +454,7 @@ async function start() {
     function showPlayer() {
         ONE("#player").hidden = false;
         ONE("#editor").hidden = true;
-        resizePlayer();
+        fitCanvasToParent(playCanvas);
     }
 
     function showEditor() {
@@ -478,7 +481,7 @@ async function start() {
         showEditor();
     });
 
-    reset.addEventListener("invoke", resetProject);
+    reset.addEventListener("invoke", resetEditor);
     export_.addEventListener("invoke", exportProject);
     import_.addEventListener("invoke", importProject);
 
@@ -486,18 +489,12 @@ async function start() {
 
     help.addEventListener("invoke", () => helpContainer.hidden = !helpContainer.hidden);
 
-    async function resetProject() {
-        editor.stateManager.loadBundle(makeBlankBundle());
-    }
-
     async function exportProject() {
         const bundle = await editor.stateManager.makeBundle();
 
         const clone = /** @type {HTMLElement} */ (document.documentElement.cloneNode(true));
         ALL("[data-empty]", clone).forEach((element) => element.replaceChildren());
         ALL("[data-editor-only]", clone).forEach((element) => element.remove());
-        ONE("body", clone).setAttribute("data-play", "true");
-        //ONE("title", clone).innerHTML = "";
         ONE("#bundle-embed", clone).innerHTML = JSON.stringify(bundle);
         ONE("#editor", clone).hidden = true;
 
@@ -534,16 +531,25 @@ async function start() {
         playRendering.drawImage(player.rendering.canvas, 0, 0);
     });
 
-    function resizePlayer() {
-        const container = playCanvas.parentElement;
-        const [tw, th] = [container.clientWidth, container.clientHeight];
-        const [sw, sh] = [tw / playCanvas.width, th / playCanvas.height];
+    function fitCanvasToParent(canvas) {
+        const [tw, th] = [canvas.parentElement.clientWidth, canvas.parentElement.clientHeight];
+        const [sw, sh] = [tw / canvas.width, th / canvas.height];
         const scale = Math.min(sw, sh);
-        playCanvas.style.setProperty("width", `${playCanvas.width * scale}px`);
-        playCanvas.style.setProperty("height", `${playCanvas.height * scale}px`);
+        canvas.style.setProperty("width", `${canvas.width * scale}px`);
+        canvas.style.setProperty("height", `${canvas.height * scale}px`);
     }
 
-    window.addEventListener("resize", resizePlayer);
+    window.addEventListener("resize", () => fitCanvasToParent(playCanvas));
+
+    async function resetEditor() {
+        await editor.stateManager.loadBundle(makeBlankBundle());
+        await editor.stateManager.makeChange(async (data) => {
+            const prev = data.scenes[0].image;
+            const { id, instance } = await editor.stateManager.resources.fork(prev);
+            instance.drawImage(await loadImage(defaultScene), 0, 0);
+            data.scenes[0].image = id;
+        });
+    }
 
     const embedded = ONE("#bundle-embed")?.textContent;
     if (embedded) {
@@ -552,16 +558,7 @@ async function start() {
         await player.loadBundle(bundle);
         showPlayer();
     } else {
-        await editor.stateManager.loadBundle(makeBlankBundle());
-
-        const demo = await loadImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAABkCAYAAAABtjuPAAAAAXNSR0IArs4c6QAABu1JREFUeJztnE2OHDcMhekgyyyzDHwCr43BLAcDH9owZtkYeD0n8EWSVQWKoh+SIkVSxQ8wYPRUSWrp9ZNEserTn3/89TckiRG/WTcguTcpwMSUFGBiSgowMSUFmJjyu3YFP56//Pv/18eHdnVJMD5xwzClsCi0RBhVpFHbffHz1/fpNV8/fxMpv1cO2QE5wnt9fDTv631GHcy6HE0xcH94UblEhBViT9Q/f31vloESYK/TpQa6J9AR3oVwtc+rM2LcT7rMlginAmwNtEanckTYA+Oio7p697ZENXP2ne6sSc/Byr9zQE/BnjtuJoia2TUr7uXdmVfoiZAivroMtACxazPvAzDaONRtp65HMWVz1rjSaEy/XMTigD+ev0zFJ9nxWssADLNpd2X6vxtTB+Suzax/5S0wIrk+7619V8JPJwhvthakIh6I9ig8AJ2YHWWD5iVm6Gn6BdhwEuKNWSBcstxW2V5/oBRKF+QIuryfJEAPC2gOPYGtCo+61rPuO2/uB4AUIGX9womv7WIWrpFsn5cp1ztHTcHY474aizXhbjy6H4BgGKbV0a+PD5MBoNSp2T4v4vMMKxlhFsLwCPW0RLK+U5FwVbQDntihklNv/cM8Iea3A/WMaK0dqAQabYgkwq+fv/3nnwUsAWIO8zFHcwD7nNVKDF5EWAusJTisCCXFShLgSCwz0VlN4b3N0cVIIKPvNPrMavNlCddJ1cIwKwOgFUvsbaCwKVyXsLjJs6eKsuWu2A2K+Bowyq9/R2ZOKyXLy5SsDdYJ2Q6ocSw3m+Jn7RmV28rHW0m/Gl1bluspC4biTKMyJCE7YAR3m+FFEJFZEXIp4rAPplM3O9ylAUesEZ4JaQloJiqNUI27s2DqgHMHdJYsQJ12W5/V5XoQXzkNezgfNhfg6nTIEWzr2Y/ZPZi667J3ZMR4yLppZUljxW0uwBbaHYmNA3La0Urp18y2af1do/9m0y9WcHU5rFdzeM7547LyUJH2d8Y4NLVNlOm3Jz7OFE5+MP0ueEnhKqFstDyFe3qwX81RE9XlIsFxWQ0RjqZeibhiOmAANJ4znolnV3ZM2DjgXcAkgHDpiYwivtUMmts6oIfwBQfpDaCE061MxbcR4CztyqsIZ23z2u6SkcjdC1Ai5KGxO1xt12rMzpvweg+qzxzWrQC10+Up9Ui2BVtWhLBKC+qU7m4T0lpY73jOgvPsisR7CSWOIut/kXDlgBonDJxThNG1o/tH67XWpmdFLNGE1sONA9YDtDPZtYfUTll7x133VyRxunDA0QBJdyZn8T+7FuuCI3fEtsfb5mMVUwes1yz1r1j6XSuazoBN2dIkojhdOCDA3jdXaYNNRl3d6UaaanuYCXDkfLPrW6xmNUtQT8UanCC6EnMHnEX5sR3OWXthoa7RduYLRpoZWpgLsAf2eQrtdd0ux6EeB0YX3oVbAdb0Bmg1jqcBVUgaAeoohBEggL8Mlh3tiRrfw+ImEF2zeli/+jyvRvk7iHYk59oBr2l3xQVGx17lKzokzmSxrxZZDUhrB+t3Yi7A2btULDsXUzfmFETyPBrbriiYTcGz8IvGi4Nm9WLvmSW3Yq+VRuMMXRtzBwQY73AjgNnJSkzzUfqDgukmRHKHt+vtA706MefYyf9xtQumDNzoWkoZF5phlBOdSwrzKXj2siDM+ot6BKe16C/L1RLdac5qLkCAcaiEk4SAvfe6RlIs3IeTuH+PjgsBXlB2m5wkBu55srSbeVnveoD1dqxT6Alh9/R5kqCo3FqAiT2udsHJ/UgBJqakABNTUoAVj/cXeLy/WDfjNrgKw1iRgrPjdgKMIraync9Pb+T7KPdYEkaAPeFgO3omPOkBkxTC4/0FVU6UH1eJ+zggplN7g7NbdBp1U5wwmvsBOHfAehDrjr3+Pruu/hzrFNgB5Qw89p7npzdUeyO6H0CQXfDz01tzoLAD3rt/hOSAXvW32kCpZ2U28IprB7wYrYFGHS4xGFj3o5ZHua90wVZfRHU/AOcOWHa0VHxOa7CoYq+/G4Xyeu5u2QuuBdjiEuKqkDwMFqUN9RSOXfd6x70ApdZPGty9fgncC7CkJUbpRTyHne7T+jFGdT+AYAIsaa0PsQKLPGA10b9LWAECtDt/17QkIfYTptBVQgsQgBfjk66fw8ru9SThhhfgxU4RWgogetil5hgBaomiLne1nnqtyhXRCeIDCHISMkN789EqXyIL585T70V4B6zdRMoZtB3mFAdbxVU6FjWrZMd6yNOJQ8R0qxkup+BRR69Mhxy8DPaJ0y+AMwcE4GeXnM6J7gfg0AEx6UqnDcKdceeAyb0IvwtOYpMCTExJASampAATU1KAiSkpwMSUFGBiyj/y5HMr5wYaSwAAAABJRU5ErkJggg==");
-        editor.stateManager.makeChange(async (data) => {
-            const prev = data.scenes[0].image;
-            const { id, instance } = await editor.stateManager.resources.fork(prev);
-            instance.drawImage(demo, 0, 0);
-            data.scenes[0].image = id;
-        });
-
+        await resetEditor();
         showEditor();
     }
 }
