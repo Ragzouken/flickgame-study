@@ -149,9 +149,9 @@ class FlickgamePlayer extends EventTarget {
         const image = this.stateManager.resources.get(scene.image);
 
         // get the pixel data at the given coordinates
-        const [r, g, b, a] = image.getImageData(x, y, 1, 1).data;
+        const [r, g, b] = image.getImageData(x, y, 1, 1).data;
         // convert to hexadecimal to compare with the flickgame palette
-        const hex = "#" + [r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("");
+        const hex = rgbToHex({ r, g, b});
         const index = palette.findIndex((color) => color === hex);
 
         // consult the current scene's jump table for the corresponding color
@@ -202,6 +202,13 @@ class FlickgameEditor extends EventTarget {
         this.jumpSelect = ui.select("jump-select");
         this.jumpColorIndicator = ONE("#jump-source-color");
         this.helpContainer = ONE("#help");   
+
+        // initial selections
+        this.sceneSelect.selectedIndex = 0;
+        this.toolSelect.selectedIndex = 0;
+        this.brushSelect.selectedIndex = getRandomInt(0, 4);
+        this.patternSelect.selectedIndex = getRandomInt(0, 8);
+        this.colorSelect.selectedIndex = getRandomInt(7, 16);
 
         // add thumbnails to the scene select bar
         ALL("#scene-select input").forEach((input, index) => {
@@ -432,9 +439,14 @@ class FlickgameEditor extends EventTarget {
     }
 
     async init() {
+        // load the default scene graphic
+        this.defaultSceneGraphic = await loadImage(defaultScene);
+
+        // load all the brush and pattern images
         this.brushRenders = await Promise.all(brushes.map(({ image }) => loadImage(image).then(imageToRendering2D)));
         this.patternRenders = await Promise.all(patterns.map(({ image }) => loadImage(image).then(imageToRendering2D)));
         
+        // default brush and pattern just in case
         this.activeBrush = this.brushRenders[0];
         this.activePattern = this.patternRenders[0];
     }
@@ -444,43 +456,54 @@ class FlickgameEditor extends EventTarget {
     }
 
     async forkSceneImage(scene) {
+        // create a new copy of the image resource
         const { id, instance } = await this.stateManager.resources.fork(scene.image);
+        // replace the scene's image with the new copy
         scene.image = id;
+        // return the instance of the image for editing
         return instance;
     }
 
     render() {
         if (!this.selectedScene) return;
+        // get the current scene's image
         const image = this.stateManager.resources.get(this.selectedScene.image);
 
+        // draw paint preview over current scene image
         fillRendering2D(this.rendering);
         this.rendering.drawImage(image.canvas, 0, 0);
         this.rendering.drawImage(this.preview.canvas, 0, 0);
 
+        // signal, to anyone listening, that rendering happened
         this.dispatchEvent(new CustomEvent("render"));
     }
 
     refreshPreview(x, y) {
         if (!this.stateManager.present) return;
 
+        // clear existing preview
         fillRendering2D(this.preview);
 
-        const valid = x !== undefined && y != undefined;
+        // prepare plot function
         const plot = (x, y) => this.preview.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
 
         if (this.heldColorPick) {
-        } else if (valid && this.toolSelect.value === "freehand") {
-            plot(x, y);
-            this.preview.globalCompositeOperation = "source-in";
-            fillRendering2D(this.preview, this.preview.createPattern(this.activePattern.canvas, 'repeat'));
-            this.preview.globalCompositeOperation = "source-over";
-        } else if (valid && this.lineStart && this.toolSelect.value === "line") {
+            // no preview for color picking
+        } else if (this.lineStart) {
+            // draw a patterned line between the pointer down location and the
+            // current pointer location
             const { x: x0, y: y0 } = this.lineStart;
             lineplot(x0, y0, x, y, plot);
             this.preview.globalCompositeOperation = "source-in";
             fillRendering2D(this.preview, this.preview.createPattern(this.activePattern.canvas, 'repeat'));
             this.preview.globalCompositeOperation = "source-over";
-        }
+        } else if (this.toolSelect.value === "freehand" || this.toolSelect.value === "line") {
+            // draw the patterned brush at the current pointer location
+            plot(x, y);
+            this.preview.globalCompositeOperation = "source-in";
+            fillRendering2D(this.preview, this.preview.createPattern(this.activePattern.canvas, 'repeat'));
+            this.preview.globalCompositeOperation = "source-over";
+        } 
 
         this.render();
     }
@@ -495,8 +518,6 @@ class FlickgameEditor extends EventTarget {
     }
 
     refreshJumpSelect() {
-        if (this.sceneSelect.selectedIndex < 0 || this.colorSelect.selectedIndex < 0) return;
-
         const jump = this.selectedScene.jumps[this.colorSelect.value];
         this.jumpSelect.value = jump ? jump : "none";
         this.jumpColorIndicator.style.backgroundColor = palette[this.colorSelect.selectedIndex];
@@ -504,29 +525,36 @@ class FlickgameEditor extends EventTarget {
 
     floodFill(x, y) {
         this.stateManager.makeChange(async (data) => {
+            // fork scene's image
             const scene = data.scenes[this.sceneSelect.selectedIndex];
             const instance = await this.forkSceneImage(scene);
 
+            // find newly filled pixels
             const mask = floodfillOutput(instance, x, y, 0xFFFFFFFF);
+            // pattern the filled pixels
             mask.globalCompositeOperation = "source-in";
             fillRendering2D(mask, mask.createPattern(this.activePattern.canvas, 'repeat'));
+            // draw the final patterned fill
             instance.drawImage(mask.canvas, 0, 0);
         });
     }
 
     pickColor(x, y) {
-        const [r, g, b, a] = this.rendering.getImageData(x, y, 1, 1).data;
-        const hex = "#" + [r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("");
+        const [r, g, b] = this.rendering.getImageData(x, y, 1, 1).data;
+        const hex = rgbToHex({ r, g, b});
         this.colorSelect.selectedIndex = palette.findIndex((color) => color === hex);
     }
 
     copyScene() {
+        // make a copy of scene data and enable pasting
         this.copiedScene = COPY(this.selectedScene);
         this.actions.paste.disabled = false;
     }
 
     pasteScene() {
         this.stateManager.makeChange(async (data) => {
+            // replace selected scene with a copy of the copied scene--this is
+            // so it remains independent from the scene kept in the clipboard
             const scene = COPY(this.copiedScene);
             data.scenes[this.sceneSelect.selectedIndex] = scene;
         });
@@ -535,47 +563,61 @@ class FlickgameEditor extends EventTarget {
     clearScene() {
         this.stateManager.makeChange(async (data) => {
             const scene = data.scenes[this.sceneSelect.selectedIndex];
-            const { id, instance } = await this.stateManager.resources.fork(scene.image);
+            const instance = await this.forkSceneImage(scene);
             instance.fillStyle = palette[this.colorSelect.selectedIndex];
             instance.fillRect(0, 0, 160, 100);
-            scene.image = id;
         });
     }
 
     /** @returns {string[]} */
     getManifest() {
+        // the editor adds a dependency to the image in the copied scene, if any
+        // --we don't want this resource to be cleaned up accidentally because
+        // we might still want to paste it even after it stops being used in
+        // other scenes
         return this.copiedScene ? [this.copiedScene.image] : [];
     }
 
     async exportProject() {
+        // make a standalone bundle of the current project state and the 
+        // resources it depends upon
         const bundle = await this.stateManager.makeBundle();
 
+        // make a copy of this web page
         const clone = /** @type {HTMLElement} */ (document.documentElement.cloneNode(true));
+        // remove some unwanted elements from the page copy
         ALL("[data-empty]", clone).forEach((element) => element.replaceChildren());
         ALL("[data-editor-only]", clone).forEach((element) => element.remove());
+        // insert the project bundle data into the page copy 
         ONE("#bundle-embed", clone).innerHTML = JSON.stringify(bundle);
+        // hide the editor in the page copy so it doesn't show before loading
         ONE("#editor", clone).hidden = true;
 
+        // prompt the browser to download the page
         const name = "flickgame.html";
         const blob = maker.textToBlob(clone.outerHTML, "text/html");
         maker.saveAs(blob, name);
     }
 
     async importProject() {
+        // ask the browser to provide a file
         const [file] = await maker.pickFiles("text/html");
+        // read the file and turn it into an html page
         const text = await maker.textFromFile(file);
         const html = await maker.htmlFromText(text);
+        // extract the bundle from the imported page
         const bundle = maker.bundleFromHTML(html);
+        // load the contents of the bundle into the editor
         await this.stateManager.loadBundle(bundle);
     } 
 
     async resetProject() {
+        // open a blank project in the editor
         await this.stateManager.loadBundle(makeBlankBundle());
+        // draw a default graphic in the first scene
         await this.stateManager.makeChange(async (data) => {
-            const prev = data.scenes[0].image;
-            const { id, instance } = await this.stateManager.resources.fork(prev);
-            instance.drawImage(await loadImage(defaultScene), 0, 0);
-            data.scenes[0].image = id;
+            const instance = await this.forkSceneImage(data.scenes[0]);
+            instance.drawImage(this.defaultSceneGraphic, 0, 0);
         });
     }
 
@@ -584,11 +626,6 @@ class FlickgameEditor extends EventTarget {
     }
 
     enter() {
-        this.sceneSelect.selectedIndex = 0;
-        this.toolSelect.selectedIndex = 0;
-        this.brushSelect.selectedIndex = getRandomInt(0, 4);
-        this.patternSelect.selectedIndex = getRandomInt(0, 8);
-        this.colorSelect.selectedIndex = getRandomInt(7, 16);
         this.render();
     }
 }
@@ -605,23 +642,29 @@ async function makePlayer() {
     const playCanvas = /** @type {HTMLCanvasElement} */ (ONE("#player canvas"));
     const playRendering = /** @type {CanvasRenderingContext2D} */ (playCanvas.getContext("2d"));
     
+    // update mouse cursor to reflect whether a clickable pixel is hovered or not
     playCanvas.addEventListener("mousemove", (event) => {
         const { x, y } = mouseEventToCanvasPixelCoords(playCanvas, event);
         const clickable = player.getJumpAt(x, y) !== undefined;
         playCanvas.style.setProperty("cursor", clickable ? "pointer" : "unset");
     });
 
+    // forward canvas clicks to the player
     playCanvas.addEventListener("click", (event) => {
         const { x, y } = mouseEventToCanvasPixelCoords(playCanvas, event);
         player.click(x, y);
     });
 
+    // update the canvas size every render just in case..
     player.addEventListener("render", () => {
         playRendering.drawImage(player.rendering.canvas, 0, 0);
         fitCanvasToParent(playCanvas)
     });
 
+    // update the canvas size whenever the browser window resizes
     window.addEventListener("resize", () => fitCanvasToParent(playCanvas));
+    
+    // update the canvas size initially
     fitCanvasToParent(playCanvas);
 
     return player;
