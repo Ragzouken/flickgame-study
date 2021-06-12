@@ -4,30 +4,31 @@ async function start() {
     const editor = await makeEditor();
 
     // setup play/edit buttons to switch between modes
-    const play = ui.action("play", startPlaytest);
-    const edit = ui.action("edit", startEditing);
+    const play = ui.action("play", playFromEditor);
+    const edit = ui.action("edit", editFromPlayer);
+
+    const playerContainer = ONE("#player");
+    const editorContainer = ONE("#editor");
 
     function showPlayer() {
-        ONE("#player").hidden = false;
-        ONE("#editor").hidden = true;
-        player.show();
+        playerContainer.hidden = false;
+        editorContainer.hidden = true;
+        player.enter();
     }
 
     function showEditor() {
-        ONE("#player").hidden = true;
-        ONE("#editor").hidden = false;
-        editor.show();
+        playerContainer.hidden = true;
+        editorContainer.hidden = false;
+        editor.enter();
     }
 
-    async function startPlaytest() {
+    async function playFromEditor() {
         await player.copyFrom(editor.stateManager);
         showPlayer();
     }
 
-    async function startEditing() {
-        if (!editor.stateManager.present) {
-            await editor.stateManager.copyFrom(player.stateManager);
-        }
+    async function editFromPlayer() {
+        await editor.stateManager.copyFrom(player.stateManager);
         showEditor();
     }
 

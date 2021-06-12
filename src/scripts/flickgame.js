@@ -1,4 +1,6 @@
-/** @type {maker.ResourceHandler<string, CanvasRenderingContext2D>} */
+// add a resource type called "canvas-datauri" that describes how to load a
+// canvas rendering context from a datauri, how to copy one, and how to convert
+// one back into a datauri
 maker.resourceHandlers.set("canvas-datauri", {
     load: async (data) => imageToRendering2D(await loadImage(data)),
     copy: async (instance) => copyRendering2D(instance),
@@ -16,8 +18,12 @@ maker.resourceHandlers.set("canvas-datauri", {
  * @property {FlickgameDataScene[]} scenes
  */
 
-/** @param {FlickgameDataProject} data */
+/** 
+ * @param {FlickgameDataProject} data 
+ * @returns {string[]}
+ */
 function getFlickgameManifest(data) {
+    // scene images are the only resource dependencies in a flickgame
     return data.scenes.map((scene) => scene.image);
 }
 
@@ -54,6 +60,11 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
 }
 
+/**
+ * Use inline style to resize canvas to fit its parent, preserving the aspect
+ * ratio of its internal dimensions.
+ * @param {HTMLCanvasElement} canvas 
+ */
 function fitCanvasToParent(canvas) {
     const [tw, th] = [canvas.parentElement.clientWidth, canvas.parentElement.clientHeight];
     const [sw, sh] = [tw / canvas.width, th / canvas.height];
@@ -62,8 +73,10 @@ function fitCanvasToParent(canvas) {
     canvas.style.setProperty("height", `${canvas.height * scale}px`);
 }
 
+// datauri for a default title scene image
 const defaultScene = "data:image/png;base64,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";
 
+// default palette copied from flickgame
 const palette = [
     "#140c1c", "#442434", "#30346d", "#4e4a4e",
     "#854c30", "#346524", "#d04648", "#757161",
@@ -71,6 +84,7 @@ const palette = [
     "#d2aa99", "#6dc2ca", "#dad45e", "#deeed6",
 ];
 
+// brush names and datauris
 const brushes = [
     { name: "1px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABlJREFUOI1jYBgFwx38/////0C7YRQMDQAApd4D/cefQokAAAAASUVORK5CYII=" },
     { name: "2px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABpJREFUOI1jYBgFwx38hwJ8apjo5ZhRMKgBADvbB/vPRl6wAAAAAElFTkSuQmCC" },
@@ -78,6 +92,7 @@ const brushes = [
     { name: "4px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAChJREFUOI1jYBgFgxz8hwJ8ahjxaUZRyMiIVS0TeW4jEhDjhVEwGAAAJhAT9IYiYRoAAAAASUVORK5CYII=" },
 ];
 
+// brush pattern names and datauris
 const patterns = [
     { name: "solid", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAANQTFRF////p8QbyAAAAA1JREFUGJVjYBgFyAAAARAAATPJ8WoAAAAASUVORK5CYII=" },
     { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAAZQTFRF////AAAAVcLTfgAAAAJ0Uk5T/wDltzBKAAAAEElEQVQYlWNgYCQAGUaUCgBFEACBOeFM/QAAAABJRU5ErkJggg==" },
@@ -92,8 +107,11 @@ const patterns = [
 class FlickgamePlayer extends EventTarget {
     constructor() {
         super();
+        // home for data of the project we're playing
         this.stateManager = new maker.StateManager();
+        // final composite of any graphics
         this.rendering = createRendering2D(160, 100);
+        // start the player in scene 0
         this.activeSceneIndex = 0;
     }
 
@@ -108,40 +126,52 @@ class FlickgamePlayer extends EventTarget {
     }
 
     reset() {
-        this.activeSceneIndex = 0;
-        this.render();
+        // return to scene 0
+        this.jump(0);
     }
 
     render() {
+        // find the canvas resource of the current scene's image
         const scene = this.stateManager.present.scenes[this.activeSceneIndex];
         const image = this.stateManager.resources.get(scene.image);
         
+        // clear the rendering and draw the current scene
         this.rendering.clearRect(0, 0, 160, 100);
         this.rendering.drawImage(image.canvas, 0, 0);
 
+        // signal, to anyone listening, that rendering happened
         this.dispatchEvent(new CustomEvent("render"));
     }
 
     getJumpAt(x, y) {
+        // find the canvas resource of the current scene's image
         const scene = this.stateManager.present.scenes[this.activeSceneIndex];
         const image = this.stateManager.resources.get(scene.image);
 
+        // get the pixel data at the given coordinates
         const [r, g, b, a] = image.getImageData(x, y, 1, 1).data;
+        // convert to hexadecimal to compare with the flickgame palette
         const hex = "#" + [r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("");
         const index = palette.findIndex((color) => color === hex);
+
+        // consult the current scene's jump table for the corresponding color
         return scene.jumps[index];
     }
 
     click(x, y) {
+        // check if the clicked position has a jump, if it does then jump
         const jump = this.getJumpAt(x, y);
-
-        if (jump) { 
-            this.activeSceneIndex = parseInt(jump, 10);
-            this.render();
-        }
+        if (jump) this.jump(jump);
     }
 
-    show() {
+    jump(sceneIndex) {
+        // update the active scene and re-render
+        this.activeSceneIndex = sceneIndex;
+        this.render();
+    }
+
+    enter() {
+        // we might not have rendered yet
         this.render();
     }
 }
@@ -150,6 +180,9 @@ class FlickgameEditor extends EventTarget {
     constructor() {
         super();
 
+        // to determine which resources are still in use for the project we
+        // combine everything the flickgame needs plus anything this editor
+        // needs
         const getManifest = (data) => [...getFlickgameManifest(data), ...this.getManifest()];
 
         /** @type {maker.StateManager<FlickgameDataProject>} */
@@ -160,6 +193,7 @@ class FlickgameEditor extends EventTarget {
         this.preview = createRendering2D(160, 100); 
         this.thumbnails = ZEROES(16).map(() => createRendering2D(160, 100));
 
+        // find all the ui already defined in the html
         this.sceneSelect = ui.radio("scene-select");
         this.toolSelect = ui.radio("tool-select");
         this.brushSelect = ui.radio("brush-select");
@@ -167,19 +201,48 @@ class FlickgameEditor extends EventTarget {
         this.colorSelect = ui.radio("color-select");
         this.jumpSelect = ui.select("jump-select");
         this.jumpColorIndicator = ONE("#jump-source-color");
+        this.helpContainer = ONE("#help");   
 
+        // add thumbnails to the scene select bar
+        ALL("#scene-select input").forEach((input, index) => {
+            input.after(this.thumbnails[index].canvas);
+        });
+    
+        // recolor the color select buttons to the corresponding color
+        ALL("#color-select label").forEach((label, index) => {
+            label.style.backgroundColor = palette[index];
+        });
+    
+        // add brush icons and tooltips to brush select buttons
+        ALL("#brush-select label").forEach((label, index) => {
+            ONE("input", label).title = brushes[index].name + " brush";
+            ONE("img", label).src = brushes[index].image;
+        });
+
+        // add pattern icons and tooltips to brush select buttons
+        ALL("#pattern-select label").forEach((label, index) => {
+            ONE("input", label).title = patterns[index].name + " pattern";
+            ONE("img", label).src = patterns[index].image;
+        });
+
+        // state of the paint tools:
+        // is the color pick key held down?
         this.heldColorPick = false;
-
+        // current brush and pattern recolored with current color
         this.activeBrush = undefined;
         this.activePattern = undefined;
+        // saved start coordinates during a line draw
         this.lineStart = undefined;
+        // scene currently in the clipboard
+        this.copiedScene = undefined;
 
+        // editor actions controlled by html buttons
         this.actions = {
-            undo: ui.action("undo"),
-            redo: ui.action("redo"),
-            copy: ui.action("copy"),
-            paste: ui.action("paste"),
-            clear: ui.action("clear"),
+            undo: ui.action("undo", () => this.stateManager.undo()),
+            redo: ui.action("redo", () => this.stateManager.redo()),
+            copy: ui.action("copy", () => this.copyScene()),
+            paste: ui.action("paste", () => this.pasteScene()),
+            clear: ui.action("clear", () => this.clearScene()),
 
             export_: ui.action("export", () => this.exportProject()),
             import_: ui.action("import", () => this.importProject()),
@@ -187,12 +250,12 @@ class FlickgameEditor extends EventTarget {
             help: ui.action("help", () => this.toggleHelp()),
         };
 
+        // can't undo/redo/paste yet
         this.actions.undo.disabled = true;
         this.actions.redo.disabled = true;
         this.actions.paste.disabled = true;
-    
-        this.helpContainer = ONE("#help");   
 
+        // hotkeys
         document.addEventListener("keydown", (event) => {
             if (event.ctrlKey && event.key === "z") this.actions.undo.invoke();
             if (event.ctrlKey && event.key === "y") this.actions.redo.invoke();
@@ -226,14 +289,13 @@ class FlickgameEditor extends EventTarget {
             this.heldColorPick = event.altKey;
         });
 
-        /** @type {FlickgameDataScene} */
-        this.copiedScene = undefined;
-
+        // changes in scene select bar
         this.sceneSelect.addEventListener("change", () => {
             this.render();
             this.refreshJumpSelect();
         });
 
+        // changes in the jump select dropdown
         this.jumpSelect.addEventListener("change", () => {
             if (!this.selectedScene) return;
     
@@ -247,138 +309,124 @@ class FlickgameEditor extends EventTarget {
             });
         });
 
+        // changes in the brush and pattern select bars
         this.brushSelect.addEventListener("change", () => this.refreshActiveBrush());
         this.patternSelect.addEventListener("change", () => this.refreshActiveBrush());
 
+        // changes in the color select
         this.colorSelect.addEventListener("change", () => {
             this.refreshActiveBrush();
             this.refreshJumpSelect();
         });
     
+        // whenever the project data is changed
         this.stateManager.addEventListener("change", () => {
+            // redraw all the scene select thumbnails
             this.stateManager.present.scenes.forEach((scene, index) => {
                 const image = this.stateManager.resources.get(scene.image).canvas;
                 this.thumbnails[index].drawImage(image, 0, 0);
             });
     
+            // redraw the current scene view
             this.render();
     
+            // enable/disable undo/redo buttons
             this.actions.undo.disabled = !this.stateManager.canUndo;
             this.actions.redo.disabled = !this.stateManager.canRedo;
     
+            // update jump select ui
             this.refreshJumpSelect();
         });
 
-        this.actions.undo.addEventListener("invoke", () => this.stateManager.undo());
-        this.actions.redo.addEventListener("invoke", () => this.stateManager.redo());
-        this.actions.copy.addEventListener("invoke", () => this.copyScene());
-        this.actions.paste.addEventListener("invoke", () => this.pasteScene());
-        this.actions.clear.addEventListener("invoke", () => this.clearScene());
-
-        ALL("#scene-select input").forEach((input, index) => {
-            input.after(this.thumbnails[index].canvas);
-        });
-    
-        ALL("#color-select label").forEach((label, index) => {
-            label.style.backgroundColor = palette[index];
-        });
-    
-        ALL("#brush-select label").forEach((label, index) => {
-            ONE("input", label).title = brushes[index].name + " brush";
-            ONE("img", label).src = brushes[index].image;
-        });
-    
-        ALL("#pattern-select label").forEach((label, index) => {
-            ONE("input", label).title = patterns[index].name + " pattern";
-            ONE("img", label).src = patterns[index].image;
-        });
-
-        document.addEventListener("mousemove", (event) => {
+        // whenever a pointer moves anywhere on screen, update the paint cursors
+        // --listen on the whole document because for e.g line drawing it is 
+        // valid to move the mouse outside the edges of the drawing area
+        document.addEventListener("pointermove", (event) => {
             const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
             this.refreshPreview(x, y);
         });
         
+        // finger or mouse presses on the drawing area--could begin a drag or
+        // end quickly in a click
         this.rendering.canvas.addEventListener("pointerdown", async (event) => {
-            if (this.heldColorPick) return;
+            // for mouse ignore non-left-clicks
+            if (event.button !== 0) return;
 
-            if (this.toolSelect.value === "freehand") {
-                const scene = this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
+            // treat this as the beginning of a possible drag
+            const drag = ui.drag(event);
+            const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
 
-                const mask = createRendering2D(160, 100);
-                const plot = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
-                const pattern = mask.createPattern(this.activePattern.canvas, 'repeat');
-
-                this.stateManager.makeCheckpoint();
-                const { id, instance } = await this.stateManager.resources.fork(scene.image);
-                scene.image = id;
-
-                const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
-                plot(x, y);
+            // prepare the pattern mask and plot function
+            const mask = createRendering2D(160, 100);
+            const plotMask = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
+            const pattern = mask.createPattern(this.activePattern.canvas, 'repeat');
+            const drawPatternedMask = (instance) => {
                 mask.globalCompositeOperation = "source-in";
                 fillRendering2D(mask, pattern);
                 mask.globalCompositeOperation = "source-over";
                 instance.drawImage(mask.canvas, 0, 0);
                 this.stateManager.changed();
+            };
+
+            // color picker selected or color pick hotkey held
+            if (this.toolSelect.value === "pick" || this.heldColorPick) {
+                drag.addEventListener("click", () => this.pickColor(x, y));
+            // flood fill selected
+            } else if (this.toolSelect.value === "fill") {
+                drag.addEventListener("click", () => this.floodFill(x, y));
+            // freehand drawing selected
+            } else if (this.toolSelect.value === "freehand") {
+                // fork the current scene's image for editing and make an 
+                // undo/redo checkpoint
+                const scene = this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
+                this.stateManager.makeCheckpoint();
+                const instance = await this.forkSceneImage(scene);
+
+                // draw the brush at the position the drag begins
+                plotMask(x, y);
+                drawPatternedMask(instance);
 
                 let prev = { x, y };
 
-                const drag = ui.drag(event);
+                // draw the brush at the last position of the drag
                 drag.addEventListener("up", (event) => {
                     const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
-                    plot(x, y);
-                    mask.globalCompositeOperation = "source-in";
-                    fillRendering2D(mask, pattern);
-                    mask.globalCompositeOperation = "source-over";
-                    instance.drawImage(mask.canvas, 0, 0);
-                    this.stateManager.changed();
+                    plotMask(x, y);
+                    drawPatternedMask(instance);
                 });
+
+                // as the pointer moves, draw brush lines between the points
                 drag.addEventListener("move", (event) => {
                     const { x: x0, y: y0 } = prev;
                     const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
-                    lineplot(x0, y0, x1, y1, plot);
-                    mask.globalCompositeOperation = "source-in";
-                    fillRendering2D(mask, pattern);
-                    mask.globalCompositeOperation = "source-over";
-                    instance.drawImage(mask.canvas, 0, 0);
+                    lineplot(x0, y0, x1, y1, plotMask);
+                    drawPatternedMask(instance);
                     prev = { x: x1, y: y1 };
-                    this.stateManager.changed();
                 });
+            // line drawing selected
             } else if (this.toolSelect.value === "line") {
-                const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
+                // need to save this to draw the line preview
                 this.lineStart = { x, y };
                 this.refreshPreview(x, y);
 
-                const drag = ui.drag(event);
-                drag.addEventListener("up", (event) => {
-                    this.stateManager.makeChange(async (data) => {
-                        const scene = this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
-    
-                        const { x: x0, y: y0 } = this.lineStart;
-                        const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
-                        const { id, instance } = await this.stateManager.resources.fork(scene.image);
-                        scene.image = id;
+                // only actually draw the line at the end
+                drag.addEventListener("up", async (event) => {
+                    // fork the current scene's image for editing and make an 
+                    // undo/redo checkpoint
+                    const scene = this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
+                    this.stateManager.makeCheckpoint();
+                    const instance = await this.forkSceneImage(scene);
+                    
+                    // line from pointer down position to pointer up position
+                    const { x: x0, y: y0 } = this.lineStart;
+                    const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
 
-                        const mask = createRendering2D(160, 100);
-                        const plot = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
-                        lineplot(x0, y0, x1, y1, plot);
-                        mask.globalCompositeOperation = "source-in";
-                        fillRendering2D(mask, mask.createPattern(this.activePattern.canvas, 'repeat'));
-                        instance.drawImage(mask.canvas, 0, 0);
+                    lineplot(x0, y0, x1, y1, plotMask);
+                    drawPatternedMask(instance);
 
-                        this.lineStart = undefined;
-                    });
+                    // stop tracking line drawing
+                    this.lineStart = undefined;
                 });
-            }
-        });
-
-        this.rendering.canvas.addEventListener("pointerup", (event) => {
-            if (event.button !== 1) event.preventDefault();
-            const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
-
-            if (this.toolSelect.value === "pick" || this.heldColorPick) {
-                this.pickColor(x, y);
-            } else if (this.toolSelect.value === "fill") {
-                this.floodFill(x, y);
             } 
         });
     }
@@ -393,6 +441,12 @@ class FlickgameEditor extends EventTarget {
 
     get selectedScene() {
         return this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
+    }
+
+    async forkSceneImage(scene) {
+        const { id, instance } = await this.stateManager.resources.fork(scene.image);
+        scene.image = id;
+        return instance;
     }
 
     render() {
@@ -451,8 +505,7 @@ class FlickgameEditor extends EventTarget {
     floodFill(x, y) {
         this.stateManager.makeChange(async (data) => {
             const scene = data.scenes[this.sceneSelect.selectedIndex];
-            const { id, instance } = await this.stateManager.resources.fork(scene.image);
-            scene.image = id;
+            const instance = await this.forkSceneImage(scene);
 
             const mask = floodfillOutput(instance, x, y, 0xFFFFFFFF);
             mask.globalCompositeOperation = "source-in";
@@ -530,7 +583,7 @@ class FlickgameEditor extends EventTarget {
         this.helpContainer.hidden = !this.helpContainer.hidden;
     }
 
-    show() {
+    enter() {
         this.sceneSelect.selectedIndex = 0;
         this.toolSelect.selectedIndex = 0;
         this.brushSelect.selectedIndex = getRandomInt(0, 4);
