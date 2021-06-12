@@ -386,6 +386,16 @@ maker.textToBlob = function(text, type = "text/plain") {
     return new Blob([text], { type });
 }
 
+/**
+ * 
+ * @param {ParentNode} html 
+ */
+maker.bundleFromHTML = function(html) {
+    const json = ONE("#bundle-embed", html)?.textContent;
+    const bundle = json ? JSON.parse(json) : undefined;
+    return bundle;
+}
+
 class RadioGroupWrapper extends EventTarget {
     /** @param {HTMLInputElement[]} inputs */
     constructor(inputs) {
@@ -452,11 +462,17 @@ class ButtonAction extends EventTarget {
 ui.radio = (name) => new RadioGroupWrapper(ALL(`input[type="radio"][name="${name}"]`));
 
 /**
- * Get an action linked to all button elements sharing the given name.
+ * Get an action linked to all button elements sharing the given name. 
+ * Optionally provide a default listener for the action.
  * @param {string} name
+ * @param {() => void} listener
  * @returns {ButtonAction}
  */
-ui.action = (name) => new ButtonAction(ALL(`button[name="${name}"]`));
+ui.action = function (name, listener=undefined) {
+    const action = new ButtonAction(ALL(`button[name="${name}"]`));
+    if (listener) action.addEventListener("invoke", listener);
+    return action;
+}
 
 /**
  * Get the html select element with the given name.
