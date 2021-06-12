@@ -4,20 +4,20 @@ html(lang="en")
         title flickgame study 1
         meta(charset="utf-8")
         meta(name="viewport" content="width=700, initial-scale=1.0")
-        // styles
-        style#base-style
-            include styles/base-style.css
-        style#main-style
-            include styles/main-style.css
         // scripts
+        script
+            include scripts/start.js
         script
             include scripts/maker.js
         script
             include scripts/blitsy.js
         script
             include scripts/flickgame.js
-        script
-            include scripts/start.js
+        // styles
+        style#base-style
+            include styles/base-style.css
+        style#main-style
+            include styles/main-style.css
     body(onload="start()")
         #player(hidden)
             #player-container

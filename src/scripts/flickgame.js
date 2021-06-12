@@ -140,6 +140,10 @@ class FlickgamePlayer extends EventTarget {
             this.render();
         }
     }
+
+    show() {
+        this.render();
+    }
 }
 
 class FlickgameEditor extends EventTarget {
@@ -526,7 +530,7 @@ class FlickgameEditor extends EventTarget {
         this.helpContainer.hidden = !this.helpContainer.hidden;
     }
 
-    resetSelections() {
+    show() {
         this.sceneSelect.selectedIndex = 0;
         this.toolSelect.selectedIndex = 0;
         this.brushSelect.selectedIndex = getRandomInt(0, 4);
