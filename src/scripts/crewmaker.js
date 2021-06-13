@@ -120,6 +120,8 @@ crewmaker.Editor = class extends EventTarget {
     constructor() {
         super();
 
+        this.editorMode = true;
+
         // to determine which resources are still in use for the project we
         // combine everything the crewmaker needs plus anything this editor
         // needs
@@ -129,7 +131,6 @@ crewmaker.Editor = class extends EventTarget {
         this.stateManager = new maker.StateManager(getManifest);
         /** @type {CanvasRenderingContext2D} */
         this.rendering = ONE("#renderer").getContext("2d");
-        this.rendering.canvas.style.setProperty("cursor", "crosshair");
 
         this.stackActive = createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight);
         this.stackUnder = createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight);
@@ -223,6 +224,8 @@ crewmaker.Editor = class extends EventTarget {
             import_: ui.action("import", () => this.importProject()),
             reset: ui.action("reset", () => this.resetProject()),
             help: ui.action("help", () => this.toggleHelp()),
+
+            exportImage: ui.action("export-image", () => this.exportImage()),
         };
 
         // can't undo/redo/paste yet
@@ -335,6 +338,8 @@ crewmaker.Editor = class extends EventTarget {
         this.rendering.canvas.addEventListener("pointerdown", async (event) => {
             // for mouse ignore non-left-clicks
             if (event.button !== 0) return;
+            // ignore in player mode
+            if (!this.editorMode) return;
 
             // treat this as the beginning of a possible drag
             const drag = ui.drag(event);
@@ -439,16 +444,13 @@ crewmaker.Editor = class extends EventTarget {
     }
 
     render() {
-        // determine which layers to draw
-        const layers = this.stackLayers.checked;
-
+        // clear everything
         fillRendering2D(this.stackActive);
         fillRendering2D(this.stackUnder);
         fillRendering2D(this.stackOver);
-
-        // draw paint preview over composed layers
         fillRendering2D(this.rendering);
 
+        // composite layers into below, current, above
         this.stateManager.present.layers.forEach((layer, index) => {
             // get the layer's current option scene's image
             const option = layer.options[this.selectedOptions[index]];
@@ -459,13 +461,18 @@ crewmaker.Editor = class extends EventTarget {
             if (index === this.layerSelect.selectedIndex) this.stackActive.drawImage(image.canvas, 0, 0);
         });
 
-        const inactiveAlpha = this.stackLayers.checked ? 1 : .5;
+        // should other layers be drawn transparent?
+        const onion = this.editorMode && !this.stackLayers.checked;
+        const inactiveAlpha = onion ? .35 : 1;
 
+        // all layers below the active layer
         this.rendering.globalAlpha = inactiveAlpha;
         this.rendering.drawImage(this.stackUnder.canvas, 0, 0);
+        // the active layer + paint preview
         this.rendering.globalAlpha = 1;
         this.rendering.drawImage(this.stackActive.canvas, 0, 0);
         this.rendering.drawImage(this.preview.canvas, 0, 0);
+        // all layers above the active layer
         this.rendering.globalAlpha = inactiveAlpha;
         this.rendering.drawImage(this.stackOver.canvas, 0, 0);
         this.rendering.globalAlpha = 1;
@@ -652,51 +659,52 @@ crewmaker.Editor = class extends EventTarget {
         // open a blank project in the editor
         await this.stateManager.loadBundle(crewmaker.makeBlankBundle());
     }
+    
+    exportImage() {
+        this.rendering.canvas.toBlob((blob) => {
+            maker.saveAs(blob, "your-character.png");
+        });        
+    }
 
     toggleHelp() {
         this.helpContainer.hidden = !this.helpContainer.hidden;
     }
 
-    enter() {
-        this.enterEditorMode();
+    enterPlayerMode() {
+        this.editorMode = false;
+        ALL("[data-hidden-in-editor]").forEach((element) => element.hidden = false);
+        ALL("[data-hidden-in-player]").forEach((element) => element.hidden = true);
+        this.rendering.canvas.style.setProperty("cursor", "unset");
         this.render();
     }
 
-    enterPlayerMode() {
-        ALL("[data-hidden-in-editor]").forEach((element) => element.hidden = false);
-        ALL("[data-hidden-in-player]").forEach((element) => element.hidden = true);
-    }
-
     enterEditorMode() {
+        this.editorMode = true;
         ALL("[data-hidden-in-editor]").forEach((element) => element.hidden = true);
         ALL("[data-hidden-in-player]").forEach((element) => element.hidden = false);
+        this.rendering.canvas.style.setProperty("cursor", "crosshair");
+        this.render();
     }
 }
 
-async function makeEditor() {
+crewmaker.start = async function () {
     const editor = new crewmaker.Editor();
     await editor.init();
-    return editor;
-}
 
-async function makePlayer() {
-    return undefined;
-    const player = new crewmaker.Player();
+    // setup play/edit buttons to switch between modes
+    const play = ui.action("play", () => editor.enterPlayerMode());
+    const edit = ui.action("edit", () => editor.enterEditorMode());
 
-    const playCanvas = /** @type {HTMLCanvasElement} */ (ONE("#player canvas"));
-    const playRendering = /** @type {CanvasRenderingContext2D} */ (playCanvas.getContext("2d"));
-    
-    // update mouse cursor to reflect whether a clickable pixel is hovered or not
-    playCanvas.addEventListener("mousemove", (event) => {
-        const { x, y } = mouseEventToCanvasPixelCoords(playCanvas, event);
-        const clickable = player.getJumpAt(x, y) !== undefined;
-        playCanvas.style.setProperty("cursor", clickable ? "pointer" : "unset");
-    });
+    // determine if there is a project bundle embedded in this page
+    const bundle = maker.bundleFromHTML(document);
 
-    // mirror rendering
-    player.addEventListener("render", () => {
-        playRendering.drawImage(player.rendering.canvas, 0, 0);
-    });
-
-    return player;
+    if (bundle) {
+        // embedded project, load it in the player
+        await editor.stateManager.loadBundle(bundle);
+        editor.enterPlayerMode();
+    } else {
+        // no embedded project, start editor blank
+        await editor.resetProject();
+        editor.enterEditorMode();
+    }
 }

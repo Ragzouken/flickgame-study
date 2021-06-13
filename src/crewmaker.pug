@@ -20,13 +20,8 @@ html(lang="en")
             include styles/main-style.css
         style#crewmaker-style
             include styles/crewmaker-style.css
-    body(onload="start()")
-        #player(hidden)
-            #player-container
-                canvas(width=128 height=128)
-            #player-menu
-                button(name="edit" title="edit this game") edit
-        #editor()
+    body(onload="crewmaker.start()")
+        #editor
             main
                 section#middle
                     fieldset#layer-select.radio-select
