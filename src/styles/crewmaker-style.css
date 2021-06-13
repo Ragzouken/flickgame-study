@@ -73,7 +73,7 @@
 }
 
 #layer-select label :not(input) {
-    filter: brightness(0);
+    filter: invert();
 }
 
 #layer-select label *:checked + :not(input) {
@@ -91,12 +91,20 @@
     position: absolute;
     border-radius: inherit;
     object-fit: contain;
+
+    image-rendering: auto;
 }
 
-#option-select input[type="radio"]:checked {
-    background: none;
-    box-shadow: 0 0 0 var(--highlight-thickness) white;
-    z-index: 5;
+#option-select *:checked + :not(input) {
+    background: blue;
+}
+
+#option-select label :not(input) {
+    filter: brightness(0);
+}
+
+#option-select label *:checked + :not(input) {
+    filter: none;
 }
 
 #palette-select label :not(input) {
@@ -123,6 +131,7 @@
 
 #option-select {
     flex: 1;
+    gap: 2px;
 }
 
 #palette-select {

@@ -553,6 +553,10 @@ crewmaker.Editor = class extends EventTarget {
             fillRendering2D(thumbnail);
             const image = this.stateManager.resources.get(layer.options[index].image);
             thumbnail.drawImage(image.canvas, 0, 0);
+
+            thumbnail.globalCompositeOperation = "source-in";
+            fillRendering2D(thumbnail, "#ffffff");
+            thumbnail.globalCompositeOperation = "source-over";
         });
     }
 
