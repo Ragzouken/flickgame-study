@@ -94,11 +94,6 @@
     background: none;
     box-shadow: 0 0 0 var(--highlight-thickness) white;
     z-index: 5;
-
-    animation-name: selection-flash;
-    animation-direction: alternate;
-    animation-duration: 2s;
-    animation-iteration-count: infinite;
 }
 
 #palette-select label :not(input) {
@@ -136,14 +131,7 @@
 }
 
 #palette-select input[type="radio"]:checked {
-    background: none;
-    box-shadow: 0 0 0 var(--highlight-thickness) white;
-    z-index: 5;
-
-    animation-name: selection-flash;
-    animation-direction: alternate;
-    animation-duration: 2s;
-    animation-iteration-count: infinite;
+    background: blue;
 }
 
 #layer-select label {
@@ -171,4 +159,25 @@
 
 #tools {
     grid-template-rows: repeat(3, 1fr);
+}
+
+.hanging-menu {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 1em;
+
+    height: 32px;
+}
+
+.hanging-menu button {
+    background-color: var(--button-color);
+
+    font-weight: bold;
+    padding-left: 1em;
+    padding-right: 1em;
+
+    border: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
 }

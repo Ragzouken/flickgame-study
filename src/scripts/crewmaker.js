@@ -130,6 +130,10 @@ crewmaker.Editor = class extends EventTarget {
         /** @type {CanvasRenderingContext2D} */
         this.rendering = ONE("#renderer").getContext("2d");
         this.rendering.canvas.style.setProperty("cursor", "crosshair");
+
+        this.stackActive = createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight);
+        this.stackUnder = createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight);
+        this.stackOver = createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight);
         
         this.preview = createRendering2D(this.rendering.canvas.width, this.rendering.canvas.height);
         this.layerThumbs = ZEROES(8).map(() => createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight));
@@ -177,7 +181,7 @@ crewmaker.Editor = class extends EventTarget {
         // generate palette thumbnails
         this.paletteThumbs.forEach((thumbnail, index) => {
             const gap = 0;
-            const size = 14;
+            const size = 12;
             const pad = 0;
 
             resizeRendering2D(thumbnail, 4 * size + 3 * gap + pad * 2, 2 * size + 1 * gap + pad * 2);
@@ -436,19 +440,35 @@ crewmaker.Editor = class extends EventTarget {
 
     render() {
         // determine which layers to draw
-        const layers = this.stackLayers.checked 
-                     ? this.stateManager.present.layers 
-                     : [this.stateManager.present.layers[this.layerSelect.selectedIndex]]; 
+        const layers = this.stackLayers.checked;
+
+        fillRendering2D(this.stackActive);
+        fillRendering2D(this.stackUnder);
+        fillRendering2D(this.stackOver);
 
         // draw paint preview over composed layers
         fillRendering2D(this.rendering);
-        layers.forEach((layer, index) => {
+
+        this.stateManager.present.layers.forEach((layer, index) => {
             // get the layer's current option scene's image
             const option = layer.options[this.selectedOptions[index]];
             const image = this.stateManager.resources.get(option.image);
-            this.rendering.drawImage(image.canvas, 0, 0);
+            
+            if (index < this.layerSelect.selectedIndex) this.stackUnder.drawImage(image.canvas, 0, 0);
+            if (index > this.layerSelect.selectedIndex) this.stackOver.drawImage(image.canvas, 0, 0);
+            if (index === this.layerSelect.selectedIndex) this.stackActive.drawImage(image.canvas, 0, 0);
         });
+
+        const inactiveAlpha = this.stackLayers.checked ? 1 : .5;
+
+        this.rendering.globalAlpha = inactiveAlpha;
+        this.rendering.drawImage(this.stackUnder.canvas, 0, 0);
+        this.rendering.globalAlpha = 1;
+        this.rendering.drawImage(this.stackActive.canvas, 0, 0);
         this.rendering.drawImage(this.preview.canvas, 0, 0);
+        this.rendering.globalAlpha = inactiveAlpha;
+        this.rendering.drawImage(this.stackOver.canvas, 0, 0);
+        this.rendering.globalAlpha = 1;
 
         // signal, to anyone listening, that rendering happened
         this.dispatchEvent(new CustomEvent("render"));
@@ -638,7 +658,18 @@ crewmaker.Editor = class extends EventTarget {
     }
 
     enter() {
+        this.enterEditorMode();
         this.render();
+    }
+
+    enterPlayerMode() {
+        ALL("[data-hidden-in-editor]").forEach((element) => element.hidden = false);
+        ALL("[data-hidden-in-player]").forEach((element) => element.hidden = true);
+    }
+
+    enterEditorMode() {
+        ALL("[data-hidden-in-editor]").forEach((element) => element.hidden = true);
+        ALL("[data-hidden-in-player]").forEach((element) => element.hidden = false);
     }
 }
 
@@ -649,6 +680,7 @@ async function makeEditor() {
 }
 
 async function makePlayer() {
+    return undefined;
     const player = new crewmaker.Player();
 
     const playCanvas = /** @type {HTMLCanvasElement} */ (ONE("#player canvas"));
