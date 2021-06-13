@@ -112,22 +112,18 @@
 }
 
 #layer-options {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    grid-template-rows: repeat(2, 1fr);
+    display: flex;
+    flex-direction: row;
     gap: 1em;
+    align-items: stretch;
 }
 
 #option-select {
-    grid-column: 1 / span 4;
-    grid-row: 1 / span 2;
-
     flex: 1;
 }
 
 #palette-select {
-    grid-column: 5 / span 4;
-    grid-row: 1 / span 2;
+    flex: 1;
 }
 
 #palette-select input[type="radio"]:checked {
@@ -152,13 +148,30 @@
     padding: .25em;
 }
 
-#color-select {
-    grid-column: 5 / span 4;
-    grid-row: 1 / span 2;
+#tools {
+    grid-template-areas:
+        "tool   color  "
+        "brush  color  "
+        "bar    bar    ";
+
+    grid-template-rows: unset;
+    grid-template-columns: unset;
 }
 
-#tools {
-    grid-template-rows: repeat(3, 1fr);
+#tool-select {
+    grid-area: tool;
+}
+
+#brush-select {
+    grid-area: brush;
+}
+
+#color-select {
+    grid-area: color;
+}
+
+#toolbar {
+    grid-area: bar;
 }
 
 .hanging-menu {
