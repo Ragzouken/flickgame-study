@@ -69,11 +69,14 @@
 }
 
 #layer-select *:checked + :not(input) {
-    box-shadow: 0 0 0 .5em white;
-    z-index: 5;
+    background: blue;
 }
 
 #layer-select label :not(input) {
+    filter: brightness(0);
+}
+
+#layer-select label *:checked + :not(input) {
     filter: none;
 }
 
