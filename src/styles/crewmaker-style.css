@@ -1,0 +1,174 @@
+.radio-select label {
+    min-height: 3em;
+}
+
+#viewport {
+    padding: 0;
+}
+
+#renderer {
+    width: 512px;
+    height: 512px;
+
+    background: none;
+}
+
+#stack-layers {
+    position: absolute;
+    top: 1em; right: 1em;
+    width: 60px;
+    height: 48px;
+
+    margin: 0;
+    appearance: unset;
+    background-color: var(--button-color);
+
+    border-radius: 1em;
+
+    opacity: 50%;
+}
+
+#stack-layers input {
+    appearance: unset;
+    margin: 0;
+    appearance: unset;
+    border-radius: inherit;
+
+    position: absolute;
+    width: 100%; height: 100%;
+}
+
+#stack-layers input + svg {
+    color: black;
+
+    pointer-events: none;
+    width: 32px; height: 32px;
+
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#stack-layers input:checked {
+    background: blue;
+}
+
+#stack-layers input:checked + svg {
+    color: white;
+}
+
+#layer-select {
+    display: grid;
+    grid-template-rows: repeat(8, 1fr);
+    /* gap: .5em; */
+    gap: 2px;
+}
+
+#layer-select label {
+    background-color: var(--button-color);
+}
+
+#layer-select *:checked + :not(input) {
+    box-shadow: 0 0 0 .5em white;
+    z-index: 5;
+}
+
+#layer-select label :not(input) {
+    filter: none;
+}
+
+#layer-select label :not(input) {
+    width: 100%; height: 100%;
+    position: absolute;
+    border-radius: inherit;
+}
+
+#option-select label :not(input) {
+    width: 100%; height: 100%;
+    position: absolute;
+    border-radius: inherit;
+    object-fit: contain;
+}
+
+#option-select input[type="radio"]:checked {
+    background: none;
+    box-shadow: 0 0 0 var(--highlight-thickness) white;
+    z-index: 5;
+
+    animation-name: selection-flash;
+    animation-direction: alternate;
+    animation-duration: 2s;
+    animation-iteration-count: infinite;
+}
+
+#palette-select label :not(input) {
+    position: absolute;
+    border-radius: none;
+
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#middle {
+    display: flex;
+    flex-direction: row;
+    gap: 1em;
+}
+
+#layer-options {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 1em;
+}
+
+#option-select {
+    grid-column: 1 / span 4;
+    grid-row: 1 / span 2;
+
+    flex: 1;
+}
+
+#palette-select {
+    grid-column: 5 / span 4;
+    grid-row: 1 / span 2;
+}
+
+#palette-select input[type="radio"]:checked {
+    background: none;
+    box-shadow: 0 0 0 var(--highlight-thickness) white;
+    z-index: 5;
+
+    animation-name: selection-flash;
+    animation-direction: alternate;
+    animation-duration: 2s;
+    animation-iteration-count: infinite;
+}
+
+#layer-select label {
+    width: 64px;
+}
+
+#layer-select > :first-child {
+    border-top-left-radius: 1em;
+    border-top-right-radius: 1em;
+}
+
+#layer-select > :last-child {
+    border-bottom-left-radius: 1em;
+    border-bottom-right-radius: 1em;
+}
+
+#toolbar button {
+    padding: .25em;
+}
+
+#color-select {
+    grid-column: 5 / span 4;
+    grid-row: 1 / span 2;
+}
+
+#tools {
+    grid-template-rows: repeat(3, 1fr);
+}

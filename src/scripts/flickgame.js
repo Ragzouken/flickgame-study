@@ -365,7 +365,7 @@ class FlickgameEditor extends EventTarget {
 
             // prepare the pattern mask and plot function
             const mask = createRendering2D(160, 100);
-            const plotMask = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
+            const plotMask = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
             const pattern = mask.createPattern(this.activePattern.canvas, 'repeat');
             const drawPatternedMask = (instance) => {
                 mask.globalCompositeOperation = "source-in";
@@ -446,9 +446,8 @@ class FlickgameEditor extends EventTarget {
         this.brushRenders = await Promise.all(brushes.map(({ image }) => loadImage(image).then(imageToRendering2D)));
         this.patternRenders = await Promise.all(patterns.map(({ image }) => loadImage(image).then(imageToRendering2D)));
         
-        // default brush and pattern just in case
-        this.activeBrush = this.brushRenders[0];
-        this.activePattern = this.patternRenders[0];
+        // make brush and pattern valid
+        this.refreshActiveBrush();
     }
 
     get selectedScene() {
@@ -485,7 +484,7 @@ class FlickgameEditor extends EventTarget {
         fillRendering2D(this.preview);
 
         // prepare plot function
-        const plot = (x, y) => this.preview.drawImage(this.activeBrush.canvas, (x - 7.5) | 0, (y - 7.5) | 0);
+        const plot = (x, y) => this.preview.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
 
         if (this.heldColorPick) {
             // no preview for color picking

@@ -1,7 +1,7 @@
 doctype html
 html(lang="en")
     head
-        title flickgame study 1
+        title my kool crewmaker
         meta(charset="utf-8")
         meta(name="viewport" content="width=700, initial-scale=1.0")
         // scripts
@@ -12,29 +12,44 @@ html(lang="en")
         script
             include scripts/blitsy.js
         script
-            include scripts/flickgame.js
+            include scripts/crewmaker.js
         // styles
         style#base-style
             include styles/base-style.css
         style#main-style
             include styles/main-style.css
+        style#crewmaker-style
+            include styles/crewmaker-style.css
     body(onload="start()")
         #player(hidden)
             #player-container
-                canvas(width=160 height=100)
+                canvas(width=128 height=128)
             #player-menu
                 button(name="edit" title="edit this game") edit
-        #editor(hidden)
+        #editor()
             main
-                fieldset#scene-select.grid8.radio-select
-                    each index in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                        label
-                            input(type="radio" name="scene-select" value=`${index}` title=`open scene ${index}`)
-                #viewport
-                    canvas#renderer(width="160" height="100" draggable="false")
-                    #help(hidden)
-                        button(name="help" title="hide help") close
-                        include:markdown-it(html) about.md
+                section#middle
+                    fieldset#layer-select.radio-select
+                        each index in [0, 1, 2, 3, 4, 5, 6, 7]
+                            label
+                                input(type="radio" name="layer-select" value=`${index}` title=`open layer ${index}`)
+                    #viewport
+                        canvas#renderer(width="128" height="128" draggable="false")
+                        label#stack-layers
+                            input(type="checkbox" name="stack-layers" title="show selected options for every layer at once")
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-stack" viewBox="0 0 16 16"><path d="m14.12 10.163 1.715.858c.22.11.22.424 0 .534L8.267 15.34a.598.598 0 0 1-.534 0L.165 11.555a.299.299 0 0 1 0-.534l1.716-.858 5.317 2.659c.505.252 1.1.252 1.604 0l5.317-2.66zM7.733.063a.598.598 0 0 1 .534 0l7.568 3.784a.3.3 0 0 1 0 .535L8.267 8.165a.598.598 0 0 1-.534 0L.165 4.382a.299.299 0 0 1 0-.535L7.733.063z"/><path d="m14.12 6.576 1.715.858c.22.11.22.424 0 .534l-7.568 3.784a.598.598 0 0 1-.534 0L.165 7.968a.299.299 0 0 1 0-.534l1.716-.858 5.317 2.659c.505.252 1.1.252 1.604 0l5.317-2.659z"/></svg>
+                        #help(hidden)
+                            button(name="help" title="hide help") close
+                            include:markdown-it(html) about.md
+                section#layer-options
+                    fieldset#option-select.grid4.radio-select
+                        each index in [0, 1, 2, 3, 4, 5, 6, 7]
+                            label
+                                input(type="radio" name="option-select" value=`${index}` title=`open option ${index}`)
+                    fieldset#palette-select.grid4.radio-select(title="palettes")
+                        each index in [0, 1, 2, 3, 4, 5, 6, 7]
+                            label
+                                input(type="radio" name="palette-select" value=`${index}` title=`select palette ${index}`)
                 section#tools
                     fieldset#tool-select.grid4.radio-select(title="tools")
                         label
@@ -54,13 +69,8 @@ html(lang="en")
                             label
                                 input(type="radio" name="brush-select" value=`${index}`)
                                 img
-                    fieldset#pattern-select.grid4.radio-select(title="patterns")
-                        each index in [0, 1, 2, 3, 4, 5, 6, 7]
-                            label
-                                input(type="radio" name="pattern-select" value=`${index}` title="pattern")
-                                img
                     fieldset#color-select.grid4.radio-select(title="colors")
-                        each index in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                        each index in [0, 1, 2, 3, 4, 5, 6, 7]
                             label
                                 input(type="radio" name="color-select" value=`${index}` title=`select color ${index}`)
                         //.button-row
@@ -76,13 +86,6 @@ html(lang="en")
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard-data" viewBox="0 0 16 16"><path d="M4 11a1 1 0 1 1 2 0v1a1 1 0 1 1-2 0v-1zm6-4a1 1 0 1 1 2 0v5a1 1 0 1 1-2 0V7zM7 9a1 1 0 0 1 2 0v3a1 1 0 1 1-2 0V9z"/><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>
                         button(name="clear" title="clear scene")
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>
-                    label#jump-bar(title="scene jumped to when this color is clicked in this scene")
-                        #jump-source-color
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-hand-index-thumb" viewBox="0 0 16 16"><path d="M6.75 1a.75.75 0 0 1 .75.75V8a.5.5 0 0 0 1 0V5.467l.086-.004c.317-.012.637-.008.816.027.134.027.294.096.448.182.077.042.15.147.15.314V8a.5.5 0 0 0 1 0V6.435l.106-.01c.316-.024.584-.01.708.04.118.046.3.207.486.43.081.096.15.19.2.259V8.5a.5.5 0 1 0 1 0v-1h.342a1 1 0 0 1 .995 1.1l-.271 2.715a2.5 2.5 0 0 1-.317.991l-1.395 2.442a.5.5 0 0 1-.434.252H6.118a.5.5 0 0 1-.447-.276l-1.232-2.465-2.512-4.185a.517.517 0 0 1 .809-.631l2.41 2.41A.5.5 0 0 0 6 9.5V1.75A.75.75 0 0 1 6.75 1zM8.5 4.466V1.75a1.75 1.75 0 1 0-3.5 0v6.543L3.443 6.736A1.517 1.517 0 0 0 1.07 8.588l2.491 4.153 1.215 2.43A1.5 1.5 0 0 0 6.118 16h6.302a1.5 1.5 0 0 0 1.302-.756l1.395-2.441a3.5 3.5 0 0 0 .444-1.389l.271-2.715a2 2 0 0 0-1.99-2.199h-.581a5.114 5.114 0 0 0-.195-.248c-.191-.229-.51-.568-.88-.716-.364-.146-.846-.132-1.158-.108l-.132.012a1.26 1.26 0 0 0-.56-.642 2.632 2.632 0 0 0-.738-.288c-.31-.062-.739-.058-1.05-.046l-.048.002zm2.094 2.025z"/></svg>
-                        select(name="jump-select")#jump-destination-select
-                            option(value="none") no jump
-                            each index in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                                option(value=`${index}`)= `jump to scene ${index}`
             #menu
                 button(name="play" title="playtest this game") play
                 button(name="export" title="export as webpage") export

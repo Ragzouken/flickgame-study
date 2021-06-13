@@ -427,6 +427,29 @@ class RadioGroupWrapper extends EventTarget {
     }
 }
 
+class CheckboxWrapper extends EventTarget {
+    /** @param {HTMLInputElement[]} inputs */
+    constructor(inputs) {
+        super();
+        this.inputs = inputs;
+
+        inputs.forEach((input) => {
+            input.addEventListener("change", () => {
+                this.dispatchEvent(new CustomEvent("change"));
+                inputs.forEach((input) => input.checked = input.checked);
+            });
+        });
+    }
+
+    get checked() {
+        return this.inputs[0].checked; 
+    }
+
+    set checked(value) {
+        if (this.checked !== value) this.inputs[0].click();
+    }
+}
+
 class ButtonAction extends EventTarget {
     /** @param {HTMLButtonElement[]} buttons */
     constructor(buttons) {
@@ -460,6 +483,8 @@ class ButtonAction extends EventTarget {
  * @returns {RadioGroupWrapper}
  */
 ui.radio = (name) => new RadioGroupWrapper(ALL(`input[type="radio"][name="${name}"]`));
+
+ui.toggle = (name) => new CheckboxWrapper(ALL(`input[type="checkbox"][name="${name}"]`));
 
 /**
  * Get an action linked to all button elements sharing the given name. 
