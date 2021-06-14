@@ -165,11 +165,16 @@ crewmaker.Editor = class extends EventTarget {
         this.activePattern = undefined;
         // saved start coordinates during a line draw
         this.lineStart = undefined;
+        // saved start coordinates during shift
+        this.shiftStart = undefined;
         // layer option currently in the clipboard
         this.copiedLayerOption = undefined;
 
         // editor actions controlled by html buttons
         this.actions = {
+            layerUp: ui.action("layer-up", () => this.shiftLayerUp()),
+            layerDown: ui.action("layer-down", () => this.shiftLayerDown()),
+
             undo: ui.action("undo", () => this.stateManager.undo()),
             redo: ui.action("redo", () => this.stateManager.redo()),
             copy: ui.action("copy", () => this.copyLayerOption()),
@@ -366,7 +371,29 @@ crewmaker.Editor = class extends EventTarget {
                     // stop tracking line drawing
                     this.lineStart = undefined;
                 });
-            } 
+            }  else if (this.toolSelect.value === "shift") {
+                this.shiftStart = { x, y };
+
+                drag.addEventListener("up", async (event) => {
+                    const { x: x0, y: y0 } = this.shiftStart;
+                    const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
+
+                    fillRendering2D(this.preview);
+                    this.preview.drawImage(this.stackActive.canvas, x1 - x0, y1 - y0);
+
+                    // fork the current options's image for editing and make an 
+                    // undo/redo checkpoint
+                    const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
+                    const option = layer.options[this.optionSelect.selectedIndex];
+                    this.stateManager.makeCheckpoint();
+                    const instance = await this.forkLayerOptionImage(option);
+                    fillRendering2D(instance);
+                    instance.drawImage(this.preview.canvas, 0, 0);
+                    
+                    this.shiftStart = undefined;
+                    this.refreshPreview(x1, y1);
+                });
+            }
         });
     }
 
@@ -434,7 +461,13 @@ crewmaker.Editor = class extends EventTarget {
         // prepare plot function
         const plot = (x, y) => this.preview.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
 
-        if (this.heldColorPick) {
+        const cursor = this.toolSelect.value === "shift" ? "move" : "crosshair";
+        this.rendering.canvas.style.setProperty("cursor", cursor);
+
+        if (this.shiftStart) {
+            const { x: ox, y: oy } = this.shiftStart;
+            this.preview.drawImage(this.stackActive.canvas, x - ox, y - oy);
+        } else if (this.heldColorPick) {
             // no preview for color picking
         } else if (this.lineStart) {
             // draw a patterned line between the pointer down location and the
@@ -576,6 +609,30 @@ crewmaker.Editor = class extends EventTarget {
                                        : palette.findIndex((color) => color === hex);
     }
 
+    shiftLayerUp() {
+        if (this.layerSelect.selectedIndex < 1) return;
+
+        this.stateManager.makeChange(async (data) => {
+            const i = this.layerSelect.selectedIndex;
+            [data.layers[i-1], data.layers[i]] = [data.layers[i], data.layers[i-1]];
+            [this.selectedOptions[i-1], this.selectedOptions[i]] = [this.selectedOptions[i], this.selectedOptions[i-1]]
+            this.layerSelect.selectedIndex -= 1;
+            this.refreshLayerDisplay();
+        });
+    }
+
+    shiftLayerDown() {
+        if (this.layerSelect.selectedIndex > 6) return;
+
+        this.stateManager.makeChange(async (data) => {
+            const i = this.layerSelect.selectedIndex;
+            [data.layers[i], data.layers[i+1]] = [data.layers[i+1], data.layers[i]];
+            [this.selectedOptions[i], this.selectedOptions[i+1]] = [this.selectedOptions[i+1], this.selectedOptions[i]]
+            this.layerSelect.selectedIndex += 1;
+            this.refreshLayerDisplay();
+        });
+    }
+
     copyLayerOption() {
         // make a copy of option data and enable pasting
         const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
@@ -623,8 +680,6 @@ crewmaker.Editor = class extends EventTarget {
         ALL("[data-editor-only]", clone).forEach((element) => element.remove());
         // insert the project bundle data into the page copy 
         ONE("#bundle-embed", clone).innerHTML = JSON.stringify(bundle);
-        // hide the editor in the page copy so it doesn't show before loading
-        ONE("#editor", clone).hidden = true;
 
         // prompt the browser to download the page
         const name = "crewmaker.html";

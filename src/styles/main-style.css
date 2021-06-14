@@ -459,3 +459,37 @@ button:disabled {
         box-shadow: 0 0 0 var(--highlight-thickness) white;
     }
 }
+
+.horizontal-capsule {
+    display: flex;
+    flex-direction: row;
+}
+
+.horizontal-capsule * {
+    flex: 1;
+}
+
+.horizontal-capsule > :first-child {
+    border-radius: 1em 0 0 1em;
+}
+
+.horizontal-capsule > :last-child {
+    border-radius: 0 1em 1em 0;
+}
+
+.vertical-capsule {
+    display: flex;
+    flex-direction: column;
+}
+
+.vertical-capsule * {
+    flex: 1;
+}
+
+.vertical-capsule > :first-child, .vertical-capsule > :first-child[hidden] + * {
+    border-radius: 1em 1em 0 0;
+}
+
+.vertical-capsule > :last-child, .vertical-capsule > :first-child[hidden] ~ :nth-last-child(2) {
+    border-radius: 0 0 1em 1em;
+}
