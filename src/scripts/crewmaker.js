@@ -219,28 +219,13 @@ crewmaker.Editor = class extends EventTarget {
 
         // changes in layer select bar
         this.layerSelect.addEventListener("change", () => {
-            // switch option to remembered option for this layer
-            this.optionSelect.selectedIndex = this.selectedOptions[this.layerSelect.selectedIndex];
-
-            // switch to the natural palette of this option
-            const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
-            const option = layer.options[this.optionSelect.selectedIndex];
-            this.paletteSelect.selectedIndex = option.palette;
-
-            this.render();
-            this.refreshLayerOptionThumbnails();
+            this.refreshLayerDisplay();
         });
 
         this.optionSelect.addEventListener("change", () => {
             // remember selected option for this layer
             this.selectedOptions[this.layerSelect.selectedIndex] = this.optionSelect.selectedIndex;
-            
-            // switch to the natural palette of this option
-            const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
-            const option = layer.options[this.optionSelect.selectedIndex];
-            this.paletteSelect.selectedIndex = option.palette;
-            
-            this.render();
+            this.refreshLayerDisplay();
         });
 
         // changes in palette select bar
@@ -275,15 +260,9 @@ crewmaker.Editor = class extends EventTarget {
     
         // whenever the project data is changed
         this.stateManager.addEventListener("change", () => {
-            // option graphics may have changed, so redraw thumbnails
-            this.refreshLayerThumbnails();
-            this.refreshLayerOptionThumbnails();
             this.refreshPaletteThumbs();
-            this.refreshColorSelect();
-            this.refreshActiveBrush();
-
-            // redraw the current scene view
-            this.render();
+            this.refreshLayerThumbnails();
+            this.refreshLayerDisplay();
     
             // enable/disable undo/redo buttons
             this.actions.undo.disabled = !this.stateManager.canUndo;
@@ -472,6 +451,22 @@ crewmaker.Editor = class extends EventTarget {
             //fillRendering2D(this.preview, this.preview.createPattern(this.activePattern.canvas, 'repeat'));
             //this.preview.globalCompositeOperation = "source-over";
         } 
+
+        this.render();
+    }
+
+    refreshLayerDisplay() {
+        // switch option to remembered option for this layer
+        this.optionSelect.selectedIndex = this.selectedOptions[this.layerSelect.selectedIndex];
+
+        // switch to the natural palette of this option
+        const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
+        const option = layer.options[this.optionSelect.selectedIndex];
+        this.paletteSelect.selectedIndex = option.palette;
+
+        this.refreshLayerOptionThumbnails();
+        this.refreshColorSelect();
+        this.refreshActiveBrush();
 
         this.render();
     }
@@ -697,8 +692,9 @@ crewmaker.start = async function () {
         await editor.stateManager.loadBundle(bundle);
         editor.enterPlayerMode();
     } else {
-        // no embedded project, start editor blank
-        await editor.resetProject();
+        // no embedded project, start editor with default
+        const bundle = maker.bundleFromHTML(document, "#editor-embed");
+        await editor.stateManager.loadBundle(bundle);
         editor.enterEditorMode();
     }
 }

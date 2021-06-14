@@ -21,9 +21,11 @@ this is a tool or creating crews by painting image selections for layers
 palette variations selected from [PINEAPPLE 32][1] by [Pine][3]. my selections are pretty arbitrary and i welcome suggestions on how to be smarter about it
 
 ## credits
-icons from [bootstrap][4]
+icons from [bootstrap][4]\
+thanks [sean][5] for css help
 
 [1]: https://lospec.com/palette-list/pineapple-32
 [2]: https://kool.tools/blog/flickgame-study.html
 [3]: https://twitter.com/PineTreePizza
 [4]: https://icons.getbootstrap.com/
+[5]: https://seans.site/

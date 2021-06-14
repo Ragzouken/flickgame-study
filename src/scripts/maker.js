@@ -390,8 +390,8 @@ maker.textToBlob = function(text, type = "text/plain") {
  * 
  * @param {ParentNode} html 
  */
-maker.bundleFromHTML = function(html) {
-    const json = ONE("#bundle-embed", html)?.textContent;
+maker.bundleFromHTML = function(html, query="#bundle-embed") {
+    const json = ONE(query, html)?.textContent;
     const bundle = json ? JSON.parse(json) : undefined;
     return bundle;
 }
