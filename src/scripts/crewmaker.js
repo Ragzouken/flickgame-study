@@ -22,6 +22,7 @@ maker.resourceHandlers.set("canvas-datauri", {
 
 /**
  * @typedef {Object} CrewmakerDataProject
+ * @property {string[][]} palettes
  * @property {CrewmakerDataLayer[]} layers
  */
 
@@ -44,53 +45,13 @@ crewmaker.makeBlankBundle = function () {
     const layers = ZEROES(8).map(() => ({  
         options: ZEROES(8).map(() => ({ image: "0", palette: 0 })),
     }));
-    const project = { layers };
+    const project = { palettes: crewmaker.defaultPalettes, layers };
     const resources = {
         "0": { type: "canvas-datauri", data: blank.canvas.toDataURL() },
     };
 
     return { project, resources };
 }
-
-// default palettes (8 palettes of 8 colors)
-crewmaker.palettes = [
-    [
-        "#000000", "#442434", "#30346d", "#4e4a4e",
-        "#854c30", "#346524", "#d04648", "#757161",
-    ],
-    [
-
-        "#000000", "#d27d2c", "#8595a1", "#6daa2c",
-        "#d2aa99", "#6dc2ca", "#dad45e", "#deeed6",
-    ],
-    [
-        "#000000", "#442434", "#30346d", "#4e4a4e",
-        "#854c30", "#346524", "#d04648", "#757161",
-    ],
-    [
-
-        "#000000", "#d27d2c", "#8595a1", "#6daa2c",
-        "#d2aa99", "#6dc2ca", "#dad45e", "#deeed6",
-    ],
-    [
-        "#000000", "#442434", "#30346d", "#4e4a4e",
-        "#854c30", "#346524", "#d04648", "#757161",
-    ],
-    [
-
-        "#000000", "#d27d2c", "#8595a1", "#6daa2c",
-        "#d2aa99", "#6dc2ca", "#dad45e", "#deeed6",
-    ],
-    [
-        "#000000", "#442434", "#30346d", "#4e4a4e",
-        "#854c30", "#346524", "#d04648", "#757161",
-    ],
-    [
-
-        "#000000", "#d27d2c", "#8595a1", "#6daa2c",
-        "#d2aa99", "#6dc2ca", "#dad45e", "#deeed6",
-    ],
-];
 
 /**
  * @param {CanvasRenderingContext2D} rendering 
@@ -107,6 +68,18 @@ function swapPalette(rendering, prev, next) {
         }
     });
 }
+
+// default palettes (8 palettes of 8 colors)
+crewmaker.defaultPalettes = [
+    ["#000000", "#ff6157", "#d9243c", "#890027", "#ffb762", "#c76e46", "#73392e", "#34111f"],
+    ["#000000", "#bfc3c6", "#6d8a8d", "#293b49", "#ffffe4", "#ffdaac", "#eb9c6e", "#833f34"],
+    ["#000000", "#ffb762", "#c76e46", "#73392e", "#ffd832", "#9cb93b", "#458239", "#273b2d"],
+    ["#000000", "#9cb93b", "#458239", "#273b2d", "#ffd832", "#ff823b", "#d1401f", "#7c191a"],
+    ["#000000", "#9cb93b", "#458239", "#273b2d", "#ffe0dc", "#77d6c1", "#1c92a7", "#033e5e"],
+    ["#000000", "#77d6c1", "#1c92a7", "#033e5e", "#ffe0dc", "#ff88a9", "#c03b94", "#601761"],
+    ["#000000", "#ff6157", "#d9243c", "#890027", "#ffb762", "#ff88a9", "#c03b94", "#601761"],
+    ["#000000", "#ff823b", "#d9243c", "#601761", "#ffd832", "#9cb93b", "#1c92a7", "#c03b94"],
+];
 
 // brush names and datauris
 crewmaker.brushes = [
@@ -176,23 +149,6 @@ crewmaker.Editor = class extends EventTarget {
         // add thumbnails to the palette select bar
         ALL("#palette-select input").forEach((input, index) => {
             input.after(this.paletteThumbs[index].canvas);
-        });
-
-        this.refreshColorSelect();
-        // generate palette thumbnails
-        this.paletteThumbs.forEach((thumbnail, index) => {
-            const gap = 0;
-            const size = 12;
-            const pad = 0;
-
-            resizeRendering2D(thumbnail, 4 * size + 3 * gap + pad * 2, 2 * size + 1 * gap + pad * 2);
-            const palette = crewmaker.palettes[index];
-            for (let y = 0; y < 2; ++y) {
-                for (let x = 0; x < 4; ++x) {
-                    thumbnail.fillStyle = palette[y * 4 + x];
-                    thumbnail.fillRect(x * (size + gap) + pad, y * (size + gap) + pad, size, size);
-                }
-            }
         });
 
         // add brush icons and tooltips to brush select buttons
@@ -265,6 +221,12 @@ crewmaker.Editor = class extends EventTarget {
         this.layerSelect.addEventListener("change", () => {
             // switch option to remembered option for this layer
             this.optionSelect.selectedIndex = this.selectedOptions[this.layerSelect.selectedIndex];
+
+            // switch to the natural palette of this option
+            const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
+            const option = layer.options[this.optionSelect.selectedIndex];
+            this.paletteSelect.selectedIndex = option.palette;
+
             this.render();
             this.refreshLayerOptionThumbnails();
         });
@@ -286,8 +248,8 @@ crewmaker.Editor = class extends EventTarget {
             const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
             const option = layer.options[this.optionSelect.selectedIndex];
             
-            const prev = crewmaker.palettes[option.palette];
-            const next = crewmaker.palettes[this.paletteSelect.selectedIndex];
+            const prev = this.stateManager.present.palettes[option.palette];
+            const next = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
             
             this.stateManager.makeCheckpoint();
             const instance = await this.forkLayerOptionImage(option);
@@ -316,6 +278,9 @@ crewmaker.Editor = class extends EventTarget {
             // option graphics may have changed, so redraw thumbnails
             this.refreshLayerThumbnails();
             this.refreshLayerOptionThumbnails();
+            this.refreshPaletteThumbs();
+            this.refreshColorSelect();
+            this.refreshActiveBrush();
 
             // redraw the current scene view
             this.render();
@@ -482,7 +447,7 @@ crewmaker.Editor = class extends EventTarget {
     }
 
     refreshPreview(x, y) {
-        if (!this.stateManager.present) return;
+        if (!this.activeBrush) return;
 
         // clear existing preview
         fillRendering2D(this.preview);
@@ -512,17 +477,37 @@ crewmaker.Editor = class extends EventTarget {
     }
 
     refreshActiveBrush() {
+        if (!this.stateManager.present) return;
+
         //const pattern = this.patternRenders[this.patternSelect.selectedIndex];
         const brush = this.brushRenders[this.brushSelect.selectedIndex];
-        const palette = crewmaker.palettes[this.paletteSelect.selectedIndex];
+        const palette = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
         const color = palette[this.colorSelect.selectedIndex];
         //if (!pattern || !brush || !color) return;
         this.activeBrush = this.colorSelect.selectedIndex > 0 ? recolorMask(brush, color) : brush;
         //this.activePattern = recolorMask(pattern, color);
     }
 
+    refreshPaletteThumbs() {
+        // generate palette thumbnails
+        this.paletteThumbs.forEach((thumbnail, index) => {
+            const gap = 0;
+            const size = 12;
+            const pad = 0;
+
+            resizeRendering2D(thumbnail, 4 * size + 3 * gap + pad * 2, 2 * size + 1 * gap + pad * 2);
+            const palette = this.stateManager.present.palettes[index];
+            for (let y = 0; y < 2; ++y) {
+                for (let x = 0; x < 4; ++x) {
+                    thumbnail.fillStyle = palette[y * 4 + x];
+                    thumbnail.fillRect(x * (size + gap) + pad, y * (size + gap) + pad, size, size);
+                }
+            }
+        });
+    }
+
     refreshColorSelect() {
-        const palette = crewmaker.palettes[this.paletteSelect.selectedIndex];
+        const palette = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
 
         // recolor the color select buttons to the corresponding color
         ALL("#color-select label").forEach((label, index) => {
@@ -567,7 +552,7 @@ crewmaker.Editor = class extends EventTarget {
             const option = layer.options[this.optionSelect.selectedIndex];
             const instance = await this.forkLayerOptionImage(option);
 
-            const palette = crewmaker.palettes[this.paletteSelect.selectedIndex];
+            const palette = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
             const color = palette[this.colorSelect.selectedIndex];
             const uint32 = this.colorSelect.selectedIndex > 0 ? hexToUint32(color) : 0;
             floodfill(instance, x, y, uint32);
@@ -583,8 +568,13 @@ crewmaker.Editor = class extends EventTarget {
     }
 
     pickColor(x, y) {
-        const [r, g, b, a] = this.rendering.getImageData(x, y, 1, 1).data;
+        const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
+        const option = layer.options[this.optionSelect.selectedIndex];
+        const instance = this.stateManager.resources.get(option.image);
+
+        const [r, g, b, a] = instance.getImageData(x, y, 1, 1).data;
         const hex = rgbToHex({ r, g, b});
+        const palette = this.stateManager.present.palettes[option.palette];
         
         this.colorSelect.selectedIndex = a === 0 
                                        ? 0
