@@ -683,7 +683,7 @@ crewmaker.Editor = class extends EventTarget {
                 const next = data.palettes[option.palette];
 
                 swapPalette(instance, prev, next);
-            });
+            }));
         });
         this.refreshLayerDisplay();
     }
