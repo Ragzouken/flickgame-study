@@ -64,21 +64,23 @@ function swapPalette(rendering, prev, next) {
 
     withPixels(rendering, (pixels) => {
         for (let i = 0; i < pixels.length; ++i) {
-            pixels[i] = mapping.get(pixels[i]);
+            pixels[i] = mapping.get(pixels[i]) || pixels[i];
         }
     });
 }
 
+/**
+ * @param {number} min 
+ * @param {number} max 
+ * @returns {number}
+ */
+ function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min)) + min;
+}
+
 // default palettes (8 palettes of 8 colors)
 crewmaker.defaultPalettes = [
-    ["#000000", "#ff6157", "#d9243c", "#890027", "#ffb762", "#c76e46", "#73392e", "#34111f"],
-    ["#000000", "#bfc3c6", "#6d8a8d", "#293b49", "#ffffe4", "#ffdaac", "#eb9c6e", "#833f34"],
-    ["#000000", "#ffb762", "#c76e46", "#73392e", "#ffd832", "#9cb93b", "#458239", "#273b2d"],
-    ["#000000", "#9cb93b", "#458239", "#273b2d", "#ffd832", "#ff823b", "#d1401f", "#7c191a"],
-    ["#000000", "#9cb93b", "#458239", "#273b2d", "#ffe0dc", "#77d6c1", "#1c92a7", "#033e5e"],
-    ["#000000", "#77d6c1", "#1c92a7", "#033e5e", "#ffe0dc", "#ff88a9", "#c03b94", "#601761"],
-    ["#000000", "#ff6157", "#d9243c", "#890027", "#ffb762", "#ff88a9", "#c03b94", "#601761"],
-    ["#000000", "#ff823b", "#d9243c", "#601761", "#ffd832", "#9cb93b", "#1c92a7", "#c03b94"],
+    ["#000000","#94216a","#ff2674","#ff80a4","#34111f","#73392e","#c76e46","#ffb762"],["#000000","#d62411","#ff8426","#ffd100","#73392e","#c76e46","#eb9c6e","#ffdaac"],["#000000","#007899","#10d275","#bfff3c","#430067","#94216a","#ff2674","#ff80a4"],["#000000","#94216a","#ff2674","#ff80a4","#002859","#007899","#10d275","#bfff3c"],["#000000","#d62411","#ff8426","#ffd100","#1b1023","#002859","#007899","#68aed4"],["#000000","#002859","#007899","#68aed4","#430067","#94216a","#ff2674","#ff80a4"],["#000000","#007899","#10d275","#bfff3c","#7f0622","#d62411","#ff8426","#ffd100"],["#000000","#002859","#007899","#68aed4","#7f0622","#d62411","#ff8426","#ffd100"]
 ];
 
 // brush names and datauris
@@ -180,6 +182,7 @@ crewmaker.Editor = class extends EventTarget {
             copy: ui.action("copy", () => this.copyLayerOption()),
             paste: ui.action("paste", () => this.pasteLayerOption()),
             clear: ui.action("clear", () => this.clearLayerOption()),
+            randomise: ui.action("randomise", () => this.randomise()),
 
             export_: ui.action("export", () => this.exportProject()),
             import_: ui.action("import", () => this.importProject()),
@@ -187,6 +190,8 @@ crewmaker.Editor = class extends EventTarget {
             help: ui.action("help", () => this.toggleHelp()),
 
             exportImage: ui.action("export-image", () => this.exportImage()),
+
+            importPalette: ui.action("import-palette", () => this.importPalette()),
         };
 
         // can't undo/redo/paste yet
@@ -405,6 +410,10 @@ crewmaker.Editor = class extends EventTarget {
         this.refreshActiveBrush();
     }
 
+    /**
+     * @param {CrewmakerDataLayerOption} option 
+     * @returns {Promise<CanvasRenderingContext2D>}
+     */
     async forkLayerOptionImage(option) {
         // create a new copy of the image resource
         const { id, instance } = await this.stateManager.resources.fork(option.image);
@@ -489,6 +498,9 @@ crewmaker.Editor = class extends EventTarget {
     }
 
     refreshLayerDisplay() {
+        this.actions.layerUp.disabled = this.layerSelect.selectedIndex < 1;
+        this.actions.layerDown.disabled = this.layerSelect.selectedIndex > 6;
+
         // switch option to remembered option for this layer
         this.optionSelect.selectedIndex = this.selectedOptions[this.layerSelect.selectedIndex];
 
@@ -659,6 +671,23 @@ crewmaker.Editor = class extends EventTarget {
         });
     }
 
+    randomise() {
+        this.selectedOptions = ZEROES(8).map(() => getRandomInt(0, 8));
+        await this.stateManager.makeChange(async (data) => {
+            await Promise.all(data.layers.map(async (layer, index) => {
+                const option = layer.options[this.selectedOptions[index]];
+                const instance = await this.forkLayerOptionImage(option);
+
+                const prev = data.palettes[option.palette];
+                option.palette = getRandomInt(0, 8);
+                const next = data.palettes[option.palette];
+
+                swapPalette(instance, prev, next);
+            });
+        });
+        this.refreshLayerDisplay();
+    }
+
     /** @returns {string[]} */
     getManifest() {
         // the editor adds a dependency to the image in the copied scene, if any
@@ -682,7 +711,7 @@ crewmaker.Editor = class extends EventTarget {
         ONE("#bundle-embed", clone).innerHTML = JSON.stringify(bundle);
 
         // prompt the browser to download the page
-        const name = "crewmaker.html";
+        const name = "flickguy.html";
         const blob = maker.textToBlob(clone.outerHTML, "text/html");
         maker.saveAs(blob, name);
     }
@@ -712,6 +741,36 @@ crewmaker.Editor = class extends EventTarget {
 
     toggleHelp() {
         this.helpContainer.hidden = !this.helpContainer.hidden;
+    }
+
+    // for debugging
+    async importPalette() {
+        const [file] = await maker.pickFiles("image/*");
+        const dataUri = await maker.dataURIFromFile(file);
+        const image = await loadImage(dataUri);
+        const rendering = imageToRendering2D(image);
+
+        const prevPalettes = this.stateManager.present.palettes;
+        const nextPalettes = ZEROES(8).map(() => REPEAT(8, "#000000"));
+        withPixels(rendering, (pixels) => {
+            for (let p = 0; p < 8; ++p) {
+                for (let i = 1; i < 8; ++i) {
+                    nextPalettes[p][i] = rgbToHex(uint32ToRGB(pixels[p * 8 + i]));
+                }
+            }
+        });
+
+        await this.stateManager.makeChange(async (data) => {
+            data.palettes = nextPalettes;
+            const promises = data.layers.flatMap((layer) => { 
+                return layer.options.map(async (option) => {
+                    const instance = await this.forkLayerOptionImage(option);
+                    swapPalette(instance, prevPalettes[option.palette], nextPalettes[option.palette]);
+                });
+            });
+
+            return Promise.all(promises);
+        });
     }
 
     enterPlayerMode() {
@@ -750,6 +809,8 @@ crewmaker.start = async function () {
         // no embedded project, start editor with default
         const bundle = maker.bundleFromHTML(document, "#editor-embed");
         await editor.stateManager.loadBundle(bundle);
+        console.log(editor.stateManager.resources)
+        //await editor.resetProject();
         editor.enterEditorMode();
     }
 }

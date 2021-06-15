@@ -48,6 +48,7 @@ maker.ResourceManager = class {
      * @returns {string}
      */
     generateId() {
+        this.lastId += 1;
         // just next lowest unused number
         while (this.resources.has(this.lastId.toString())) {
             this.lastId += 1;
@@ -369,6 +370,20 @@ maker.textFromFile = async function(file) {
 }
 
 /**
+ * Read image from a file.
+ * @param {File} file 
+ * @return {Promise<string>}
+ */
+maker.dataURIFromFile = async function(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = () => resolve(/** @type {string} */ (reader.result));
+        reader.readAsDataURL(file); 
+    });
+}
+
+/**
  * Create a DOM for an html page from html source code
  * @param {string} source
  * @returns 
@@ -600,6 +615,15 @@ const COPY = (object) => JSON.parse(JSON.stringify(object));
  * @returns {number[]}
  */
 const ZEROES = (length) => Array(length).fill(0);
+
+/**
+ * Create an array of a value repeated to the given length.
+ * @template T
+ * @param {number} length 
+ * @param {T} value
+ * @returns {T[]}
+ */
+ const REPEAT = (length, value) => Array(length).fill(value);
 
 /**
  * Create an html element with the given attributes and children.

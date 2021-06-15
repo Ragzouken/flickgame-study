@@ -216,3 +216,15 @@
 #layer-select > :last-child {
     margin-top: 1em;
 }
+
+:focus {
+    outline: thick solid white;
+    z-index: 5;
+}
+:focus:not(:focus-visible) { 
+    outline: unset 
+}
+
+:focus + * {
+    z-index: 5;
+}
