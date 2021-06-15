@@ -809,7 +809,6 @@ crewmaker.start = async function () {
         // no embedded project, start editor with default
         const bundle = maker.bundleFromHTML(document, "#editor-embed");
         await editor.stateManager.loadBundle(bundle);
-        console.log(editor.stateManager.resources)
         //await editor.resetProject();
         editor.enterEditorMode();
     }
