@@ -671,7 +671,7 @@ crewmaker.Editor = class extends EventTarget {
         });
     }
 
-    randomise() {
+    async randomise() {
         this.selectedOptions = ZEROES(8).map(() => getRandomInt(0, 8));
         await this.stateManager.makeChange(async (data) => {
             await Promise.all(data.layers.map(async (layer, index) => {
