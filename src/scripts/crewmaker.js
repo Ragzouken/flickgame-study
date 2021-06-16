@@ -462,7 +462,7 @@ crewmaker.Editor = class extends EventTarget {
     }
 
     refreshPreview(x, y) {
-        if (!this.activeBrush) return;
+        if (!this.editorMode) return;
 
         // clear existing preview
         fillRendering2D(this.preview);

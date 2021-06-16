@@ -36,6 +36,21 @@
     position: absolute;
 }
 
+#viewport {
+    grid-area: view;
+}
+
+#tool-select {
+    grid-area: tool;
+
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+}
+
+#brush-select {
+    grid-area: brush;
+}
+
 #pattern-select {
     grid-area: pattern;
 }
