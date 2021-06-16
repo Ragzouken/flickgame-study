@@ -90,9 +90,6 @@ body {
 }
 
 #editor main {
-    display: flex;
-    flex-direction: column;
-
     padding: 1em;
     background: #367b6b;
     border-radius: 2em;
@@ -151,37 +148,11 @@ h1, h2, h3, h4, h5, h6 {
     align-content: center;
 }
 
-#menu {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    gap: 1em;
-
-    height: 32px;
-}
-
-#menu button {
-    background-color: var(--button-color);
-
-    font-weight: bold;
-    padding-left: 1em;
-    padding-right: 1em;
-
-    border: none;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-}
-
-fieldset {
-    border: 0;
-    margin: 0;
-    padding: 0;
-}
-
 #scene-select {
+    grid-area: scene;
+
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    /* gap: .5em; */
     gap: 2px;
 }
 
@@ -210,16 +181,12 @@ fieldset {
 .grid8 label:nth-last-child(8) :not(input) { border-bottom-left-radius: 1em; }
 .grid8 label:nth-last-child(1) :not(input) { border-bottom-right-radius: 1em; }
 
-#tools {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    grid-template-rows: repeat(5, 1fr);
-    gap: 1em;
+#viewport {
+    grid-area: view;
 }
 
 #tool-select {
-    grid-column: 1 / span 4;
-    grid-row: 1;
+    grid-area: tool;
 
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -230,8 +197,7 @@ fieldset {
 }
 
 #brush-select {
-    grid-column: 1 / span 4;
-    grid-row: 2 / span 1;
+    grid-area: brush;
 
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -239,18 +205,15 @@ fieldset {
 }
 
 #pattern-select {
-    grid-column: 1 / span 4;
-    grid-row: span 2;
+    grid-area: pattern;
 }
 
 #color-select {
-    grid-column: 5 / span 4;
-    grid-row: 1 / span 4;
+    grid-area: color;
 }
 
 #color-select input[type="radio"]:checked {
     background: none;
-    box-shadow: 0 0 0 var(--highlight-thickness) white;
     z-index: 5;
 
     animation-name: selection-flash;
@@ -259,8 +222,12 @@ fieldset {
     animation-iteration-count: infinite;
 }
 
+#toolbar {
+    grid-area: bar;
+}
+
 #jump-bar {
-    grid-column: 6 / -1;
+    flex: 1;
 
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -269,8 +236,6 @@ fieldset {
 }
 
 #jump-source-color {
-    grid-column: 1 / span 1;
-
     background-color: #d27d2c;
 }
 
@@ -298,10 +263,6 @@ fieldset {
     border-bottom-right-radius: 1em;
 
     background-color: var(--button-color);
-}
-
-#toolbar {
-    grid-column: 1 / span 5;
 }
 
 #viewport {
@@ -359,6 +320,8 @@ button {
     display: flex;
     justify-content: center;
     align-items: center;
+
+    padding: .25em;
 }
 
 button:active {
@@ -397,16 +360,14 @@ button:disabled {
     grid-template-columns: repeat(8, 1fr);
 }
 
-.radio-select {
-    --highlight-thickness: .5em;
-}
-
 .radio-select label {
     position: relative;
 
     margin: 0;
     appearance: unset;
     background-color: var(--button-color);
+
+    min-height: 3em;
 }
 
 .radio-select input[type="radio"] {
@@ -451,13 +412,8 @@ button:disabled {
 }
 
 @keyframes selection-flash {
-    0% {
-        box-shadow: 0 0 0 var(--highlight-thickness) black;
-    }
-
-    100% {
-        box-shadow: 0 0 0 var(--highlight-thickness) white;
-    }
+    0%   { box-shadow: 0 0 0 .5em black; }
+    100% { box-shadow: 0 0 0 .5em white; }
 }
 
 .horizontal-capsule {
@@ -465,7 +421,7 @@ button:disabled {
     flex-direction: row;
 }
 
-.horizontal-capsule * {
+.horizontal-capsule > * {
     flex: 1;
 }
 
@@ -482,7 +438,7 @@ button:disabled {
     flex-direction: column;
 }
 
-.vertical-capsule * {
+.vertical-capsule > * {
     flex: 1;
 }
 
@@ -492,4 +448,37 @@ button:disabled {
 
 .vertical-capsule > :last-child, .vertical-capsule > :first-child[hidden] ~ :nth-last-child(2) {
     border-radius: 0 0 1em 1em;
+}
+
+:focus {
+    outline: thick solid white;
+    z-index: 5;
+}
+:focus:not(:focus-visible) { 
+    outline: unset 
+}
+
+:focus + * {
+    z-index: 5;
+}
+
+.hanging-menu {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 1em;
+
+    height: 32px;
+}
+
+.hanging-menu button {
+    background-color: var(--button-color);
+
+    font-weight: bold;
+    padding-left: 1em;
+    padding-right: 1em;
+
+    border: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
 }

@@ -1,0 +1,10 @@
+#editor main {
+    display: grid;
+    grid-template-areas: 
+        "scene   scene"
+        "view    view "
+        "tool    color"
+        "brush   color"
+        "pattern color"
+        "bar     bar  ";
+}
