@@ -148,33 +148,6 @@ h1, h2, h3, h4, h5, h6 {
     align-content: center;
 }
 
-#scene-select {
-    grid-area: scene;
-
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 2px;
-}
-
-#scene-select label {
-    aspect-ratio: 160 / 100;
-    background: none;
-}
-
-#scene-select *:checked + :not(input) {
-    box-shadow: 0 0 0 .5em white;
-    z-index: 5;
-}
-
-#scene-select label :not(input) {
-    filter: none;
-}
-
-#scene-select label :not(input) {
-    width: 100%; height: 100%;
-    position: absolute;
-}
-
 .grid8 label :not(input) { border-radius: 0; }
 .grid8 label:nth-child(1) :not(input) { border-top-left-radius: 1em; }
 .grid8 label:nth-child(8) :not(input) { border-top-right-radius: 1em; }
@@ -204,14 +177,6 @@ h1, h2, h3, h4, h5, h6 {
     grid-template-rows: repeat(auto, 1fr);
 }
 
-#pattern-select {
-    grid-area: pattern;
-}
-
-#color-select {
-    grid-area: color;
-}
-
 #color-select input[type="radio"]:checked {
     background: none;
     z-index: 5;
@@ -220,49 +185,6 @@ h1, h2, h3, h4, h5, h6 {
     animation-direction: alternate;
     animation-duration: 2s;
     animation-iteration-count: infinite;
-}
-
-#toolbar {
-    grid-area: bar;
-}
-
-#jump-bar {
-    flex: 1;
-
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-
-    overflow: hidden;
-}
-
-#jump-source-color {
-    background-color: #d27d2c;
-}
-
-#jump-source-color {
-    text-align: center;
-    padding: .5em;
-
-    border-top-left-radius: 1em;
-    border-bottom-left-radius: 1em;
-}
-
-#jump-source-color svg {
-    pointer-events: none;
-    width: 24px;
-    height: 24px;
-}
-
-#jump-destination-select {
-    grid-column: 2 / -1;
-
-    padding: .5em;
-
-    border: none;
-    border-top-right-radius: 1em;
-    border-bottom-right-radius: 1em;
-
-    background-color: var(--button-color);
 }
 
 #viewport {

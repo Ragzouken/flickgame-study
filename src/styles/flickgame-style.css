@@ -8,3 +8,79 @@
         "pattern color"
         "bar     bar  ";
 }
+
+#scene-select {
+    grid-area: scene;
+
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+}
+
+#scene-select label {
+    aspect-ratio: 160 / 100;
+    background: none;
+}
+
+#scene-select *:checked + :not(input) {
+    box-shadow: 0 0 0 .5em white;
+    z-index: 5;
+}
+
+#scene-select label :not(input) {
+    filter: none;
+}
+
+#scene-select label :not(input) {
+    width: 100%; height: 100%;
+    position: absolute;
+}
+
+#pattern-select {
+    grid-area: pattern;
+}
+
+#color-select {
+    grid-area: color;
+}
+
+#toolbar {
+    grid-area: bar;
+}
+
+#jump-bar {
+    flex-shrink: 0;
+
+    display: flex;
+    flex-direction: row;
+
+    overflow: hidden;
+}
+
+#jump-source-color {
+    background-color: #d27d2c;
+}
+
+#jump-source-color {
+    text-align: center;
+    padding: .5em;
+
+    border-top-left-radius: 1em;
+    border-bottom-left-radius: 1em;
+}
+
+#jump-source-color svg {
+    pointer-events: none;
+    width: 24px;
+    height: 24px;
+}
+
+#jump-destination-select {
+    padding: .5em;
+
+    border: none;
+    border-top-right-radius: 1em;
+    border-bottom-right-radius: 1em;
+
+    background-color: var(--button-color);
+}
