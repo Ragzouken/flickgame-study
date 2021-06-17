@@ -2,28 +2,31 @@
 - var version = "1";
 
 doctype html
-html(lang="en")
+html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/flickguy")
     head
         title flickguy
         meta(charset="utf-8")
         meta(name="viewport" content="width=device-width, initial-scale=0.5")
         // scripts
         script
-            include scripts/start.js
+            include /scripts/start.js
         script
-            include scripts/maker.js
+            include /scripts/maker.js
         script
-            include scripts/blitsy.js
+            include /scripts/blitsy.js
         script
-            include scripts/crewmaker.js
+            include /scripts/crewmaker.js
         // styles
         style#base-style
-            include styles/base-style.css
+            include /styles/base-style.css
         style#main-style
-            include styles/main-style.css
+            include /styles/main-style.css
         style#crewmaker-style
-            include styles/crewmaker-style.css
+            include /styles/crewmaker-style.css
     body(onload="crewmaker.start()")
+        noscript
+            h1 this tool requires javascript
+            p this is an interactive tool for drawing little guys and requires javascript to function correctly. if you javascript is not available #[a(href="https://kool.tools/blog/flickgame-study.html") you can read about it instead]
         #editor
             main
                 section#middle
@@ -43,7 +46,10 @@ html(lang="en")
                         #help(hidden)
                             button(name="help" title="hide help") close
                             = `version ${version} (${date})`
-                            include:markdown-it(html) crewmaker-about.md
+                            section(data-remix-only)
+                                include:markdown-it(html) remix.md
+                            section
+                                include:markdown-it(html) about.md
                 section#layer-options
                     #option-select.grid4.radio-select
                         each index in [0, 1, 2, 3, 4, 5, 6, 7]
@@ -97,7 +103,8 @@ html(lang="en")
             .hanging-menu(data-hidden-in-player)
                 button(name="play" title="playtest this flickguy") play
                 button(name="export" title="export as webpage") export
-                button(name="import" title="import from webpage") import
+                button(name="update" title="open this flickguy in the latest version" data-remix-only) update
+                button(name="import" title="import from webpage" data-original-only) import
                 button(name="reset" title="reset to blank") reset
                 button(name="help" title="how to use this tool") help
             .hanging-menu(data-hidden-in-editor)
@@ -106,4 +113,4 @@ html(lang="en")
                 button(name="edit" title="remix this flickguy") remix
         script#bundle-embed(type="application/json")
         script#editor-embed(type="application/json" data-editor-only)
-            include crewmaker-default.json
+            include default.json

@@ -6,7 +6,7 @@ const crewmaker = {};
 maker.resourceHandlers.set("canvas-datauri", {
     load: async (data) => imageToRendering2D(await loadImage(data)),
     copy: async (instance) => copyRendering2D(instance),
-    save: async (instance) => instance.canvas.toDataURL(),
+    save: async (instance) => instance.canvas.toDataURL("image/png", 1),
 });
 
 /**
@@ -188,6 +188,8 @@ crewmaker.Editor = class extends EventTarget {
             import_: ui.action("import", () => this.importProject()),
             reset: ui.action("reset", () => this.resetProject()),
             help: ui.action("help", () => this.toggleHelp()),
+
+            update: ui.action("update", () => this.updateEditor()),
 
             exportImage: ui.action("export-image", () => this.exportImage()),
 
@@ -462,7 +464,7 @@ crewmaker.Editor = class extends EventTarget {
     }
 
     refreshPreview(x, y) {
-        if (!this.editorMode) return;
+        if (!this.editorMode || !this.activeBrush) return;
 
         // clear existing preview
         fillRendering2D(this.preview);
@@ -535,7 +537,9 @@ crewmaker.Editor = class extends EventTarget {
             const size = 12;
             const pad = 0;
 
-            resizeRendering2D(thumbnail, 4 * size + 3 * gap + pad * 2, 2 * size + 1 * gap + pad * 2);
+            thumbnail.canvas.width = 4 * size + 3 * gap + pad * 2;
+            thumbnail.canvas.height = 2 * size + 1 * gap + pad * 2
+
             const palette = this.stateManager.present.palettes[index];
             for (let y = 0; y < 2; ++y) {
                 for (let x = 0; x < 4; ++x) {
@@ -710,6 +714,10 @@ crewmaker.Editor = class extends EventTarget {
         // insert the project bundle data into the page copy 
         ONE("#bundle-embed", clone).innerHTML = JSON.stringify(bundle);
 
+        // track how many remixes this is (remixes have soft-limits to encourage finding updates)
+        const generation = parseInt(clone.getAttribute("data-remix-generation"));
+        clone.setAttribute("data-remix-generation", `${generation + 1}`);
+
         // prompt the browser to download the page
         const name = "flickguy.html";
         const blob = maker.textToBlob(clone.outerHTML, "text/html");
@@ -733,6 +741,15 @@ crewmaker.Editor = class extends EventTarget {
         await this.stateManager.loadBundle(crewmaker.makeBlankBundle());
     }
     
+    async updateEditor() {
+        const liveURL = document.documentElement.getAttribute("data-editor-live");
+        const bundle = await this.stateManager.makeBundle();
+        window.addEventListener("message", (event) => {
+            event.data.port.postMessage({ bundle });
+        });
+        console.log(window.open(liveURL));
+    }
+
     exportImage() {
         this.rendering.canvas.toBlob((blob) => {
             maker.saveAs(blob, "your-character.png");
@@ -811,5 +828,16 @@ crewmaker.start = async function () {
         await editor.stateManager.loadBundle(bundle);
         //await editor.resetProject();
         editor.enterEditorMode();
+    }
+
+    // if there's an opener window, tell it we're open to messages
+    if (window.opener) {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = async (event) => {
+            if (event.data.bundle) {
+                return editor.stateManager.loadBundle(event.data.bundle);
+            }
+        };
+        window.opener.postMessage({ port: channel.port2 }, "*", [channel.port2]);
     }
 }

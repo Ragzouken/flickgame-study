@@ -19,68 +19,7 @@ body {
     align-items: center;
 
     background: black;
-}
-
-#player {
-    position: absolute;
-    width: 100%; height: 100%;
-    overflow: hidden;
-
-    display: flex;
-    flex-direction: column;
-
-    padding: 1em;
-    padding-bottom: 0;
-    gap: 1em;
-}
-
-#player-container {
-    flex: 1;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-#player-menu {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    gap: 1em;
-
-    height: 32px;
-
-    align-self: center;
-}
-
-#player-menu button {
-    background-color: black;
     color: white;
-
-    font-weight: bold;
-    padding-left: 1em;
-    padding-right: 1em;
-
-    border: 1px solid white;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    border-bottom: none;
-}
-
-#player-menu a {
-    background-color: black;
-    color: white;
-
-    font-weight: bold;
-    padding-left: 1em;
-    padding-right: 1em;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-
-    border: 1px solid white;
-    border-radius: 1em;
 }
 
 #editor {
@@ -89,11 +28,25 @@ body {
     align-items: center;
 }
 
+html:not([data-remix-generation="0"]) [data-original-only] {
+    display: none !important;
+}
+
+html[data-remix-generation="0"] [data-remix-only] {
+    display: none !important;
+}
+
 #editor main {
     padding: 1em;
     background: #367b6b;
     border-radius: 2em;
     gap: 1em;
+}
+
+@media (max-width: 650px) {
+    #editor main {
+        width: 100vw;
+    }
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -104,11 +57,15 @@ h1, h2, h3, h4, h5, h6 {
     font-family: monospace;
     font-size: large;
 
-    display: flex;
     padding: 1em;
-    gap: 1em;
 
     overflow: hidden scroll;
+}
+
+#help, #help > section {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
 }
 
 #help [name="help"] {
@@ -234,7 +191,9 @@ button:disabled {
     position: relative;
 
     margin: 0;
-    appearance: unset;
+    appearance: none;
+    -moz-appearance: none;
+    -webkit-appearance: none;
     background-color: var(--button-color);
 
     min-height: 3em;
@@ -242,7 +201,9 @@ button:disabled {
 
 .radio-select input[type="radio"] {
     margin: 0;
-    appearance: unset;
+    appearance: none;
+    -moz-appearance: none;
+    -webkit-appearance: none;
     border-radius: inherit;
 
     position: absolute;
@@ -329,11 +290,11 @@ button:disabled {
 }
 
 .hanging-menu {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
+    display: flex;
+    flex-direction: row;
     gap: 1em;
 
+    min-width: calc(100% - 4em);
     height: 32px;
 }
 
