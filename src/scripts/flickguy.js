@@ -252,6 +252,11 @@ flickguy.Editor = class extends EventTarget {
         this.actions.redo.disabled = true;
         this.actions.paste.disabled = true;
 
+        function nonDefaultAction(event, action) {
+            event.preventDefault();
+            action.invoke();
+        }
+
         // hotkeys
         document.addEventListener("keydown", (event) => {
             if (event.ctrlKey && event.key === "z") this.actions.undo.invoke();
@@ -262,7 +267,10 @@ flickguy.Editor = class extends EventTarget {
                 this.actions.copy.invoke();
                 this.actions.clear.invoke();
             }
-            if (event.ctrlKey && event.key === "s") this.actions.save.invoke();
+            if (event.ctrlKey && event.key === "s") {
+                event.preventDefault();
+                this.actions.save.invoke();
+            }
 
             if (event.code === "KeyQ") this.toolSelect.selectedIndex = 0;
             if (event.code === "KeyW") this.toolSelect.selectedIndex = 1;
