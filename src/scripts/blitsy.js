@@ -120,18 +120,29 @@ function lineplot(x0, y0, x1, y1, plot) {
  * @param {number} y 
  * @param {number} color
  */
-function floodfill(rendering, x, y, color) {
+function floodfill(rendering, x, y, color, tolerance = 5) {
     const [width, height] = [rendering.canvas.width, rendering.canvas.height];
     withPixels(rendering, pixels => {
         const queue = [[x, y]];
         const done = new Array(width * height);
         const initial = pixels[y * width + x];
 
+        const ir = initial >>>  0 & 0xFF;
+        const ig = initial >>>  8 & 0xFF;
+        const ib = initial >>> 16 & 0xFF;
+
         function enqueue(x, y) {
             const within = x >= 0 && y >= 0 && x < width && y < height;
 
-            if (within && pixels[y * width + x] === initial && !done[y * width + x]) {
-                queue.push([x, y]);
+            if (within && !done[y * width + x]) {
+                const pixel = pixels[y * width + x];
+
+                const pr = pixel >>>  0 & 0xFF;
+                const pg = pixel >>>  8 & 0xFF;
+                const pb = pixel >>> 16 & 0xFF;
+                const dist = Math.abs(pr - ir) + Math.abs(pg - ig) + Math.abs(pb - ib);
+                
+                if (dist <= tolerance) queue.push([x, y]);
             }
         }
 

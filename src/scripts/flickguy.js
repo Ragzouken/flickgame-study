@@ -1,4 +1,4 @@
-const crewmaker = {};
+const flickguy = {};
 
 // add a resource type called "canvas-datauri" that describes how to load a
 // canvas rendering context from a datauri, how to copy one, and how to convert
@@ -10,42 +10,42 @@ maker.resourceHandlers.set("canvas-datauri", {
 });
 
 /**
- * @typedef {Object} CrewmakerDataLayerOption
+ * @typedef {Object} FlickguyDataLayerOption
  * @property {string} image
  * @property {number} palette
  */
 
 /**
- * @typedef {Object} CrewmakerDataLayer
- * @property {CrewmakerDataLayerOption[]} options
+ * @typedef {Object} FlickguyDataLayer
+ * @property {FlickguyDataLayerOption[]} options
  */
 
 /**
- * @typedef {Object} CrewmakerDataProject
+ * @typedef {Object} FlickguyDataProject
  * @property {string[][]} palettes
- * @property {CrewmakerDataLayer[]} layers
+ * @property {FlickguyDataLayer[]} layers
  */
 
 /** 
- * @param {CrewmakerDataProject} data 
+ * @param {FlickguyDataProject} data 
  * @returns {string[]}
  */
-crewmaker.getManifest = function (data) {
-    // layer option images are the only resource dependencies in a crewmaker
+flickguy.getManifest = function (data) {
+    // layer option images are the only resource dependencies in a flickguy
     return data.layers.flatMap((layer) => layer.options.map((option) => option.image));
 }
 
-crewmaker.layerWidth = 128;
-crewmaker.layerHeight = 128;
+flickguy.layerWidth = 128;
+flickguy.layerHeight = 128;
 
-/** @returns {maker.ProjectBundle<CrewmakerDataProject>} */
-crewmaker.makeBlankBundle = function () {
-    const blank = createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight);
+/** @returns {maker.ProjectBundle<FlickguyDataProject>} */
+flickguy.makeBlankBundle = function () {
+    const blank = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
     fillRendering2D(blank);
     const layers = ZEROES(8).map(() => ({  
         options: ZEROES(8).map(() => ({ image: "0", palette: 0 })),
     }));
-    const project = { palettes: crewmaker.defaultPalettes, layers };
+    const project = { palettes: flickguy.defaultPalettes, layers };
     const resources = {
         "0": { type: "canvas-datauri", data: blank.canvas.toDataURL() },
     };
@@ -70,6 +70,54 @@ function swapPalette(rendering, prev, next) {
 }
 
 /**
+ * @param {CanvasRenderingContext2D} rendering 
+ * @param {string[]} prev 
+ * @param {string[]} next 
+ */
+ function swapPaletteSafe(rendering, prev, next) {
+    const mapping = new Map();
+    const prevUint32 = prev.map((hex) => hexToUint32(hex));
+    const nextUint32 = next.map((hex) => hexToUint32(hex));
+    prevUint32.forEach((_, i) => mapping.set(prevUint32[i], nextUint32[i]));
+    mapping.set(0, 0);
+
+    function addMissing(prev) {
+        let bestDistance = Infinity;
+        let bestNext = nextUint32[0];
+
+        const pr = prev >>>  0 & 0xFF;
+        const pg = prev >>>  8 & 0xFF;
+        const pb = prev >>> 16 & 0xFF;
+
+        for (let i = 0; i < prevUint32.length; ++i) {
+            const target = prevUint32[i];
+            const tr = target >>>  0 & 0xFF;
+            const tg = target >>>  8 & 0xFF;
+            const tb = target >>> 16 & 0xFF;
+
+            const dist = Math.abs(pr - tr) 
+                       + Math.abs(pg - tg) 
+                       + Math.abs(pb - tb);
+
+            if (dist < bestDistance) {
+                bestDistance = dist;
+                bestNext = nextUint32[i];
+            }
+        }
+
+        mapping.set(prev, bestNext);
+        return bestNext;
+    }
+
+    withPixels(rendering, (pixels) => {
+        for (let i = 0; i < pixels.length; ++i) {
+            const prev = pixels[i];
+            if (prev) pixels[i] = mapping.get(prev) || addMissing(prev);
+        }
+    });
+}
+
+/**
  * @param {number} min 
  * @param {number} max 
  * @returns {number}
@@ -79,41 +127,41 @@ function swapPalette(rendering, prev, next) {
 }
 
 // default palettes (8 palettes of 8 colors)
-crewmaker.defaultPalettes = [
+flickguy.defaultPalettes = [
     ["#000000","#94216a","#ff2674","#ff80a4","#34111f","#73392e","#c76e46","#ffb762"],["#000000","#d62411","#ff8426","#ffd100","#73392e","#c76e46","#eb9c6e","#ffdaac"],["#000000","#007899","#10d275","#bfff3c","#430067","#94216a","#ff2674","#ff80a4"],["#000000","#94216a","#ff2674","#ff80a4","#002859","#007899","#10d275","#bfff3c"],["#000000","#d62411","#ff8426","#ffd100","#1b1023","#002859","#007899","#68aed4"],["#000000","#002859","#007899","#68aed4","#430067","#94216a","#ff2674","#ff80a4"],["#000000","#007899","#10d275","#bfff3c","#7f0622","#d62411","#ff8426","#ffd100"],["#000000","#002859","#007899","#68aed4","#7f0622","#d62411","#ff8426","#ffd100"]
 ];
 
 // brush names and datauris
-crewmaker.brushes = [
+flickguy.brushes = [
     { name: "1px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABlJREFUOI1jYBgFwx38/////0C7YRQMDQAApd4D/cefQokAAAAASUVORK5CYII=" },
     { name: "2px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABpJREFUOI1jYBgFwx38hwJ8apjo5ZhRMKgBADvbB/vPRl6wAAAAAElFTkSuQmCC" },
     { name: "3px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAACNJREFUOI1jYBgFgxz8////PyE1jMRoZmRkxKmOYheMgmEBAARbC/qDr1pMAAAAAElFTkSuQmCC" },
     { name: "4px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAChJREFUOI1jYBgFgxz8hwJ8ahjxaUZRyMiIVS0TeW4jEhDjhVEwGAAAJhAT9IYiYRoAAAAASUVORK5CYII=" },
 ];
 
-crewmaker.Editor = class extends EventTarget {
+flickguy.Editor = class extends EventTarget {
     constructor() {
         super();
 
         this.editorMode = true;
 
         // to determine which resources are still in use for the project we
-        // combine everything the crewmaker needs plus anything this editor
+        // combine everything the flickguy needs plus anything this editor
         // needs
-        const getManifest = (data) => [...crewmaker.getManifest(data), ...this.getManifest()];
+        const getManifest = (data) => [...flickguy.getManifest(data), ...this.getManifest()];
 
-        /** @type {maker.StateManager<CrewmakerDataProject>} */
+        /** @type {maker.StateManager<FlickguyDataProject>} */
         this.stateManager = new maker.StateManager(getManifest);
         /** @type {CanvasRenderingContext2D} */
         this.rendering = ONE("#renderer").getContext("2d");
 
-        this.stackActive = createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight);
-        this.stackUnder = createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight);
-        this.stackOver = createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight);
+        this.stackActive = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
+        this.stackUnder = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
+        this.stackOver = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
         
         this.preview = createRendering2D(this.rendering.canvas.width, this.rendering.canvas.height);
-        this.layerThumbs = ZEROES(8).map(() => createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight));
-        this.optionThumbs = ZEROES(8).map(() => createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight));
+        this.layerThumbs = ZEROES(8).map(() => createRendering2D(flickguy.layerWidth, flickguy.layerHeight));
+        this.optionThumbs = ZEROES(8).map(() => createRendering2D(flickguy.layerWidth, flickguy.layerHeight));
         this.paletteThumbs = ZEROES(8).map(() => createRendering2D(1, 1));
 
         // find all the ui already defined in the html
@@ -155,8 +203,8 @@ crewmaker.Editor = class extends EventTarget {
 
         // add brush icons and tooltips to brush select buttons
         ALL("#brush-select label").forEach((label, index) => {
-            ONE("input", label).title = crewmaker.brushes[index].name + " brush";
-            ONE("img", label).src = crewmaker.brushes[index].image;
+            ONE("input", label).title = flickguy.brushes[index].name + " brush";
+            ONE("img", label).src = flickguy.brushes[index].image;
         });
 
         // state of the paint tools:
@@ -250,7 +298,7 @@ crewmaker.Editor = class extends EventTarget {
             
             this.stateManager.makeCheckpoint();
             const instance = await this.forkLayerOptionImage(option);
-            swapPalette(instance, prev, next);
+            swapPaletteSafe(instance, prev, next);
             option.palette = this.paletteSelect.selectedIndex;
             this.stateManager.changed();
 
@@ -302,7 +350,7 @@ crewmaker.Editor = class extends EventTarget {
             const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
 
             // prepare the plot function
-            const mask = createRendering2D(crewmaker.layerWidth, crewmaker.layerHeight);
+            const mask = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
             const plotMask = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
             //const pattern = mask.createPattern(this.activePattern.canvas, 'repeat');
             const drawPatternedMask = (instance) => {
@@ -406,14 +454,14 @@ crewmaker.Editor = class extends EventTarget {
 
     async init() {
         // load all the brush images
-        this.brushRenders = await Promise.all(crewmaker.brushes.map(({ image }) => loadImage(image).then(imageToRendering2D)));
+        this.brushRenders = await Promise.all(flickguy.brushes.map(({ image }) => loadImage(image).then(imageToRendering2D)));
         
         // make brush and pattern valid
         this.refreshActiveBrush();
     }
 
     /**
-     * @param {CrewmakerDataLayerOption} option 
+     * @param {FlickguyDataLayerOption} option 
      * @returns {Promise<CanvasRenderingContext2D>}
      */
     async forkLayerOptionImage(option) {
@@ -686,7 +734,7 @@ crewmaker.Editor = class extends EventTarget {
                 option.palette = getRandomInt(0, 8);
                 const next = data.palettes[option.palette];
 
-                swapPalette(instance, prev, next);
+                swapPaletteSafe(instance, prev, next);
             }));
         });
         this.refreshLayerDisplay();
@@ -738,7 +786,7 @@ crewmaker.Editor = class extends EventTarget {
 
     async resetProject() {
         // open a blank project in the editor
-        await this.stateManager.loadBundle(crewmaker.makeBlankBundle());
+        await this.stateManager.loadBundle(flickguy.makeBlankBundle());
     }
     
     async updateEditor() {
@@ -782,7 +830,7 @@ crewmaker.Editor = class extends EventTarget {
             const promises = data.layers.flatMap((layer) => { 
                 return layer.options.map(async (option) => {
                     const instance = await this.forkLayerOptionImage(option);
-                    swapPalette(instance, prevPalettes[option.palette], nextPalettes[option.palette]);
+                    swapPaletteSafe(instance, prevPalettes[option.palette], nextPalettes[option.palette]);
                 });
             });
 
@@ -807,8 +855,8 @@ crewmaker.Editor = class extends EventTarget {
     }
 }
 
-crewmaker.start = async function () {
-    const editor = new crewmaker.Editor();
+flickguy.start = async function () {
+    const editor = new flickguy.Editor();
     await editor.init();
 
     // setup play/edit buttons to switch between modes

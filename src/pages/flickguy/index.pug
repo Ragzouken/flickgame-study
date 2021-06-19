@@ -15,18 +15,18 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/fl
         script
             include /scripts/blitsy.js
         script
-            include /scripts/crewmaker.js
+            include /scripts/flickguy.js
         // styles
         style#base-style
             include /styles/base-style.css
         style#main-style
             include /styles/main-style.css
-        style#crewmaker-style
-            include /styles/crewmaker-style.css
-    body(onload="crewmaker.start()")
+        style
+            include /styles/flickguy-style.css
+    body(onload="flickguy.start()")
         noscript
             h1 this tool requires javascript
-            p this is an interactive tool for drawing little guys and requires javascript to function correctly. if you javascript is not available #[a(href="https://kool.tools/blog/flickgame-study.html") you can read about it instead]
+            p this is an interactive tool for drawing little guys and requires javascript to function correctly. if javascript is not available #[a(href="https://kool.tools/blog/flickgame-study.html") you can read about it instead]
         #editor
             main
                 section#middle
