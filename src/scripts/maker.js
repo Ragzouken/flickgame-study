@@ -1,6 +1,7 @@
 "strict"
 const maker = {};
 const ui = {};
+const storage = {};
 
 /**
  * @template TProject
@@ -638,4 +639,108 @@ const ZEROES = (length) => Array(length).fill(0);
     Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
     children.forEach((child) => element.append(child));
     return element;
+}
+
+/** @param {number} milliseconds */
+function sleep(milliseconds) {
+    return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+/** 
+ * @template T
+ * @param {IDBRequest<T>} request 
+ * @returns {Promise<T>}
+ */
+ function promisfyRequest(request) {
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+/** 
+ * @param {IDBTransaction} transaction 
+ * @returns {Promise}
+ */
+ function promisfyTransaction(transaction) {
+    return new Promise((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onabort = () => reject(transaction.error);
+        transaction.onerror = () => reject(transaction.error);
+    });
+}
+
+maker.ProjectStorage = class {
+    constructor(appID, generateMeta=undefined) {
+        this.appID = appID;
+        this.generateMeta = generateMeta;
+        this.error = undefined;
+
+        this.openDatabase().then(
+            (request) => request.close(),
+            (reason) => this.error = reason,
+        );
+    }
+
+    get available() {
+        return this.error === undefined;
+    }
+
+    async openDatabase() {
+        const request = indexedDB.open(this.appID);
+        request.addEventListener("upgradeneeded", () => {
+            request.result.createObjectStore("projects");
+            request.result.createObjectStore("projects-meta");
+        });
+        return promisfyRequest(request);
+    }
+
+    async stores(mode) {
+        const db = await this.openDatabase();
+        const transaction = db.transaction(["projects", "projects-meta"], mode);
+        const projects = transaction.objectStore("projects");
+        const meta = transaction.objectStore("projects-meta");
+        return { transaction, projects, meta };
+    }
+
+    /**
+     * @returns {Promise<any[]>}
+     */
+    async list() {
+        const stores = await this.stores("readonly");
+        return promisfyRequest(stores.meta.getAll());
+    }
+
+    /**
+     * @param {any} projectData 
+     * @returns {Promise}
+     */
+    async save(projectData, key) {
+        const meta = { date: (new Date()).toISOString() };
+        if (this.generateMeta) Object.assign(meta, this.generateMeta(projectData)); 
+    
+        const stores = await this.stores("readwrite");
+        stores.projects.put(projectData, key);
+        stores.meta.put(meta, key);
+        return promisfyTransaction(stores.transaction);
+    }
+
+    /**
+     * @param {string} key
+     * @returns {Promise<any>}
+     */
+    async load(key) {
+        const stores = await this.stores("readonly");
+        return promisfyRequest(stores.projects.get(key));
+    }
+
+    /**
+     * @param {string} key
+     */
+    async delete(key) {
+        const stores = await this.stores("readwrite");
+        stores.projects.delete(key);
+        stores.meta.delete(key);
+        return promisfyTransaction(stores.transaction);
+    }
 }

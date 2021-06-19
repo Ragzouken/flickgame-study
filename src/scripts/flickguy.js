@@ -1,5 +1,7 @@
 const flickguy = {};
 
+flickguy.storage = new maker.ProjectStorage("flickguy");
+
 // add a resource type called "canvas-datauri" that describes how to load a
 // canvas rendering context from a datauri, how to copy one, and how to convert
 // one back into a datauri
@@ -242,6 +244,7 @@ flickguy.Editor = class extends EventTarget {
             exportImage: ui.action("export-image", () => this.exportImage()),
 
             importPalette: ui.action("import-palette", () => this.importPalette()),
+            save: ui.action("save", () => this.save()),
         };
 
         // can't undo/redo/paste yet
@@ -259,6 +262,7 @@ flickguy.Editor = class extends EventTarget {
                 this.actions.copy.invoke();
                 this.actions.clear.invoke();
             }
+            if (event.ctrlKey && event.key === "s") this.actions.save.invoke();
 
             if (event.code === "KeyQ") this.toolSelect.selectedIndex = 0;
             if (event.code === "KeyW") this.toolSelect.selectedIndex = 1;
@@ -838,6 +842,20 @@ flickguy.Editor = class extends EventTarget {
         });
     }
 
+    async save() {
+        // visual feedback that saving is occuring
+        this.actions.save.disabled = true;
+        const timer = sleep(250);
+
+        // make bundle and save it
+        const bundle = await this.stateManager.makeBundle();
+        flickguy.storage.save(bundle, "slot0");
+        
+        // allow saving again when enough time has passed to see visual feedback
+        await timer;
+        this.actions.save.disabled = false;
+    }
+
     enterPlayerMode() {
         this.editorMode = false;
         ALL("[data-hidden-in-editor]").forEach((element) => element.hidden = false);
@@ -852,6 +870,8 @@ flickguy.Editor = class extends EventTarget {
         ALL("[data-hidden-in-player]").forEach((element) => element.hidden = false);
         this.rendering.canvas.style.setProperty("cursor", "crosshair");
         this.render();
+
+        this.actions.save.disabled = !flickguy.storage.available;
     }
 }
 
@@ -871,8 +891,9 @@ flickguy.start = async function () {
         await editor.stateManager.loadBundle(bundle);
         editor.enterPlayerMode();
     } else {
-        // no embedded project, start editor with default
-        const bundle = maker.bundleFromHTML(document, "#editor-embed");
+        // no embedded project, start editor with save or editor embed
+        const save = await flickguy.storage.load("slot0").catch(() => undefined);
+        const bundle = save || maker.bundleFromHTML(document, "#editor-embed");
         await editor.stateManager.loadBundle(bundle);
         //await editor.resetProject();
         editor.enterEditorMode();

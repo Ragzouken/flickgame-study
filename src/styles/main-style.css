@@ -1,6 +1,7 @@
 :root {
     --button-color: #ffd800;
 
+    /** diagonal stripes for showing clearly transparent pixels of the paint area */
     --trans-color-1: rgb(32, 32, 32);
     --trans-color-2: rgb(48, 48, 48);
     --trans-gradient: repeating-linear-gradient( -45deg, var(--trans-color-1), var(--trans-color-1) .5em, var(--trans-color-2) .5em, var(--trans-color-2) 1em );
