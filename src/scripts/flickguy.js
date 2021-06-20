@@ -146,6 +146,7 @@ flickguy.Editor = class extends EventTarget {
         super();
 
         this.editorMode = true;
+        this.unsavedChanges = false;
 
         // to determine which resources are still in use for the project we
         // combine everything the flickguy needs plus anything this editor
@@ -189,18 +190,18 @@ flickguy.Editor = class extends EventTarget {
         this.selectedOptions = ZEROES(8);
 
         // add thumbnails to the layer select bar
-        ALL("#layer-select input").forEach((input, index) => {
-            input.after(this.layerThumbs[index].canvas);
+        ALL("#layer-select canvas").forEach((canvas, index) => {
+            canvas.replaceWith(this.layerThumbs[index].canvas);
         });
 
         // add thumbnails to the option select bar
-        ALL("#option-select input").forEach((input, index) => {
-            input.after(this.optionThumbs[index].canvas);
+        ALL("#option-select canvas").forEach((canvas, index) => {
+            canvas.replaceWith(this.optionThumbs[index].canvas);
         });
 
         // add thumbnails to the palette select bar
-        ALL("#palette-select input").forEach((input, index) => {
-            input.after(this.paletteThumbs[index].canvas);
+        ALL("#palette-select canvas").forEach((canvas, index) => {
+            canvas.replaceWith(this.paletteThumbs[index].canvas);
         });
 
         // add brush icons and tooltips to brush select buttons
@@ -254,28 +255,30 @@ flickguy.Editor = class extends EventTarget {
 
         // hotkeys
         document.addEventListener("keydown", (event) => {
-            if (event.ctrlKey && event.key === "z") this.actions.undo.invoke();
-            if (event.ctrlKey && event.key === "y") this.actions.redo.invoke();
-            if (event.ctrlKey && event.key === "c") this.actions.copy.invoke();
-            if (event.ctrlKey && event.key === "v") this.actions.paste.invoke();
-            if (event.ctrlKey && event.key === "x") {
-                this.actions.copy.invoke();
-                this.actions.clear.invoke();
+            if (event.ctrlKey) {
+                if (event.key === "z") this.actions.undo.invoke();
+                if (event.key === "y") this.actions.redo.invoke();
+                if (event.key === "c") this.actions.copy.invoke();
+                if (event.key === "v") this.actions.paste.invoke();
+                if (event.key === "x") {
+                    this.actions.copy.invoke();
+                    this.actions.clear.invoke();
+                }
+                if (event.key === "s") {
+                    event.preventDefault();
+                    this.actions.save.invoke();
+                }
+            } else {
+                if (event.code === "KeyQ") this.toolSelect.selectedIndex = 0;
+                if (event.code === "KeyW") this.toolSelect.selectedIndex = 1;
+                if (event.code === "KeyE") this.toolSelect.selectedIndex = 2;
+                if (event.code === "KeyR") this.toolSelect.selectedIndex = 3;
+    
+                if (event.code === "KeyA") this.brushSelect.selectedIndex = 0;
+                if (event.code === "KeyS") this.brushSelect.selectedIndex = 1;
+                if (event.code === "KeyD") this.brushSelect.selectedIndex = 2;
+                if (event.code === "KeyF") this.brushSelect.selectedIndex = 3;
             }
-            if (event.ctrlKey && event.key === "s") {
-                event.preventDefault();
-                this.actions.save.invoke();
-            }
-
-            if (event.code === "KeyQ") this.toolSelect.selectedIndex = 0;
-            if (event.code === "KeyW") this.toolSelect.selectedIndex = 1;
-            if (event.code === "KeyE") this.toolSelect.selectedIndex = 2;
-            if (event.code === "KeyR") this.toolSelect.selectedIndex = 3;
-
-            if (event.code === "KeyA") this.brushSelect.selectedIndex = 0;
-            if (event.code === "KeyS") this.brushSelect.selectedIndex = 1;
-            if (event.code === "KeyD") this.brushSelect.selectedIndex = 2;
-            if (event.code === "KeyF") this.brushSelect.selectedIndex = 3;
 
             this.heldColorPick = event.altKey;
         });
@@ -327,6 +330,8 @@ flickguy.Editor = class extends EventTarget {
     
         // whenever the project data is changed
         this.stateManager.addEventListener("change", () => {
+            this.unsavedChanges = true;
+
             this.refreshPaletteThumbs();
             this.refreshLayerThumbnails();
             this.refreshLayerDisplay();
@@ -854,6 +859,9 @@ flickguy.Editor = class extends EventTarget {
         const bundle = await this.stateManager.makeBundle();
         flickguy.storage.save(bundle, "slot0");
         
+        // successful save, no unsaved changes
+        this.unsavedChanges = false;
+
         // allow saving again when enough time has passed to see visual feedback
         await timer;
         this.actions.save.disabled = false;
@@ -900,6 +908,14 @@ flickguy.start = async function () {
         await editor.stateManager.loadBundle(bundle);
         //await editor.resetProject();
         editor.enterEditorMode();
+        editor.unsavedChanges = false;
+
+        // unsaved changes warning
+        window.addEventListener("beforeunload", (event) => {
+            if (!editor.unsavedChanges) return;
+            event.preventDefault();
+            return event.returnValue = "Are you sure you want to exit?";
+        });
     }
 
     // if there's an opener window, tell it we're open to messages

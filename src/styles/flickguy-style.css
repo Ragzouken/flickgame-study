@@ -1,3 +1,8 @@
+body {
+    background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url("https://kool.tools/flickguy/background.png");
+    background-position: center; 
+}
+
 #editor {
     max-width: 100vw;
 }
@@ -90,6 +95,7 @@
     width: 100%; height: 100%;
     position: absolute;
     border-radius: inherit;
+    object-fit: contain;
 }
 
 #option-select label :not(input) {
