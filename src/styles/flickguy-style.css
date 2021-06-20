@@ -1,3 +1,13 @@
+:root[data-app-mode="editor"] [data-hidden-in-editor] {
+    display: none !important;
+    visibility: hidden;
+}
+
+:root[data-app-mode="player"] [data-hidden-in-player] {
+    display: none !important;
+    visibility: hidden;
+}
+
 body {
     background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url("https://kool.tools/flickguy/background.png");
     background-position: center; 
@@ -5,6 +15,7 @@ body {
 
 #editor {
     max-width: 100vw;
+    overflow: hidden auto;
 }
 
 #editor main {
@@ -167,6 +178,47 @@ body {
         "bar    bar  ";
 }
 
+/* :root[data-app-mode="player"] #tools > * {
+    visibility: hidden;
+} */
+
+#player-info {
+    grid-row: 1 / -1;
+    grid-column: 1 / -1;
+
+    flex: 1;
+
+    background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOsAAAA+CAYAAADK+exJAAAAAXNSR0IArs4c6QAABHxJREFUeJztnXFu8yAMxb1Pu8iuN+0QOcS06+0q3z9LRdOQGDDmYd5Pqqa1aTCGFzsEqAghhBBC7HgbbQAhgdmMjhERihUV00YmT5T4rcXH2/fH5+1BX78/6nIo1ldqG6ipYdN/rBu5xoaO3/FgO/x9vK/x7c6fj8/Oc1t+RTm3ZVCszxQ5OaVCPI9jHcs0taGg/FQ8ueOLBZH7YK/LiX1V7VvTthSrXUOfnqNWNDtKp28i9QKtLPPUDgsbFOVvqXhyZRbWQ2374bweYi0uQ3v+96Kz2vCSmiiPu2roqys2EiYCMcDMju+Pzyv/P5UDUPft6/cHpQ2K8RDr5f1YpqGLHHrTYVBA6SQodkxDQf/qFlVF7MWqjobp5wdHROxMKHVCsYNU0CLWYmEuCopAutkxSWazU5UKK+rYNaqK3Is1O4oH0gEJWYYrsaajeCjRYTZQ/IZiR5bJonMzNaP4/zLvu47i/Z1/iUYaALxQB7AlEx7UXPRTFx/nxEraoUgCMjKwjHjOSoJwiE6zZUbDnrnWTmShWGPTMmNHdf7ik2NhIVg3wYcR62oDFCL2k/kbJq4vRdLXXJ+KhBFrdDLRzlqoK4q0+rlrDS1+hhArSEeBnTda6Z/aye4ElCFiPYkS7CgZeguJQhURpwt1q69zYm02/maQYvXOoSKAkIr60YrjDiWYR1aDQQrYdHQi6L9y4PtdrzRYu2a19BhCpsQiS3IRq3JPIaY/ztx0IK+NxZCAjq7mYq2tKO9XoCjdQyhSu5kL1mrsgXODyZHaZ45eYoWNfL2hWAl5pWpVzhmWI/oUKzEh4DJHM8FaQbESMgkUKyF5mqKr9aQWinVhnFJXuHRyVihWAkWUe98eU0UpVnIkTCQMMLf6CYoVmIFRZvv6/ZH0tSheP2Sl4kqsrldYiwpGSaFSKuukbrurHfuSFwHAbT2rovOwU2RItxFJoL8Ww1SsXMPaj8wPeqVU+3eiednwUw173if3iKzoDe5F1xUcil/jq134LRKgDS1+aBrtwmA6wBTxnnElvj8+0zZ8vJRLHPfvnVE0/pHpR3Di8QZiw7TAQK+PzIFg7/E+HcGmO3o/Koou1tsfv3WxYhxTXix2BtoN6bOoYlVtwOw0qDK1YDSgTT5As8eKcJMi9vsujThO7o3CzN5JiFgnODwuEKhiZQezBcGfCDZogM2CUMUaDYSO2sUGtJQTzR5LKFZCGvG6QFCsfoSNroGATYFFKFb3nfkAVrGM3Ays68ViRArsWeadWIudy1lMt2wyXrSMsBOyfGQdyGjRNpXdEFFQB7qgU2ARihWBh2hraRGOVIjWQhgAtwPNeKfdUWcwzch2suxN/d3WskVOl931Ku+pzNaItkJUFaFY0Rh9rz9qC5mW7VNExvvNBabBRkR+GO9ASyo+xOcj2vtNcUzxVc+oIi6pScbWy7IznYpCteFyWVzHaKpa/JHY4N7eGrGKFAjHuCKt6ZGqjML37z4jduQ2cvMu09uGU7RiFdEb2OWK5/AdQgghhBBCCCGEEFLBfzYse3hLCzpHAAAAAElFTkSuQmCC");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+
+    image-rendering: pixelated;
+
+    background-color: black;
+    border-radius: 1em;
+
+    /* padding: 1em;
+    background: black;
+    border-radius: 1em; */
+}
+
+:root[data-app-mode="player"] #tools > #player-info {
+    visibility: unset;
+}
+
+:root[data-app-mode="editor"] #tools > #player-info {
+    visibility: hidden;
+}
+
+:root[data-app-mode="player"] #tools > #player-actions {
+    visibility: unset;
+}
+
+:root[data-app-mode="editor"] #tools > #player-actions {
+    visibility: hidden;
+}
+
 #tool-select {
     grid-area: tool;
 
@@ -199,11 +251,11 @@ body {
 }
 
 #layer-select > :first-child {
-    margin-bottom: 1em;
+    margin-bottom: .5em;
 }
 
 #layer-select > :last-child {
-    margin-top: 1em;
+    margin-top: .5em;
 }
 
 .vertical-capsule > :first-child[hidden] + * {

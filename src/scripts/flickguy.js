@@ -306,11 +306,13 @@ flickguy.Editor = class extends EventTarget {
             const prev = this.stateManager.present.palettes[option.palette];
             const next = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
             
-            this.stateManager.makeCheckpoint();
-            const instance = await this.forkLayerOptionImage(option);
-            swapPaletteSafe(instance, prev, next);
-            option.palette = this.paletteSelect.selectedIndex;
-            this.stateManager.changed();
+            if (prev !== next) {
+                this.stateManager.makeCheckpoint();
+                const instance = await this.forkLayerOptionImage(option);
+                swapPaletteSafe(instance, prev, next);
+                option.palette = this.paletteSelect.selectedIndex;
+                this.stateManager.changed();
+            }
 
             this.refreshColorSelect();
         });
@@ -778,6 +780,9 @@ flickguy.Editor = class extends EventTarget {
         const generation = parseInt(clone.getAttribute("data-remix-generation"));
         clone.setAttribute("data-remix-generation", `${generation + 1}`);
 
+        // default to player mode
+        clone.setAttribute("data-app-mode", "player");
+
         // prompt the browser to download the page
         const name = "flickguy.html";
         const blob = maker.textToBlob(clone.outerHTML, "text/html");
@@ -807,12 +812,12 @@ flickguy.Editor = class extends EventTarget {
         window.addEventListener("message", (event) => {
             event.data.port.postMessage({ bundle });
         });
-        console.log(window.open(liveURL));
+        window.open(liveURL);
     }
 
     exportImage() {
         this.rendering.canvas.toBlob((blob) => {
-            maker.saveAs(blob, "your-character.png");
+            maker.saveAs(blob, "your-guy.png");
         });        
     }
 
@@ -869,16 +874,14 @@ flickguy.Editor = class extends EventTarget {
 
     enterPlayerMode() {
         this.editorMode = false;
-        ALL("[data-hidden-in-editor]").forEach((element) => element.hidden = false);
-        ALL("[data-hidden-in-player]").forEach((element) => element.hidden = true);
+        document.documentElement.setAttribute("data-app-mode", "player");
         this.rendering.canvas.style.setProperty("cursor", "unset");
         this.render();
     }
 
     enterEditorMode() {
         this.editorMode = true;
-        ALL("[data-hidden-in-editor]").forEach((element) => element.hidden = true);
-        ALL("[data-hidden-in-player]").forEach((element) => element.hidden = false);
+        document.documentElement.setAttribute("data-app-mode", "editor");
         this.rendering.canvas.style.setProperty("cursor", "crosshair");
         this.render();
 
@@ -928,4 +931,6 @@ flickguy.start = async function () {
         };
         window.opener.postMessage({ port: channel.port2 }, "*", [channel.port2]);
     }
+
+    flickguy.editor = editor;
 }
