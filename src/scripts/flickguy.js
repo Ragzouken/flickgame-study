@@ -307,11 +307,12 @@ flickguy.Editor = class extends EventTarget {
             const next = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
             
             if (prev !== next) {
-                this.stateManager.makeCheckpoint();
+                //this.stateManager.makeCheckpoint();
                 const instance = await this.forkLayerOptionImage(option);
                 swapPaletteSafe(instance, prev, next);
                 option.palette = this.paletteSelect.selectedIndex;
-                this.stateManager.changed();
+                this.render();
+                //this.stateManager.changed();
             }
 
             this.refreshColorSelect();
@@ -739,18 +740,18 @@ flickguy.Editor = class extends EventTarget {
 
     async randomise() {
         this.selectedOptions = ZEROES(8).map(() => getRandomInt(0, 8));
-        await this.stateManager.makeChange(async (data) => {
-            await Promise.all(data.layers.map(async (layer, index) => {
-                const option = layer.options[this.selectedOptions[index]];
-                const instance = await this.forkLayerOptionImage(option);
+        const data = this.stateManager.present;
+        await Promise.all(data.layers.map(async (layer, index) => {
+            const option = layer.options[this.selectedOptions[index]];
+            const instance = await this.forkLayerOptionImage(option);
 
-                const prev = data.palettes[option.palette];
-                option.palette = getRandomInt(0, 8);
-                const next = data.palettes[option.palette];
+            const prev = data.palettes[option.palette];
+            option.palette = getRandomInt(0, 8);
+            const next = data.palettes[option.palette];
 
-                swapPaletteSafe(instance, prev, next);
-            }));
-        });
+            swapPaletteSafe(instance, prev, next);
+        }));
+        this.render();
         this.refreshLayerDisplay();
     }
 
