@@ -26,6 +26,7 @@ maker.resourceHandlers.set("canvas-datauri", {
  * @typedef {Object} FlickguyDataProject
  * @property {string[][]} palettes
  * @property {FlickguyDataLayer[]} layers
+ * @property {number[]} selected
  */
 
 /** 
@@ -187,8 +188,6 @@ flickguy.Editor = class extends EventTarget {
         this.brushSelect.selectedIndex = 0;
         this.colorSelect.selectedIndex = 1;
 
-        this.selectedOptions = ZEROES(8);
-
         // add thumbnails to the layer select bar
         ALL("#layer-select canvas").forEach((canvas, index) => {
             canvas.replaceWith(this.layerThumbs[index].canvas);
@@ -294,7 +293,7 @@ flickguy.Editor = class extends EventTarget {
 
         this.optionSelect.addEventListener("change", () => {
             // remember selected option for this layer
-            this.selectedOptions[this.layerSelect.selectedIndex] = this.optionSelect.selectedIndex;
+            this.stateManager.present.selected[this.layerSelect.selectedIndex] = this.optionSelect.selectedIndex;
             this.refreshLayerDisplay();
         });
 
@@ -333,6 +332,9 @@ flickguy.Editor = class extends EventTarget {
     
         // whenever the project data is changed
         this.stateManager.addEventListener("change", () => {
+            if (!this.stateManager.present.selected)
+                this.stateManager.present.selected = ZEROES(8);
+
             this.unsavedChanges = true;
 
             this.refreshPaletteThumbs();
@@ -498,7 +500,7 @@ flickguy.Editor = class extends EventTarget {
         // composite layers into below, current, above
         this.stateManager.present.layers.forEach((layer, index) => {
             // get the layer's current option scene's image
-            const option = layer.options[this.selectedOptions[index]];
+            const option = layer.options[this.stateManager.present.selected[index]];
             const image = this.stateManager.resources.get(option.image);
             
             if (index < this.layerSelect.selectedIndex) this.stackUnder.drawImage(image.canvas, 0, 0);
@@ -567,7 +569,7 @@ flickguy.Editor = class extends EventTarget {
         this.actions.layerDown.disabled = this.layerSelect.selectedIndex > 6;
 
         // switch option to remembered option for this layer
-        this.optionSelect.selectedIndex = this.selectedOptions[this.layerSelect.selectedIndex];
+        this.optionSelect.selectedIndex = this.stateManager.present.selected[this.layerSelect.selectedIndex];
 
         // switch to the natural palette of this option
         const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
@@ -694,7 +696,7 @@ flickguy.Editor = class extends EventTarget {
         this.stateManager.makeChange(async (data) => {
             const i = this.layerSelect.selectedIndex;
             [data.layers[i-1], data.layers[i]] = [data.layers[i], data.layers[i-1]];
-            [this.selectedOptions[i-1], this.selectedOptions[i]] = [this.selectedOptions[i], this.selectedOptions[i-1]]
+            [data.selected[i-1], data.selected[i]] = [data.selected[i], data.selected[i-1]]
             this.layerSelect.selectedIndex -= 1;
             this.refreshLayerDisplay();
         });
@@ -706,7 +708,7 @@ flickguy.Editor = class extends EventTarget {
         this.stateManager.makeChange(async (data) => {
             const i = this.layerSelect.selectedIndex;
             [data.layers[i], data.layers[i+1]] = [data.layers[i+1], data.layers[i]];
-            [this.selectedOptions[i], this.selectedOptions[i+1]] = [this.selectedOptions[i+1], this.selectedOptions[i]]
+            [data.selected[i], data.selected[i+1]] = [data.selected[i+1], data.selected[i]]
             this.layerSelect.selectedIndex += 1;
             this.refreshLayerDisplay();
         });
@@ -739,20 +741,19 @@ flickguy.Editor = class extends EventTarget {
     }
 
     async randomise() {
-        this.selectedOptions = ZEROES(8).map(() => getRandomInt(0, 8));
-        const data = this.stateManager.present;
-        await Promise.all(data.layers.map(async (layer, index) => {
-            const option = layer.options[this.selectedOptions[index]];
-            const instance = await this.forkLayerOptionImage(option);
+        await this.stateManager.makeChange(async (data) => {
+            await Promise.all(data.layers.map(async (layer, index) => {
+                data.selected[index] = getRandomInt(0, 8);
+                const option = layer.options[data.selected[index]];
+                const instance = await this.forkLayerOptionImage(option);
 
-            const prev = data.palettes[option.palette];
-            option.palette = getRandomInt(0, 8);
-            const next = data.palettes[option.palette];
+                const prev = data.palettes[option.palette];
+                option.palette = getRandomInt(0, 8);
+                const next = data.palettes[option.palette];
 
-            swapPaletteSafe(instance, prev, next);
-        }));
-        this.render();
-        this.refreshLayerDisplay();
+                swapPaletteSafe(instance, prev, next);
+            }));
+        });
     }
 
     /** @returns {string[]} */
