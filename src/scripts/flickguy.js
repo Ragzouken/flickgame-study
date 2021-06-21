@@ -56,6 +56,11 @@ flickguy.makeBlankBundle = function () {
     return { project, resources };
 }
 
+/** @param {FlickguyDataProject} project */
+flickguy.updateProject = function(project) {
+    project.selected = project.selected || ZEROES(8);
+}
+
 /**
  * @param {CanvasRenderingContext2D} rendering 
  * @param {string[]} prev 
@@ -478,6 +483,18 @@ flickguy.Editor = class extends EventTarget {
     }
 
     /**
+     * Replace the current flickguy data with the given bundle.
+     * @param {maker.ProjectBundle<FlickguyDataProject>} bundle
+     */
+    async loadBundle(bundle) {
+        // account for changes between flickguy versions
+        flickguy.updateProject(bundle.project);
+
+        await this.stateManager.loadBundle(bundle);
+        this.unsavedChanges = false;
+    }
+
+    /**
      * @param {FlickguyDataLayerOption} option 
      * @returns {Promise<CanvasRenderingContext2D>}
      */
@@ -800,12 +817,12 @@ flickguy.Editor = class extends EventTarget {
         // extract the bundle from the imported page
         const bundle = maker.bundleFromHTML(html);
         // load the contents of the bundle into the editor
-        await this.stateManager.loadBundle(bundle);
+        await this.loadBundle(bundle);
     } 
 
     async resetProject() {
         // open a blank project in the editor
-        await this.stateManager.loadBundle(flickguy.makeBlankBundle());
+        await this.loadBundle(flickguy.makeBlankBundle());
     }
     
     async updateEditor() {
@@ -904,16 +921,16 @@ flickguy.start = async function () {
 
     if (bundle) {
         // embedded project, load it in the player
-        await editor.stateManager.loadBundle(bundle);
+        await editor.loadBundle(bundle);
         editor.enterPlayerMode();
     } else {
         // no embedded project, start editor with save or editor embed
         const save = await flickguy.storage.load("slot0").catch(() => undefined);
         const bundle = save || maker.bundleFromHTML(document, "#editor-embed");
-        await editor.stateManager.loadBundle(bundle);
-        //await editor.resetProject();
+        
+        // load bundle and enter editor mode
+        await editor.loadBundle(bundle);
         editor.enterEditorMode();
-        editor.unsavedChanges = false;
 
         // unsaved changes warning
         window.addEventListener("beforeunload", (event) => {
@@ -928,7 +945,7 @@ flickguy.start = async function () {
         const channel = new MessageChannel();
         channel.port1.onmessage = async (event) => {
             if (event.data.bundle) {
-                return editor.stateManager.loadBundle(event.data.bundle);
+                return editor.loadBundle(event.data.bundle);
             }
         };
         window.opener.postMessage({ port: channel.port2 }, "*", [channel.port2]);
