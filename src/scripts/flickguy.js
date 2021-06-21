@@ -1,5 +1,6 @@
 const flickguy = {};
 
+// browser saves will be stored under the id "flickguy"
 flickguy.storage = new maker.ProjectStorage("flickguy");
 
 // add a resource type called "canvas-datauri" that describes how to load a
@@ -11,6 +12,8 @@ maker.resourceHandlers.set("canvas-datauri", {
     save: async (instance) => instance.canvas.toDataURL("image/png", 1),
 });
 
+// type definitions for the structure of flickguy project data. useful for the
+// code editor, ignored by the browser 
 /**
  * @typedef {Object} FlickguyDataLayerOption
  * @property {string} image
@@ -33,22 +36,32 @@ maker.resourceHandlers.set("canvas-datauri", {
  * @param {FlickguyDataProject} data 
  * @returns {string[]}
  */
+
+// define how to determine which resources a particular flickguy project data
+// depends on. in this case resources are the individual images, so the 
+// dependencies are all image ids in the project
 flickguy.getManifest = function (data) {
     // layer option images are the only resource dependencies in a flickguy
     return data.layers.flatMap((layer) => layer.options.map((option) => option.image));
 }
 
+// keep the image size constant in one place--haven't checked whether you can
+// actually change these numbers and not break things
 flickguy.layerWidth = 128;
 flickguy.layerHeight = 128;
+flickguy.exportScale = 4;
 
-/** @returns {maker.ProjectBundle<FlickguyDataProject>} */
+/** 
+ * Create a valid bundle for an empty flickguy project.
+ * @returns {maker.ProjectBundle<FlickguyDataProject>} 
+ */
 flickguy.makeBlankBundle = function () {
     const blank = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
     fillRendering2D(blank);
     const layers = ZEROES(8).map(() => ({  
         options: ZEROES(8).map(() => ({ image: "0", palette: 0 })),
     }));
-    const project = { palettes: flickguy.defaultPalettes, layers };
+    const project = { palettes: flickguy.defaultPalettes, layers, selected: ZEROES(8) };
     const resources = {
         "0": { type: "canvas-datauri", data: blank.canvas.toDataURL() },
     };
@@ -56,12 +69,19 @@ flickguy.makeBlankBundle = function () {
     return { project, resources };
 }
 
-/** @param {FlickguyDataProject} project */
+/** 
+ * Update the given flickguy project data so that it's valid for this current
+ * version of flickguy.
+ * @param {FlickguyDataProject} project 
+ */
 flickguy.updateProject = function(project) {
     project.selected = project.selected || ZEROES(8);
 }
 
 /**
+ * In the given rendering, replace every instance of a color in the prev palette
+ * with the corresponding color in the next palette, ignoring colors that don't
+ * appear. This is broken in firefox because colors are not stored exactly. 
  * @param {CanvasRenderingContext2D} rendering 
  * @param {string[]} prev 
  * @param {string[]} next 
@@ -78,6 +98,9 @@ function swapPalette(rendering, prev, next) {
 }
 
 /**
+ * Replace every color in the given rendering. Each existing color is matched
+ * to the closest color in the prev palette and replaced with the corresponding
+ * color in the next palette. 
  * @param {CanvasRenderingContext2D} rendering 
  * @param {string[]} prev 
  * @param {string[]} next 
@@ -126,6 +149,8 @@ function swapPalette(rendering, prev, next) {
 }
 
 /**
+ * Return a random integer at least min and below max. Why is that the normal
+ * way to do random ints? I have no idea.
  * @param {number} min 
  * @param {number} max 
  * @returns {number}
@@ -151,8 +176,14 @@ flickguy.Editor = class extends EventTarget {
     constructor() {
         super();
 
+        // run full editor functionally? (or just simple playback?)
         this.editorMode = true;
+
+        // are there changes to warn about losing?
         this.unsavedChanges = false;
+
+        // is there a fully loaded project?
+        this.ready = false;
 
         // to determine which resources are still in use for the project we
         // combine everything the flickguy needs plus anything this editor
@@ -164,11 +195,15 @@ flickguy.Editor = class extends EventTarget {
         /** @type {CanvasRenderingContext2D} */
         this.rendering = ONE("#renderer").getContext("2d");
 
+        // temporary rendering for compositing layers in editor
         this.stackActive = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
         this.stackUnder = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
         this.stackOver = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
         
+        // preview for paint tools e.g line cursor
         this.preview = createRendering2D(this.rendering.canvas.width, this.rendering.canvas.height);
+        
+        // thumbnails for various ui buttons
         this.layerThumbs = ZEROES(8).map(() => createRendering2D(flickguy.layerWidth, flickguy.layerHeight));
         this.optionThumbs = ZEROES(8).map(() => createRendering2D(flickguy.layerWidth, flickguy.layerHeight));
         this.paletteThumbs = ZEROES(8).map(() => createRendering2D(1, 1));
@@ -229,27 +264,31 @@ flickguy.Editor = class extends EventTarget {
 
         // editor actions controlled by html buttons
         this.actions = {
+            // layer buttons
             layerUp: ui.action("layer-up", () => this.shiftLayerUp()),
             layerDown: ui.action("layer-down", () => this.shiftLayerDown()),
 
+            // editor toolbar
             undo: ui.action("undo", () => this.stateManager.undo()),
             redo: ui.action("redo", () => this.stateManager.redo()),
             copy: ui.action("copy", () => this.copyLayerOption()),
             paste: ui.action("paste", () => this.pasteLayerOption()),
             clear: ui.action("clear", () => this.clearLayerOption()),
             randomise: ui.action("randomise", () => this.randomise()),
+            save: ui.action("save", () => this.save()),
 
+            // editor menu
             export_: ui.action("export", () => this.exportProject()),
             import_: ui.action("import", () => this.importProject()),
             reset: ui.action("reset", () => this.resetProject()),
             help: ui.action("help", () => this.toggleHelp()),
-
             update: ui.action("update", () => this.updateEditor()),
 
+            // playback menu
             exportImage: ui.action("export-image", () => this.exportImage()),
 
+            // debug
             importPalette: ui.action("import-palette", () => this.importPalette()),
-            save: ui.action("save", () => this.save()),
         };
 
         // can't undo/redo/paste yet
@@ -272,6 +311,8 @@ flickguy.Editor = class extends EventTarget {
                     event.preventDefault();
                     this.actions.save.invoke();
                 }
+                if (event.key === ",") this.randomise({ palettes: false });
+                if (event.key === ".") this.randomise({ options: false });
             } else {
                 if (event.code === "KeyQ") this.toolSelect.selectedIndex = 0;
                 if (event.code === "KeyW") this.toolSelect.selectedIndex = 1;
@@ -287,6 +328,7 @@ flickguy.Editor = class extends EventTarget {
             this.heldColorPick = event.altKey;
         });
 
+        // stop temporarily color picking if the alt key is released
         document.addEventListener("keyup", (event) => {
             this.heldColorPick = event.altKey;
         });
@@ -310,13 +352,13 @@ flickguy.Editor = class extends EventTarget {
             const prev = this.stateManager.present.palettes[option.palette];
             const next = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
             
+            // avoid palette swap unless necessary
             if (prev !== next) {
-                //this.stateManager.makeCheckpoint();
+                // don't bother tracking this in undo history
                 const instance = await this.forkLayerOptionImage(option);
                 swapPaletteSafe(instance, prev, next);
                 option.palette = this.paletteSelect.selectedIndex;
                 this.render();
-                //this.stateManager.changed();
             }
 
             this.refreshColorSelect();
@@ -337,10 +379,8 @@ flickguy.Editor = class extends EventTarget {
     
         // whenever the project data is changed
         this.stateManager.addEventListener("change", () => {
-            if (!this.stateManager.present.selected)
-                this.stateManager.present.selected = ZEROES(8);
-
             this.unsavedChanges = true;
+            this.ready = true;
 
             this.refreshPaletteThumbs();
             this.refreshLayerThumbnails();
@@ -372,18 +412,23 @@ flickguy.Editor = class extends EventTarget {
             const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
 
             // prepare the plot function
-            const mask = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
-            const plotMask = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
-            //const pattern = mask.createPattern(this.activePattern.canvas, 'repeat');
-            const drawPatternedMask = (instance) => {
-                //mask.globalCompositeOperation = "source-in";
-                //fillRendering2D(mask, pattern);
-                //mask.globalCompositeOperation = "source-over";
 
+            // temporary layer for painting to
+            const mask = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
+            // painting is done to the temporary layer. all brushes are 16x16
+            const plotMask = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
+            // convenience function to draw accounting for the transparent color
+            // and then notify changes
+            const drawMask = (instance) => {
+                // the first color of every palette is transparent
                 const erase = this.colorSelect.selectedIndex === 0;
+                // mask is the "source", image is the "destination". to erase
+                // we cut DESTINATION pixels OUT according to source. to paint
+                // normally we copy SOURCE pixels OVER destination pixels.
                 instance.globalCompositeOperation = erase ? "destination-out" : "source-over";
                 instance.drawImage(mask.canvas, 0, 0);
                 instance.globalCompositeOperation = "source-over";
+                // notify change so thumbnails etc can update
                 this.stateManager.changed();
             };
 
@@ -404,7 +449,7 @@ flickguy.Editor = class extends EventTarget {
 
                 // draw the brush at the position the drag begins
                 plotMask(x, y);
-                drawPatternedMask(instance);
+                drawMask(instance);
 
                 let prev = { x, y };
 
@@ -412,7 +457,7 @@ flickguy.Editor = class extends EventTarget {
                 drag.addEventListener("up", (event) => {
                     const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
                     plotMask(x, y);
-                    drawPatternedMask(instance);
+                    drawMask(instance);
                 });
 
                 // as the pointer moves, draw brush lines between the points
@@ -420,7 +465,7 @@ flickguy.Editor = class extends EventTarget {
                     const { x: x0, y: y0 } = prev;
                     const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
                     lineplot(x0, y0, x1, y1, plotMask);
-                    drawPatternedMask(instance);
+                    drawMask(instance);
                     prev = { x: x1, y: y1 };
                 });
             // line drawing selected
@@ -443,7 +488,7 @@ flickguy.Editor = class extends EventTarget {
                     const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
 
                     lineplot(x0, y0, x1, y1, plotMask);
-                    drawPatternedMask(instance);
+                    drawMask(instance);
 
                     // stop tracking line drawing
                     this.lineStart = undefined;
@@ -487,6 +532,8 @@ flickguy.Editor = class extends EventTarget {
      * @param {maker.ProjectBundle<FlickguyDataProject>} bundle
      */
     async loadBundle(bundle) {
+        this.ready = false;
+
         // account for changes between flickguy versions
         flickguy.updateProject(bundle.project);
 
@@ -508,6 +555,8 @@ flickguy.Editor = class extends EventTarget {
     }
 
     render() {
+        if (!this.ready) return;
+
         // clear everything
         fillRendering2D(this.stackActive);
         fillRendering2D(this.stackUnder);
@@ -554,34 +603,31 @@ flickguy.Editor = class extends EventTarget {
         // prepare plot function
         const plot = (x, y) => this.preview.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
 
+        // move tool has a special cursor, crosshair for everything else
         const cursor = this.toolSelect.value === "shift" ? "move" : "crosshair";
         this.rendering.canvas.style.setProperty("cursor", cursor);
 
         if (this.shiftStart) {
+            // show another copy of the current layer as moved by the mouse
             const { x: ox, y: oy } = this.shiftStart;
             this.preview.drawImage(this.stackActive.canvas, x - ox, y - oy);
         } else if (this.heldColorPick) {
             // no preview for color picking
         } else if (this.lineStart) {
-            // draw a patterned line between the pointer down location and the
-            // current pointer location
+            // draw a line between the pointer down location and the current 
+            // pointer location
             const { x: x0, y: y0 } = this.lineStart;
             lineplot(x0, y0, x, y, plot);
-            //this.preview.globalCompositeOperation = "source-in";
-            //fillRendering2D(this.preview, this.preview.createPattern(this.activePattern.canvas, 'repeat'));
-            //this.preview.globalCompositeOperation = "source-over";
         } else if (this.toolSelect.value === "freehand" || this.toolSelect.value === "line") {
-            // draw the patterned brush at the current pointer location
+            // draw the colored brush at the current pointer location
             plot(x, y);
-            //this.preview.globalCompositeOperation = "source-in";
-            //fillRendering2D(this.preview, this.preview.createPattern(this.activePattern.canvas, 'repeat'));
-            //this.preview.globalCompositeOperation = "source-over";
         } 
 
         this.render();
     }
 
     refreshLayerDisplay() {
+        // can't shift layers beyond the edges
         this.actions.layerUp.disabled = this.layerSelect.selectedIndex < 1;
         this.actions.layerDown.disabled = this.layerSelect.selectedIndex > 6;
 
@@ -601,32 +647,32 @@ flickguy.Editor = class extends EventTarget {
     }
 
     refreshActiveBrush() {
-        if (!this.stateManager.present) return;
+        if (!this.ready) return;
 
-        //const pattern = this.patternRenders[this.patternSelect.selectedIndex];
+        // determine brush and brush color
         const brush = this.brushRenders[this.brushSelect.selectedIndex];
         const palette = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
         const color = palette[this.colorSelect.selectedIndex];
-        //if (!pattern || !brush || !color) return;
-        this.activeBrush = this.colorSelect.selectedIndex > 0 ? recolorMask(brush, color) : brush;
-        //this.activePattern = recolorMask(pattern, color);
+
+        // make a recolored copy of the brush for painting with
+        this.activeBrush = this.colorSelect.selectedIndex > 0 
+                         ? recolorMask(brush, color) 
+                         : brush;
     }
 
     refreshPaletteThumbs() {
         // generate palette thumbnails
         this.paletteThumbs.forEach((thumbnail, index) => {
-            const gap = 0;
             const size = 12;
-            const pad = 0;
 
-            thumbnail.canvas.width = 4 * size + 3 * gap + pad * 2;
-            thumbnail.canvas.height = 2 * size + 1 * gap + pad * 2
+            thumbnail.canvas.width = 4 * size;
+            thumbnail.canvas.height = 2 * size;
 
             const palette = this.stateManager.present.palettes[index];
             for (let y = 0; y < 2; ++y) {
                 for (let x = 0; x < 4; ++x) {
                     thumbnail.fillStyle = palette[y * 4 + x];
-                    thumbnail.fillRect(x * (size + gap) + pad, y * (size + gap) + pad, size, size);
+                    thumbnail.fillRect(x * size, y * size, size, size);
                 }
             }
         });
@@ -652,6 +698,7 @@ flickguy.Editor = class extends EventTarget {
                 thumbnail.drawImage(image.canvas, 0, 0);
             });
 
+            // bleach all color to white and transparent
             thumbnail.globalCompositeOperation = "source-in";
             fillRendering2D(thumbnail, "#ffffff");
             thumbnail.globalCompositeOperation = "source-over";
@@ -665,6 +712,7 @@ flickguy.Editor = class extends EventTarget {
             const image = this.stateManager.resources.get(layer.options[index].image);
             thumbnail.drawImage(image.canvas, 0, 0);
 
+            // bleach all color to white and transparent
             thumbnail.globalCompositeOperation = "source-in";
             fillRendering2D(thumbnail, "#ffffff");
             thumbnail.globalCompositeOperation = "source-over";
@@ -682,53 +730,57 @@ flickguy.Editor = class extends EventTarget {
             const color = palette[this.colorSelect.selectedIndex];
             const uint32 = this.colorSelect.selectedIndex > 0 ? hexToUint32(color) : 0;
             floodfill(instance, x, y, uint32);
-
-            // find newly filled pixels
-            // const mask = floodfillOutput(instance, x, y, 0xFFFFFFFF);
-            // pattern the filled pixels
-            // mask.globalCompositeOperation = "source-in";
-            // fillRendering2D(mask, mask.createPattern(this.activePattern.canvas, 'repeat'));
-            // draw the final patterned fill
-            // instance.drawImage(mask.canvas, 0, 0);
         });
     }
 
     pickColor(x, y) {
         const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
         const option = layer.options[this.optionSelect.selectedIndex];
-        const instance = this.stateManager.resources.get(option.image);
+        const palette = this.stateManager.present.palettes[option.palette];
 
+        // get the single pixel from the relevant image
+        const instance = this.stateManager.resources.get(option.image);
         const [r, g, b, a] = instance.getImageData(x, y, 1, 1).data;
         const hex = rgbToHex({ r, g, b});
-        const palette = this.stateManager.present.palettes[option.palette];
         
+        // if it's transparent, it's color 0, otherwise search palette
         this.colorSelect.selectedIndex = a === 0 
                                        ? 0
                                        : palette.findIndex((color) => color === hex);
     }
 
-    shiftLayerUp() {
-        if (this.layerSelect.selectedIndex < 1) return;
-
+    swapLayers(prevIndex, nextIndex) {
         this.stateManager.makeChange(async (data) => {
-            const i = this.layerSelect.selectedIndex;
-            [data.layers[i-1], data.layers[i]] = [data.layers[i], data.layers[i-1]];
-            [data.selected[i-1], data.selected[i]] = [data.selected[i], data.selected[i-1]]
-            this.layerSelect.selectedIndex -= 1;
+            // swap layers and selecteds
+            [data.layers[nextIndex], data.layers[prevIndex]] = [data.layers[prevIndex], data.layers[nextIndex]];
+            [data.selected[nextIndex], data.selected[prevIndex]] = [data.selected[prevIndex], data.selected[nextIndex]];
+            
+            // if one of the layers was currently selected, move with it
+            if (this.layerSelect.selectedIndex === prevIndex) {
+                this.layerSelect.selectedIndex = nextIndex;
+            } else if (this.layerSelect.selectedIndex === nextIndex) {
+                this.layerSelect.selectedIndex = prevIndex;
+            }
+            
+            // update thumbnails and rendering
             this.refreshLayerDisplay();
         });
     }
 
+    shiftLayerUp() {
+        if (this.layerSelect.selectedIndex < 1) return;
+        this.swapLayers(
+            this.layerSelect.selectedIndex, 
+            this.layerSelect.selectedIndex-1,
+        );
+    }
+
     shiftLayerDown() {
         if (this.layerSelect.selectedIndex > 6) return;
-
-        this.stateManager.makeChange(async (data) => {
-            const i = this.layerSelect.selectedIndex;
-            [data.layers[i], data.layers[i+1]] = [data.layers[i+1], data.layers[i]];
-            [data.selected[i], data.selected[i+1]] = [data.selected[i+1], data.selected[i]]
-            this.layerSelect.selectedIndex += 1;
-            this.refreshLayerDisplay();
-        });
+        this.swapLayers(
+            this.layerSelect.selectedIndex, 
+            this.layerSelect.selectedIndex+1,
+        );
     }
 
     copyLayerOption() {
@@ -741,8 +793,6 @@ flickguy.Editor = class extends EventTarget {
     pasteLayerOption() {
         this.stateManager.makeChange(async (data) => {
             // replace selected layer option with a copy of the copied option
-            // --this is so it remains independent from the option kept in the
-            // clipboard
             const layer = data.layers[this.layerSelect.selectedIndex];
             layer.options[this.optionSelect.selectedIndex] = COPY(this.copiedLayerOption);
         });
@@ -757,18 +807,30 @@ flickguy.Editor = class extends EventTarget {
         });
     }
 
-    async randomise() {
+    async randomise({ palettes = true, options = true } = {}) {
         await this.stateManager.makeChange(async (data) => {
-            await Promise.all(data.layers.map(async (layer, index) => {
-                data.selected[index] = getRandomInt(0, 8);
-                const option = layer.options[data.selected[index]];
-                const instance = await this.forkLayerOptionImage(option);
+            // get existing selections
+            let optionIndexes = data.selected;
+            let paletteIndexes = optionIndexes.map((option, layer) => data.layers[layer].options[option].palette);
 
+            // randomise selections
+            if (palettes) paletteIndexes = ZEROES(8).map(() => getRandomInt(0, 8));
+            if (options) optionIndexes = ZEROES(8).map(() => getRandomInt(0, 8)); 
+
+            // apply new selections for each layer
+            await Promise.all(data.layers.map(async (layer, index) => {
+                data.selected[index] = optionIndexes[index];
+                const option = layer.options[data.selected[index]];
+
+                // palette swap if necessary
                 const prev = data.palettes[option.palette];
-                option.palette = getRandomInt(0, 8);
+                option.palette = paletteIndexes[index];
                 const next = data.palettes[option.palette];
 
-                swapPaletteSafe(instance, prev, next);
+                if (prev !== next) {
+                    const instance = await this.forkLayerOptionImage(option);
+                    swapPaletteSafe(instance, prev, next);
+                }
             }));
         });
     }
@@ -825,9 +887,19 @@ flickguy.Editor = class extends EventTarget {
         await this.loadBundle(flickguy.makeBlankBundle());
     }
     
+    /**
+     * Open a new tab with the original editor and send the current project to it.
+     */
     async updateEditor() {
+        // original editor url is stored in the html (may be different for 
+        // custom editor mods)
         const liveURL = document.documentElement.getAttribute("data-editor-live");
+        
         const bundle = await this.stateManager.makeBundle();
+        
+        // the original editor will check to see if it was opened by another
+        // tab and then send us a message--if we receive it then we send the
+        // bundle back 
         window.addEventListener("message", (event) => {
             event.data.port.postMessage({ bundle });
         });
@@ -835,17 +907,24 @@ flickguy.Editor = class extends EventTarget {
     }
 
     exportImage() {
-        this.rendering.canvas.toBlob((blob) => {
-            maker.saveAs(blob, "your-guy.png");
-        });        
-    }
+        // scale up the image for sharing
+        const scaled = createRendering2D(
+            this.rendering.canvas.width * flickguy.exportScale,
+            this.rendering.canvas.height * flickguy.exportScale,
+        );
+        scaled.imageSmoothingEnabled = false;
+        scaled.drawImage(
+            this.rendering.canvas, 
+            0, 0, scaled.canvas.width, scaled.canvas.height,
+        );
 
-    toggleHelp() {
-        this.helpContainer.hidden = !this.helpContainer.hidden;
+        // convert image to blob and ask browser to download it
+        scaled.canvas.toBlob((blob) => maker.saveAs(blob, "your-guy.png"));        
     }
 
     // for debugging
     async importPalette() {
+        // ask user to provide palette image
         const [file] = await maker.pickFiles("image/*");
         const dataUri = await maker.dataURIFromFile(file);
         const image = await loadImage(dataUri);
@@ -853,6 +932,8 @@ flickguy.Editor = class extends EventTarget {
 
         const prevPalettes = this.stateManager.present.palettes;
         const nextPalettes = ZEROES(8).map(() => REPEAT(8, "#000000"));
+
+        // read palettes from image (8 rows of 8 colors, ignore first column)
         withPixels(rendering, (pixels) => {
             for (let p = 0; p < 8; ++p) {
                 for (let i = 1; i < 8; ++i) {
@@ -861,6 +942,7 @@ flickguy.Editor = class extends EventTarget {
             }
         });
 
+        // palette swap all images to the corresponding palette from the new set
         await this.stateManager.makeChange(async (data) => {
             data.palettes = nextPalettes;
             const promises = data.layers.flatMap((layer) => { 
@@ -893,18 +975,29 @@ flickguy.Editor = class extends EventTarget {
 
     enterPlayerMode() {
         this.editorMode = false;
+        // used to show/hide elements in css
         document.documentElement.setAttribute("data-app-mode", "player");
+        // normal browser cursor in player mode
         this.rendering.canvas.style.setProperty("cursor", "unset");
+
         this.render();
     }
 
     enterEditorMode() {
         this.editorMode = true;
+        // used to show/hide elements in css
         document.documentElement.setAttribute("data-app-mode", "editor");
+        // default to crosshair paint cursor in editor mode
         this.rendering.canvas.style.setProperty("cursor", "crosshair");
+
         this.render();
 
+        // check if storage is available for saving
         this.actions.save.disabled = !flickguy.storage.available;
+    }
+
+    toggleHelp() {
+        this.helpContainer.hidden = !this.helpContainer.hidden;
     }
 }
 
@@ -940,7 +1033,8 @@ flickguy.start = async function () {
         });
     }
 
-    // if there's an opener window, tell it we're open to messages
+    // if there's an opener window, tell it we're open to messages (e.g message
+    // telling us to load a bundle from the "update" button of another flickguy)
     if (window.opener) {
         const channel = new MessageChannel();
         channel.port1.onmessage = async (event) => {
