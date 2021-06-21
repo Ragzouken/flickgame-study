@@ -338,29 +338,32 @@ flickguy.Editor = class extends EventTarget {
             this.refreshLayerDisplay();
         });
 
-        this.optionSelect.addEventListener("change", () => {
+        // switching option within a layer
+        this.optionSelect.addEventListener("change", async () => {
             // remember selected option for this layer
             this.stateManager.present.selected[this.layerSelect.selectedIndex] = this.optionSelect.selectedIndex;
-            this.refreshLayerDisplay();
+            
+            // recolor new option to current color selection
+            await this.setOptionPalette(
+                this.stateManager.present,
+                this.layerSelect.selectedIndex,
+                this.optionSelect.selectedIndex,
+                this.paletteSelect.selectedIndex,
+            );
+            
+            this.render();
         });
 
         // changes in palette select bar
         this.paletteSelect.addEventListener("change", async () => {
-            const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
-            const option = layer.options[this.optionSelect.selectedIndex];
-            
-            const prev = this.stateManager.present.palettes[option.palette];
-            const next = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
-            
-            // avoid palette swap unless necessary
-            if (prev !== next) {
-                // don't bother tracking this in undo history
-                const instance = await this.forkLayerOptionImage(option);
-                swapPaletteSafe(instance, prev, next);
-                option.palette = this.paletteSelect.selectedIndex;
-                this.render();
-            }
+            await this.setOptionPalette(
+                this.stateManager.present,
+                this.layerSelect.selectedIndex,
+                this.optionSelect.selectedIndex,
+                this.paletteSelect.selectedIndex,
+            );
 
+            this.render();
             this.refreshColorSelect();
         });
 
@@ -369,13 +372,9 @@ flickguy.Editor = class extends EventTarget {
             this.render();
         });
 
-        // changes in the brush and pattern select bars
+        // changes in the brush and color select
         this.brushSelect.addEventListener("change", () => this.refreshActiveBrush());
-
-        // changes in the color select
-        this.colorSelect.addEventListener("change", () => {
-            this.refreshActiveBrush();
-        });
+        this.colorSelect.addEventListener("change", () => this.refreshActiveBrush());
     
         // whenever the project data is changed
         this.stateManager.addEventListener("change", () => {
@@ -493,7 +492,7 @@ flickguy.Editor = class extends EventTarget {
                     // stop tracking line drawing
                     this.lineStart = undefined;
                 });
-            }  else if (this.toolSelect.value === "shift") {
+            } else if (this.toolSelect.value === "shift") {
                 this.shiftStart = { x, y };
 
                 drag.addEventListener("up", async (event) => {
@@ -632,7 +631,7 @@ flickguy.Editor = class extends EventTarget {
         this.actions.layerDown.disabled = this.layerSelect.selectedIndex > 6;
 
         // switch option to remembered option for this layer
-        this.optionSelect.selectedIndex = this.stateManager.present.selected[this.layerSelect.selectedIndex];
+        this.optionSelect.setSelectedIndexSilent(this.stateManager.present.selected[this.layerSelect.selectedIndex]);
 
         // switch to the natural palette of this option
         const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
@@ -807,6 +806,26 @@ flickguy.Editor = class extends EventTarget {
         });
     }
 
+    /**
+     * @param {FlickguyDataProject} data 
+     * @param {number} layerIndex 
+     * @param {number} optionIndex 
+     * @param {number} paletteIndex
+     */
+    async setOptionPalette(data, layerIndex, optionIndex, paletteIndex) {
+        const option = data.layers[layerIndex].options[optionIndex];
+
+        const prev = data.palettes[option.palette];
+        option.palette = paletteIndex;
+        const next = data.palettes[option.palette];
+
+        // only swap if necessary
+        if (prev !== next) {
+            const instance = await this.forkLayerOptionImage(option);
+            swapPaletteSafe(instance, prev, next);
+        }
+    }
+
     async randomise({ palettes = true, options = true } = {}) {
         await this.stateManager.makeChange(async (data) => {
             // get existing selections
@@ -817,20 +836,16 @@ flickguy.Editor = class extends EventTarget {
             if (palettes) paletteIndexes = ZEROES(8).map(() => getRandomInt(0, 8));
             if (options) optionIndexes = ZEROES(8).map(() => getRandomInt(0, 8)); 
 
-            // apply new selections for each layer
+            // apply new selections and palettes for each layer
             await Promise.all(data.layers.map(async (layer, index) => {
                 data.selected[index] = optionIndexes[index];
-                const option = layer.options[data.selected[index]];
 
-                // palette swap if necessary
-                const prev = data.palettes[option.palette];
-                option.palette = paletteIndexes[index];
-                const next = data.palettes[option.palette];
-
-                if (prev !== next) {
-                    const instance = await this.forkLayerOptionImage(option);
-                    swapPaletteSafe(instance, prev, next);
-                }
+                await this.setOptionPalette(
+                    data, 
+                    index, 
+                    optionIndexes[index], 
+                    paletteIndexes[index],
+                );
             }));
         });
     }

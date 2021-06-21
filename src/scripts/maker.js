@@ -441,6 +441,10 @@ class RadioGroupWrapper extends EventTarget {
     get value() {
         return this.selectedInput?.value;
     }
+
+    setSelectedIndexSilent(value) {
+        this.inputs.forEach((input, index) => input.checked = index === value);
+    }
 }
 
 class CheckboxWrapper extends EventTarget {
