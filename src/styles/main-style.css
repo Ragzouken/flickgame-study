@@ -74,9 +74,7 @@ h1, h2, h3, h4, h5, h6 {
 #help [name="help"] {
     position: absolute;
     top: 1em; right: 1em;
-}
 
-#help button {
     padding: 0 1em;
     height: 32px;
 }

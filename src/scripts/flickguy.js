@@ -287,8 +287,9 @@ flickguy.Editor = class extends EventTarget {
             // playback menu
             exportImage: ui.action("export-image", () => this.exportImage()),
 
-            // debug
-            importPalette: ui.action("import-palette", () => this.importPalette()),
+            // special feature
+            importPalettes: ui.action("import-palettes", () => this.importPalettes()),
+            exportPalettes: ui.action("export-palettes", () => this.exportPalettes()),
         };
 
         // can't undo/redo/paste yet
@@ -937,8 +938,21 @@ flickguy.Editor = class extends EventTarget {
         scaled.canvas.toBlob((blob) => maker.saveAs(blob, "your-guy.png"));        
     }
 
-    // for debugging
-    async importPalette() {
+    async exportPalettes() {
+        const rendering = createRendering2D(8, 8);
+
+        withPixels(rendering, (pixels) => {
+            this.stateManager.present.palettes.forEach((palette, y) => {
+                palette.forEach((hex, x) => {
+                    pixels[y * 8 + x] = hexToUint32(hex);
+                });
+            });
+        });
+
+        rendering.canvas.toBlob((blob) => maker.saveAs(blob, "flickguy-palettes.png"));
+    }
+
+    async importPalettes() {
         // ask user to provide palette image
         const [file] = await maker.pickFiles("image/*");
         const dataUri = await maker.dataURIFromFile(file);
