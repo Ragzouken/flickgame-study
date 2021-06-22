@@ -557,7 +557,7 @@ ui.PointerDrag = class extends EventTarget {
         this.totalMovement = 0;
 
         this.downEvent = event;
-        this.lastEvent = event; 
+        this.lastEvent = event;
 
         this.listeners = {
             "pointerup": (event) => {
@@ -574,9 +574,9 @@ ui.PointerDrag = class extends EventTarget {
             "pointermove": (event) => {
                 if (event.pointerId !== this.pointerId) return;
 
+                this.lastEvent = event;
                 this.totalMovement += Math.abs(event.movementX);
                 this.totalMovement += Math.abs(event.movementY);
-                this.lastEvent = event;
                 this.dispatchEvent(new CustomEvent("move", { detail: event }));
             }
         }

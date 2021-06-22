@@ -432,121 +432,8 @@ flickguy.Editor = class extends EventTarget {
             this.refreshPreview(x, y);
         });
         
-        // finger or mouse presses on the drawing area--could begin a drag or
-        // end quickly in a click
-        this.rendering.canvas.addEventListener("pointerdown", async (event) => {
-            // for mouse ignore non-left-clicks
-            if (event.button !== 0) return;
-            // ignore in player mode
-            if (!this.editorMode) return;
-
-            // treat this as the beginning of a possible drag
-            const drag = ui.drag(event);
-            const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
-
-            // prepare the plot function
-
-            // temporary layer for painting to
-            const mask = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
-            // painting is done to the temporary layer. all brushes are 16x16
-            const plotMask = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
-            // convenience function to draw accounting for the transparent color
-            // and then notify changes
-            const drawMask = (instance) => {
-                // the first color of every palette is transparent
-                const erase = this.colorSelect.selectedIndex === 0;
-                // mask is the "source", image is the "destination". to erase
-                // we cut DESTINATION pixels OUT according to source. to paint
-                // normally we copy SOURCE pixels OVER destination pixels.
-                instance.globalCompositeOperation = erase ? "destination-out" : "source-over";
-                instance.drawImage(mask.canvas, 0, 0);
-                instance.globalCompositeOperation = "source-over";
-                // notify change so thumbnails etc can update
-                this.stateManager.changed();
-            };
-
-            // color picker selected or color pick hotkey held
-            if (this.toolSelect.value === "pick" || this.heldColorPick) {
-                drag.addEventListener("click", () => this.pickColor(x, y));
-            // flood fill selected
-            } else if (this.toolSelect.value === "fill") {
-                drag.addEventListener("click", () => this.floodFill(x, y));
-            // freehand drawing selected
-            } else if (this.toolSelect.value === "freehand") {
-                // fork the current options's image for editing and make an 
-                // undo/redo checkpoint
-                this.stateManager.makeCheckpoint();
-                const { option } = this.getSelections();
-                const instance = await this.forkLayerOptionImage(option);
-
-                // draw the brush at the position the drag begins
-                plotMask(x, y);
-                drawMask(instance);
-
-                let prev = { x, y };
-
-                // draw the brush at the last position of the drag
-                drag.addEventListener("up", (event) => {
-                    const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
-                    plotMask(x, y);
-                    drawMask(instance);
-                });
-
-                // as the pointer moves, draw brush lines between the points
-                drag.addEventListener("move", (event) => {
-                    const { x: x0, y: y0 } = prev;
-                    const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
-                    lineplot(x0, y0, x1, y1, plotMask);
-                    drawMask(instance);
-                    prev = { x: x1, y: y1 };
-                });
-            // line drawing selected
-            } else if (this.toolSelect.value === "line") {
-                // need to save this to draw the line preview
-                this.lineStart = { x, y };
-                this.refreshPreview(x, y);
-
-                // only actually draw the line at the end
-                drag.addEventListener("up", async (event) => {
-                    // fork the current options's image for editing and make an 
-                    // undo/redo checkpoint
-                    this.stateManager.makeCheckpoint();
-                    const { option } = this.getSelections();
-                    const instance = await this.forkLayerOptionImage(option);
-                    
-                    // line from pointer down position to pointer up position
-                    const { x: x0, y: y0 } = this.lineStart;
-                    const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
-
-                    lineplot(x0, y0, x1, y1, plotMask);
-                    drawMask(instance);
-
-                    // stop tracking line drawing
-                    this.lineStart = undefined;
-                });
-            } else if (this.toolSelect.value === "shift") {
-                this.shiftStart = { x, y };
-
-                drag.addEventListener("up", async (event) => {
-                    const { x: x0, y: y0 } = this.shiftStart;
-                    const { x: x1, y: y1 } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event.detail);
-
-                    fillRendering2D(this.preview);
-                    this.preview.drawImage(this.stackActive.canvas, x1 - x0, y1 - y0);
-
-                    // fork the current options's image for editing and make an 
-                    // undo/redo checkpoint
-                    this.stateManager.makeCheckpoint();
-                    const { option } = this.getSelections();
-                    const instance = await this.forkLayerOptionImage(option);
-                    fillRendering2D(instance);
-                    instance.drawImage(this.preview.canvas, 0, 0);
-                    
-                    this.shiftStart = undefined;
-                    this.refreshPreview(x1, y1);
-                });
-            }
-        });
+        // all painting begins by a pointer press on the rendering canvas
+        this.rendering.canvas.addEventListener("pointerdown", (event) => this.onPaintPointerDown(event));
     }
 
     async init() {
@@ -639,6 +526,130 @@ flickguy.Editor = class extends EventTarget {
 
         // signal, to anyone listening, that rendering happened
         this.dispatchEvent(new CustomEvent("render"));
+    }
+
+    /**
+     * Handle a pointer down event on the paint area--this is how all painting
+     * begins.
+     * @param {PointerEvent} event
+     */
+    async onPaintPointerDown(event) {
+        // for mouse ignore non-left-clicks
+        if (event.button !== 0) return;
+        // ignore in player mode
+        if (!this.editorMode) return;
+
+        // treat this as the beginning of a possible drag
+        const drag = ui.drag(event);
+        const positions = trackCanvasStroke(this.rendering.canvas, drag);
+
+        // prepare the plot function
+
+        // temporary layer for painting to
+        const mask = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
+        // painting is done to the temporary layer. all brushes are 16x16
+        const plotMask = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
+        // convenience function to draw accounting for the transparent color
+        // and then notify changes
+        const drawMask = (instance) => {
+            // the first color of every palette is transparent
+            const erase = this.colorSelect.selectedIndex === 0;
+            // mask is the "source", image is the "destination". to erase
+            // we cut DESTINATION pixels OUT according to source. to paint
+            // normally we copy SOURCE pixels OVER destination pixels.
+            instance.globalCompositeOperation = erase ? "destination-out" : "source-over";
+            instance.drawImage(mask.canvas, 0, 0);
+            instance.globalCompositeOperation = "source-over";
+            // notify change so thumbnails etc can update
+            this.stateManager.changed();
+        };
+
+        const startStroke = () => {
+            // checkpoint to undo to before this edit
+            this.stateManager.makeCheckpoint();
+            // make edit on a new copy of this image
+            const { option } = this.getSelections();
+            return this.forkLayerOptionImage(option);
+        };
+
+        /**
+         * @param {HTMLCanvasElement} canvas 
+         * @param {ui.PointerDrag} drag 
+         */
+        function trackCanvasStroke(canvas, drag) {
+            const positions = [mouseEventToCanvasPixelCoords(canvas, drag.downEvent)];
+            const update = (event) => positions.push(mouseEventToCanvasPixelCoords(canvas, event.detail));
+            drag.addEventListener("up", update);
+            drag.addEventListener("move", update);
+            return positions;
+        }
+
+        // color picker selected or color pick hotkey held
+        if (this.toolSelect.value === "pick" || this.heldColorPick) {
+            drag.addEventListener("click", () => this.pickColor(positions[0].x, positions[0].y));
+        // flood fill selected
+        } else if (this.toolSelect.value === "fill") {
+            drag.addEventListener("click", () => this.floodFill(positions[0].x, positions[0].y));
+        // freehand drawing selected
+        } else if (this.toolSelect.value === "freehand") {
+            const instance = await startStroke();
+
+            // draw the brush at the position the drag begins
+            plotMask(positions[0].x, positions[0].y);
+            drawMask(instance);
+
+            // draw the brush at the last position of the drag
+            drag.addEventListener("up", () => {
+                const { x, y } = positions[positions.length-1];
+                plotMask(x, y);
+                drawMask(instance);
+            });
+
+            // as the pointer moves, draw brush lines between the points
+            drag.addEventListener("move", () => {
+                const { x: x0, y: y0 } = positions[positions.length-2];
+                const { x: x1, y: y1 } = positions[positions.length-1];
+                lineplot(x0, y0, x1, y1, plotMask);
+                drawMask(instance);
+            });
+        // line drawing selected
+        } else if (this.toolSelect.value === "line") {
+            // need to save this to draw the line preview
+            this.lineStart = positions[0];
+            this.refreshPreview(positions[0].x, positions[0].y);
+
+            // only actually draw the line at the end
+            drag.addEventListener("up", async (event) => {
+                const instance = await startStroke();
+                
+                // line from pointer down position to pointer up position
+                const { x: x0, y: y0 } = positions[0];
+                const { x: x1, y: y1 } = positions[positions.length-1];
+
+                lineplot(x0, y0, x1, y1, plotMask);
+                drawMask(instance);
+
+                // stop tracking line drawing
+                this.lineStart = undefined;
+            });
+        } else if (this.toolSelect.value === "shift") {
+            this.shiftStart = positions[0];
+
+            drag.addEventListener("up", async (event) => {
+                const { x: x0, y: y0 } = positions[0];
+                const { x: x1, y: y1 } = positions[positions.length-1];
+
+                fillRendering2D(this.preview);
+                this.preview.drawImage(this.stackActive.canvas, x1 - x0, y1 - y0);
+
+                const instance = await startStroke();
+                fillRendering2D(instance);
+                instance.drawImage(this.preview.canvas, 0, 0);
+                
+                this.shiftStart = undefined;
+                this.refreshPreview(x1, y1);
+            });
+        }
     }
 
     refreshPreview(x, y) {
