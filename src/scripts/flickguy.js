@@ -62,7 +62,12 @@ flickguy.makeBlankBundle = function () {
     const layers = ZEROES(8).map(() => ({  
         options: ZEROES(8).map(() => ({ image: "0", palette: 0 })),
     }));
-    const project = { palettes: flickguy.defaultPalettes, layers, selected: ZEROES(8) };
+    const project = { 
+        palettes: flickguy.defaultPalettes, 
+        fixedPalette: this.defaultFixedPalette,
+        layers, 
+        selected: ZEROES(8), 
+    };
     const resources = {
         "0": { type: "canvas-datauri", data: blank.canvas.toDataURL() },
     };
