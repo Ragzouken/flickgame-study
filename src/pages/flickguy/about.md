@@ -18,6 +18,8 @@ adjustments to their guy or make a whole new derivative flickguy to let others u
  * __ctrl+v__: paste image
  * __qwer__: change tool
  * __asdf__: change brush
+ * __ctrl+,__: randomise options
+ * __ctrl+.__: randomise colors
  * __alt+click__: pick color
 
 ## credits

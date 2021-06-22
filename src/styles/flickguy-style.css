@@ -153,12 +153,18 @@ body {
 }
 
 #option-select {
+    grid-area: option;
     flex: 1;
     gap: 2px;
 }
 
 #palette-select {
+    grid-area: palette;
     flex: 1;
+}
+
+.fixed-palette #palette-select {
+    display: none;
 }
 
 #palette-select input[type="radio"]:checked {
@@ -172,51 +178,27 @@ body {
 #tools {
     display: grid;
     gap: 1em;
+}
+
+:root[data-app-mode="editor"] #tools {
     grid-template-areas:
-        "tool   color"
-        "brush  color"
-        "bar    bar  ";
+        "option palette"
+        "tool   color  "
+        "brush  color  "
+        "bar    bar    ";
 }
 
-/* :root[data-app-mode="player"] #tools > * {
-    visibility: hidden;
-} */
-
-#player-info {
-    grid-row: 1 / -1;
-    grid-column: 1 / -1;
-
-    flex: 1;
-
-    background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOsAAAA+CAYAAADK+exJAAAAAXNSR0IArs4c6QAABHxJREFUeJztnXFu8yAMxb1Pu8iuN+0QOcS06+0q3z9LRdOQGDDmYd5Pqqa1aTCGFzsEqAghhBBC7HgbbQAhgdmMjhERihUV00YmT5T4rcXH2/fH5+1BX78/6nIo1ldqG6ipYdN/rBu5xoaO3/FgO/x9vK/x7c6fj8/Oc1t+RTm3ZVCszxQ5OaVCPI9jHcs0taGg/FQ8ueOLBZH7YK/LiX1V7VvTthSrXUOfnqNWNDtKp28i9QKtLPPUDgsbFOVvqXhyZRbWQ2374bweYi0uQ3v+96Kz2vCSmiiPu2roqys2EiYCMcDMju+Pzyv/P5UDUPft6/cHpQ2K8RDr5f1YpqGLHHrTYVBA6SQodkxDQf/qFlVF7MWqjobp5wdHROxMKHVCsYNU0CLWYmEuCopAutkxSWazU5UKK+rYNaqK3Is1O4oH0gEJWYYrsaajeCjRYTZQ/IZiR5bJonMzNaP4/zLvu47i/Z1/iUYaALxQB7AlEx7UXPRTFx/nxEraoUgCMjKwjHjOSoJwiE6zZUbDnrnWTmShWGPTMmNHdf7ik2NhIVg3wYcR62oDFCL2k/kbJq4vRdLXXJ+KhBFrdDLRzlqoK4q0+rlrDS1+hhArSEeBnTda6Z/aye4ElCFiPYkS7CgZeguJQhURpwt1q69zYm02/maQYvXOoSKAkIr60YrjDiWYR1aDQQrYdHQi6L9y4PtdrzRYu2a19BhCpsQiS3IRq3JPIaY/ztx0IK+NxZCAjq7mYq2tKO9XoCjdQyhSu5kL1mrsgXODyZHaZ45eYoWNfL2hWAl5pWpVzhmWI/oUKzEh4DJHM8FaQbESMgkUKyF5mqKr9aQWinVhnFJXuHRyVihWAkWUe98eU0UpVnIkTCQMMLf6CYoVmIFRZvv6/ZH0tSheP2Sl4kqsrldYiwpGSaFSKuukbrurHfuSFwHAbT2rovOwU2RItxFJoL8Ww1SsXMPaj8wPeqVU+3eiednwUw173if3iKzoDe5F1xUcil/jq134LRKgDS1+aBrtwmA6wBTxnnElvj8+0zZ8vJRLHPfvnVE0/pHpR3Di8QZiw7TAQK+PzIFg7/E+HcGmO3o/Koou1tsfv3WxYhxTXix2BtoN6bOoYlVtwOw0qDK1YDSgTT5As8eKcJMi9vsujThO7o3CzN5JiFgnODwuEKhiZQezBcGfCDZogM2CUMUaDYSO2sUGtJQTzR5LKFZCGvG6QFCsfoSNroGATYFFKFb3nfkAVrGM3Ays68ViRArsWeadWIudy1lMt2wyXrSMsBOyfGQdyGjRNpXdEFFQB7qgU2ARihWBh2hraRGOVIjWQhgAtwPNeKfdUWcwzch2suxN/d3WskVOl931Ku+pzNaItkJUFaFY0Rh9rz9qC5mW7VNExvvNBabBRkR+GO9ASyo+xOcj2vtNcUzxVc+oIi6pScbWy7IznYpCteFyWVzHaKpa/JHY4N7eGrGKFAjHuCKt6ZGqjML37z4jduQ2cvMu09uGU7RiFdEb2OWK5/AdQgghhBBCCCGEEFLBfzYse3hLCzpHAAAAAElFTkSuQmCC");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-
-    image-rendering: pixelated;
-
-    background-color: black;
-    border-radius: 1em;
-
-    /* padding: 1em;
-    background: black;
-    border-radius: 1em; */
+:root[data-app-mode="player"] #tools {
+    grid-template-areas:
+        "option palette";
 }
 
-:root[data-app-mode="player"] #tools > #player-info {
-    visibility: unset;
-}
-
-:root[data-app-mode="editor"] #tools > #player-info {
-    visibility: hidden;
-}
-
-:root[data-app-mode="player"] #tools > #player-actions {
-    visibility: unset;
-}
-
-:root[data-app-mode="editor"] #tools > #player-actions {
-    visibility: hidden;
+:root[data-app-mode="editor"] #tools.fixed-palette {
+    grid-template-areas:
+        "option color  "
+        "tool   color  "
+        "brush  color  "
+        "bar    bar    ";
 }
 
 #tool-select {
@@ -233,6 +215,13 @@ body {
 #color-select {
     grid-area: color;
 }
+
+#tools:not(.fixed-palette) #color-select > :nth-last-child(-n+8) {
+    display: none;
+}
+
+#tools:not(.fixed-palette) #color-select > :nth-child(5) { border-bottom-left-radius: 1em; }
+#tools:not(.fixed-palette) #color-select > :nth-child(8) { border-bottom-right-radius: 1em; }
 
 #toolbar {
     grid-area: bar;
@@ -264,4 +253,50 @@ body {
 
 .vertical-capsule > :first-child[hidden] ~ :nth-last-child(2) {
     border-radius: 0 0 1em 1em;
+}
+
+#fixed-palette {
+    flex: 1;
+    flex-direction: column;
+    white-space: nowrap;
+    border: none;
+    border-radius: 1em;
+    background-color: var(--button-color);
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: .25em;
+
+    position: relative;
+}
+
+#fixed-palette input {
+    appearance: none;
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    border-radius: inherit;
+
+    position: absolute;
+    width: 100%; height: 100%;
+}
+
+#fixed-palette input + svg {
+    color: black;
+
+    pointer-events: none;
+    width: 32px; height: 32px;
+
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#fixed-palette input:checked {
+    background: blue;
+}
+
+#fixed-palette input:checked + svg {
+    color: white;
 }

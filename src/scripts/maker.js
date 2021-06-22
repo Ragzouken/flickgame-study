@@ -456,7 +456,7 @@ class CheckboxWrapper extends EventTarget {
         inputs.forEach((input) => {
             input.addEventListener("change", () => {
                 this.dispatchEvent(new CustomEvent("change"));
-                inputs.forEach((input) => input.checked = input.checked);
+                this.setCheckedSilent(input.checked);
             });
         });
     }
@@ -467,6 +467,10 @@ class CheckboxWrapper extends EventTarget {
 
     set checked(value) {
         if (this.checked !== value) this.inputs[0].click();
+    }
+
+    setCheckedSilent(value) {
+        this.inputs.forEach((input) => input.checked = value);
     }
 }
 

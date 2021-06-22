@@ -17,7 +17,7 @@ maker.resourceHandlers.set("canvas-datauri", {
 /**
  * @typedef {Object} FlickguyDataLayerOption
  * @property {string} image
- * @property {number} palette
+ * @property {number?} palette
  */
 
 /**
@@ -28,6 +28,7 @@ maker.resourceHandlers.set("canvas-datauri", {
 /**
  * @typedef {Object} FlickguyDataProject
  * @property {string[][]} palettes
+ * @property {string[]} fixedPalette
  * @property {FlickguyDataLayer[]} layers
  * @property {number[]} selected
  */
@@ -76,6 +77,7 @@ flickguy.makeBlankBundle = function () {
  */
 flickguy.updateProject = function(project) {
     project.selected = project.selected || ZEROES(8);
+    project.fixedPalette = project.fixedPalette || flickguy.defaultFixedPalette;
 }
 
 /**
@@ -109,7 +111,7 @@ function swapPalette(rendering, prev, next) {
     const mapping = new Map();
     const prevUint32 = prev.map((hex) => hexToUint32(hex));
     const nextUint32 = next.map((hex) => hexToUint32(hex));
-    prevUint32.forEach((_, i) => mapping.set(prevUint32[i], nextUint32[i]));
+    prevUint32.forEach((_, i) => mapping.set(prevUint32[i], nextUint32[i % nextUint32.length]));
     mapping.set(0, 0);
 
     function addMissing(prev) {
@@ -164,6 +166,10 @@ flickguy.defaultPalettes = [
     ["#000000","#94216a","#ff2674","#ff80a4","#34111f","#73392e","#c76e46","#ffb762"],["#000000","#d62411","#ff8426","#ffd100","#73392e","#c76e46","#eb9c6e","#ffdaac"],["#000000","#007899","#10d275","#bfff3c","#430067","#94216a","#ff2674","#ff80a4"],["#000000","#94216a","#ff2674","#ff80a4","#002859","#007899","#10d275","#bfff3c"],["#000000","#d62411","#ff8426","#ffd100","#1b1023","#002859","#007899","#68aed4"],["#000000","#002859","#007899","#68aed4","#430067","#94216a","#ff2674","#ff80a4"],["#000000","#007899","#10d275","#bfff3c","#7f0622","#d62411","#ff8426","#ffd100"],["#000000","#002859","#007899","#68aed4","#7f0622","#d62411","#ff8426","#ffd100"]
 ];
 
+flickguy.defaultFixedPalette = [
+    "#000000","#fafdff","#ff80a4","#68aed4","#d62411","#ff8426","#ffd100","#bfff3c","#10d275","#007899","#234975","#430067","#94216a","#ff2674","#73392e","#16171a",
+];
+
 // brush names and datauris
 flickguy.brushes = [
     { name: "1px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABlJREFUOI1jYBgFwx38/////0C7YRQMDQAApd4D/cefQokAAAAASUVORK5CYII=" },
@@ -213,6 +219,7 @@ flickguy.Editor = class extends EventTarget {
         this.optionSelect = ui.radio("option-select");
         this.paletteSelect = ui.radio("palette-select");
         this.stackLayers = ui.toggle("stack-layers");
+        this.fixedPalette = ui.toggle("fixed-palette");
 
         this.toolSelect = ui.radio("tool-select");
         this.brushSelect = ui.radio("brush-select");
@@ -344,14 +351,20 @@ flickguy.Editor = class extends EventTarget {
             // remember selected option for this layer
             this.stateManager.present.selected[this.layerSelect.selectedIndex] = this.optionSelect.selectedIndex;
             
-            // recolor new option to current color selection
-            await this.setOptionPalette(
-                this.stateManager.present,
-                this.layerSelect.selectedIndex,
-                this.optionSelect.selectedIndex,
-                this.paletteSelect.selectedIndex,
-            );
+            const data = this.stateManager.present;
+            const option = data.layers[this.layerSelect.selectedIndex].options[this.optionSelect.selectedIndex];
             
+            if (option.palette !== undefined) {
+                // recolor new option to current color selection
+                await this.setOptionPalette(
+                    this.stateManager.present,
+                    this.layerSelect.selectedIndex,
+                    this.optionSelect.selectedIndex,
+                    this.paletteSelect.selectedIndex,
+                );
+            }
+            
+            this.refreshColorSelect();
             this.render();
         });
 
@@ -377,6 +390,17 @@ flickguy.Editor = class extends EventTarget {
         this.brushSelect.addEventListener("change", () => this.refreshActiveBrush());
         this.colorSelect.addEventListener("change", () => this.refreshActiveBrush());
     
+        this.fixedPalette.addEventListener("change", () => {
+            return this.stateManager.makeChange(async (data) => {
+                return this.setOptionPalette(
+                    data,
+                    this.layerSelect.selectedIndex,
+                    this.optionSelect.selectedIndex,
+                    this.fixedPalette.checked ? undefined : this.paletteSelect.selectedIndex,
+                );
+            });
+        });
+
         // whenever the project data is changed
         this.stateManager.addEventListener("change", () => {
             this.unsavedChanges = true;
@@ -527,6 +551,12 @@ flickguy.Editor = class extends EventTarget {
         this.refreshActiveBrush();
     }
 
+    get activePalette() {
+        const data = this.stateManager.present;
+        const option = data.layers[this.layerSelect.selectedIndex].options[this.optionSelect.selectedIndex];
+        return data.palettes[option.palette] || data.fixedPalette;
+    }
+
     /**
      * Replace the current flickguy data with the given bundle.
      * @param {maker.ProjectBundle<FlickguyDataProject>} bundle
@@ -637,7 +667,8 @@ flickguy.Editor = class extends EventTarget {
         // switch to the natural palette of this option
         const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
         const option = layer.options[this.optionSelect.selectedIndex];
-        this.paletteSelect.selectedIndex = option.palette;
+        
+        if (option.palette) this.paletteSelect.selectedIndex = option.palette;
 
         this.refreshLayerOptionThumbnails();
         this.refreshColorSelect();
@@ -649,9 +680,10 @@ flickguy.Editor = class extends EventTarget {
     refreshActiveBrush() {
         if (!this.ready) return;
 
+        const data = this.stateManager.present;
         // determine brush and brush color
         const brush = this.brushRenders[this.brushSelect.selectedIndex];
-        const palette = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
+        const palette = this.activePalette;
         const color = palette[this.colorSelect.selectedIndex];
 
         // make a recolored copy of the brush for painting with
@@ -679,12 +711,19 @@ flickguy.Editor = class extends EventTarget {
     }
 
     refreshColorSelect() {
-        const palette = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
+        const data = this.stateManager.present;
+        const option = data.layers[this.layerSelect.selectedIndex].options[this.optionSelect.selectedIndex];
+        const palette = this.activePalette;
+
+        this.fixedPalette.setCheckedSilent(option.palette === undefined);
+        ONE("#tools").classList.toggle("fixed-palette", option.palette === undefined);
 
         // recolor the color select buttons to the corresponding color
         ALL("#color-select label").forEach((label, index) => {
             label.style.background = index > 0 ? palette[index] : "var(--trans-gradient)";
         });
+
+        this.colorSelect.selectedIndex = Math.min(palette.length-1, this.colorSelect.selectedIndex);
     }
 
     refreshLayerThumbnails() {
@@ -726,7 +765,7 @@ flickguy.Editor = class extends EventTarget {
             const option = layer.options[this.optionSelect.selectedIndex];
             const instance = await this.forkLayerOptionImage(option);
 
-            const palette = this.stateManager.present.palettes[this.paletteSelect.selectedIndex];
+            const palette = this.activePalette;
             const color = palette[this.colorSelect.selectedIndex];
             const uint32 = this.colorSelect.selectedIndex > 0 ? hexToUint32(color) : 0;
             floodfill(instance, x, y, uint32);
@@ -736,7 +775,7 @@ flickguy.Editor = class extends EventTarget {
     pickColor(x, y) {
         const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
         const option = layer.options[this.optionSelect.selectedIndex];
-        const palette = this.stateManager.present.palettes[option.palette];
+        const palette = this.activePalette;
 
         // get the single pixel from the relevant image
         const instance = this.stateManager.resources.get(option.image);
@@ -816,9 +855,13 @@ flickguy.Editor = class extends EventTarget {
     async setOptionPalette(data, layerIndex, optionIndex, paletteIndex) {
         const option = data.layers[layerIndex].options[optionIndex];
 
-        const prev = data.palettes[option.palette];
+        const prev = option.palette !== undefined
+                   ? data.palettes[option.palette]
+                   : data.fixedPalette;
         option.palette = paletteIndex;
-        const next = data.palettes[option.palette];
+        const next = option.palette !== undefined
+                   ? data.palettes[option.palette]
+                   : data.fixedPalette;
 
         // only swap if necessary
         if (prev !== next) {
@@ -840,13 +883,16 @@ flickguy.Editor = class extends EventTarget {
             // apply new selections and palettes for each layer
             await Promise.all(data.layers.map(async (layer, index) => {
                 data.selected[index] = optionIndexes[index];
+                const option = layer.options[optionIndexes[index]];
 
-                await this.setOptionPalette(
-                    data, 
-                    index, 
-                    optionIndexes[index], 
-                    paletteIndexes[index],
-                );
+                if (option.palette !== undefined) {
+                    await this.setOptionPalette(
+                        data, 
+                        index, 
+                        optionIndexes[index], 
+                        paletteIndexes[index],
+                    );
+                }
             }));
         });
     }
@@ -939,7 +985,7 @@ flickguy.Editor = class extends EventTarget {
     }
 
     async exportPalettes() {
-        const rendering = createRendering2D(8, 8);
+        const rendering = createRendering2D(8, 10);
 
         withPixels(rendering, (pixels) => {
             this.stateManager.present.palettes.forEach((palette, y) => {
@@ -947,6 +993,10 @@ flickguy.Editor = class extends EventTarget {
                     pixels[y * 8 + x] = hexToUint32(hex);
                 });
             });
+
+            this.stateManager.present.fixedPalette.forEach((hex, i) => {
+                pixels[8 * 8 + i] = hexToUint32(hex);
+            })
         });
 
         rendering.canvas.toBlob((blob) => maker.saveAs(blob, "flickguy-palettes.png"));
@@ -961,6 +1011,9 @@ flickguy.Editor = class extends EventTarget {
 
         const prevPalettes = this.stateManager.present.palettes;
         const nextPalettes = ZEROES(8).map(() => REPEAT(8, "#000000"));
+        
+        const prevFixedPalette = this.stateManager.present.fixedPalette;
+        const nextFixedPalette = REPEAT(16, "#000000");
 
         // read palettes from image (8 rows of 8 colors, ignore first column)
         withPixels(rendering, (pixels) => {
@@ -969,15 +1022,33 @@ flickguy.Editor = class extends EventTarget {
                     nextPalettes[p][i] = rgbToHex(uint32ToRGB(pixels[p * 8 + i]));
                 }
             }
+
+            for (let i = 0; i < 16; ++i) {
+                nextFixedPalette[i] = rgbToHex(uint32ToRGB(pixels[8 * 8 + i]));
+            }
         });
 
         // palette swap all images to the corresponding palette from the new set
         await this.stateManager.makeChange(async (data) => {
             data.palettes = nextPalettes;
-            const promises = data.layers.flatMap((layer) => { 
+            data.fixedPalette = nextFixedPalette;
+            const promises = data.layers.flatMap((layer) => {
                 return layer.options.map(async (option) => {
                     const instance = await this.forkLayerOptionImage(option);
-                    swapPaletteSafe(instance, prevPalettes[option.palette], nextPalettes[option.palette]);
+
+                    if (option.palette !== undefined) {
+                        swapPaletteSafe(
+                            instance, 
+                            prevPalettes[option.palette], 
+                            nextPalettes[option.palette],
+                        );
+                    } else {
+                        swapPaletteSafe(
+                            instance,
+                            prevFixedPalette,
+                            nextFixedPalette,
+                        );
+                    }
                 });
             });
 
