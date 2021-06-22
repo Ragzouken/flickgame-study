@@ -351,9 +351,8 @@ flickguy.Editor = class extends EventTarget {
             // remember selected option for this layer
             this.stateManager.present.selected[this.layerSelect.selectedIndex] = this.optionSelect.selectedIndex;
             
-            const data = this.stateManager.present;
-            const option = data.layers[this.layerSelect.selectedIndex].options[this.optionSelect.selectedIndex];
-            
+            const { option } = this.getSelections();
+
             if (option.palette !== undefined) {
                 // recolor new option to current color selection
                 await this.setOptionPalette(
@@ -466,10 +465,8 @@ flickguy.Editor = class extends EventTarget {
             } else if (this.toolSelect.value === "freehand") {
                 // fork the current options's image for editing and make an 
                 // undo/redo checkpoint
-                const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
-                const option = layer.options[this.optionSelect.selectedIndex];
                 this.stateManager.makeCheckpoint();
-                const instance = await this.forkLayerOptionImage(option);
+                const instance = await this.forkLayerOptionImage(this.activeOption);
 
                 // draw the brush at the position the drag begins
                 plotMask(x, y);
@@ -502,10 +499,8 @@ flickguy.Editor = class extends EventTarget {
                 drag.addEventListener("up", async (event) => {
                     // fork the current options's image for editing and make an 
                     // undo/redo checkpoint
-                    const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
-                    const option = layer.options[this.optionSelect.selectedIndex];
                     this.stateManager.makeCheckpoint();
-                    const instance = await this.forkLayerOptionImage(option);
+                    const instance = await this.forkLayerOptionImage(this.activeOption);
                     
                     // line from pointer down position to pointer up position
                     const { x: x0, y: y0 } = this.lineStart;
@@ -529,10 +524,8 @@ flickguy.Editor = class extends EventTarget {
 
                     // fork the current options's image for editing and make an 
                     // undo/redo checkpoint
-                    const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
-                    const option = layer.options[this.optionSelect.selectedIndex];
                     this.stateManager.makeCheckpoint();
-                    const instance = await this.forkLayerOptionImage(option);
+                    const instance = await this.forkLayerOptionImage(this.activeOption);
                     fillRendering2D(instance);
                     instance.drawImage(this.preview.canvas, 0, 0);
                     
@@ -551,10 +544,19 @@ flickguy.Editor = class extends EventTarget {
         this.refreshActiveBrush();
     }
 
-    get activePalette() {
-        const data = this.stateManager.present;
-        const option = data.layers[this.layerSelect.selectedIndex].options[this.optionSelect.selectedIndex];
-        return data.palettes[option.palette] || data.fixedPalette;
+    /**
+     * @param {FlickguyDataProject} data
+     */
+    getSelections(data = undefined) {
+        data = data || this.stateManager.present;
+        const layer = data.layers[this.layerSelect.selectedIndex];
+        const option = layer.options[this.optionSelect.selectedIndex];
+        const palette = data.palettes[option.palette] || data.fixedPalette;
+        const brush = this.brushRenders[this.brushSelect.selectedIndex];
+        const color = palette[this.colorSelect.selectedIndex];
+        const instance = this.stateManager.resources.get(option.image);
+
+        return { layer, option, palette, color, instance, brush };
     }
 
     /**
@@ -664,11 +666,11 @@ flickguy.Editor = class extends EventTarget {
         // switch option to remembered option for this layer
         this.optionSelect.setSelectedIndexSilent(this.stateManager.present.selected[this.layerSelect.selectedIndex]);
 
-        // switch to the natural palette of this option
-        const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
-        const option = layer.options[this.optionSelect.selectedIndex];
-        
-        if (option.palette) this.paletteSelect.selectedIndex = option.palette;
+        // switch palette select to match option's current palette if any
+        const { option } = this.getSelections();
+        if (option.palette !== undefined) {
+            this.paletteSelect.selectedIndex = option.palette;
+        }
 
         this.refreshLayerOptionThumbnails();
         this.refreshColorSelect();
@@ -680,11 +682,7 @@ flickguy.Editor = class extends EventTarget {
     refreshActiveBrush() {
         if (!this.ready) return;
 
-        const data = this.stateManager.present;
-        // determine brush and brush color
-        const brush = this.brushRenders[this.brushSelect.selectedIndex];
-        const palette = this.activePalette;
-        const color = palette[this.colorSelect.selectedIndex];
+        const { brush, color } = this.getSelections();
 
         // make a recolored copy of the brush for painting with
         this.activeBrush = this.colorSelect.selectedIndex > 0 
@@ -711,9 +709,7 @@ flickguy.Editor = class extends EventTarget {
     }
 
     refreshColorSelect() {
-        const data = this.stateManager.present;
-        const option = data.layers[this.layerSelect.selectedIndex].options[this.optionSelect.selectedIndex];
-        const palette = this.activePalette;
+        const { option, palette } = this.getSelections();
 
         this.fixedPalette.setCheckedSilent(option.palette === undefined);
         ONE("#tools").classList.toggle("fixed-palette", option.palette === undefined);
@@ -745,7 +741,8 @@ flickguy.Editor = class extends EventTarget {
     }
 
     refreshLayerOptionThumbnails() {
-        const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
+        const { layer } = this.getSelections();
+
         this.optionThumbs.forEach((thumbnail, index) => {
             fillRendering2D(thumbnail);
             const image = this.stateManager.resources.get(layer.options[index].image);
@@ -761,31 +758,24 @@ flickguy.Editor = class extends EventTarget {
     floodFill(x, y) {
         this.stateManager.makeChange(async (data) => {
             // fork the current options's image
-            const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
-            const option = layer.options[this.optionSelect.selectedIndex];
+            const { option, color } = this.getSelections(data);
             const instance = await this.forkLayerOptionImage(option);
-
-            const palette = this.activePalette;
-            const color = palette[this.colorSelect.selectedIndex];
             const uint32 = this.colorSelect.selectedIndex > 0 ? hexToUint32(color) : 0;
             floodfill(instance, x, y, uint32);
         });
     }
 
     pickColor(x, y) {
-        const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
-        const option = layer.options[this.optionSelect.selectedIndex];
-        const palette = this.activePalette;
-
         // get the single pixel from the relevant image
-        const instance = this.stateManager.resources.get(option.image);
+        const { palette, instance } = this.getSelections();
         const [r, g, b, a] = instance.getImageData(x, y, 1, 1).data;
         const hex = rgbToHex({ r, g, b});
         
         // if it's transparent, it's color 0, otherwise search palette
-        this.colorSelect.selectedIndex = a === 0 
-                                       ? 0
-                                       : palette.findIndex((color) => color === hex);
+        const paletteIndex = a === 0 
+                           ? 0
+                           : palette.findIndex((color) => color === hex);
+        this.colorSelect.selectedIndex = paletteIndex; 
     }
 
     swapLayers(prevIndex, nextIndex) {
@@ -824,23 +814,22 @@ flickguy.Editor = class extends EventTarget {
 
     copyLayerOption() {
         // make a copy of option data and enable pasting
-        const layer = this.stateManager.present.layers[this.layerSelect.selectedIndex];
-        this.copiedLayerOption = COPY(layer.options[this.optionSelect.selectedIndex]);
+        const { option } = this.getSelections();
+        this.copiedLayerOption = COPY(option);
         this.actions.paste.disabled = false;
     }
 
     pasteLayerOption() {
         this.stateManager.makeChange(async (data) => {
             // replace selected layer option with a copy of the copied option
-            const layer = data.layers[this.layerSelect.selectedIndex];
+            const { layer } = this.getSelections(data);
             layer.options[this.optionSelect.selectedIndex] = COPY(this.copiedLayerOption);
         });
     }
 
     clearLayerOption() {
         this.stateManager.makeChange(async (data) => {
-            const layer = data.layers[this.layerSelect.selectedIndex];
-            const option = layer.options[this.optionSelect.selectedIndex];
+            const { option } = this.getSelections(data);
             const instance = await this.forkLayerOptionImage(option);
             fillRendering2D(instance);
         });
