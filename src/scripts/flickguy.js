@@ -179,6 +179,12 @@ flickguy.brushes = [
 ];
 
 flickguy.Editor = class extends EventTarget {
+    /**
+     * Setup most of the stuff for the flickguy editor (the rest is in init
+     * because constructors can't be async). This includes finding the existing
+     * HTML UI so it doesn't really make sense to construct this more than once
+     * but a class is easy syntax for wrapping functions and state together 🤷‍♀️
+     */
     constructor() {
         super();
 
@@ -259,9 +265,8 @@ flickguy.Editor = class extends EventTarget {
         // state of the paint tools:
         // is the color pick key held down?
         this.heldColorPick = false;
-        // current brush and pattern recolored with current color
+        // current brush recolored with current color
         this.activeBrush = undefined;
-        this.activePattern = undefined;
         // saved start coordinates during a line draw
         this.lineStart = undefined;
         // saved start coordinates during shift
@@ -466,7 +471,8 @@ flickguy.Editor = class extends EventTarget {
                 // fork the current options's image for editing and make an 
                 // undo/redo checkpoint
                 this.stateManager.makeCheckpoint();
-                const instance = await this.forkLayerOptionImage(this.activeOption);
+                const { option } = this.getSelections();
+                const instance = await this.forkLayerOptionImage(option);
 
                 // draw the brush at the position the drag begins
                 plotMask(x, y);
@@ -500,7 +506,8 @@ flickguy.Editor = class extends EventTarget {
                     // fork the current options's image for editing and make an 
                     // undo/redo checkpoint
                     this.stateManager.makeCheckpoint();
-                    const instance = await this.forkLayerOptionImage(this.activeOption);
+                    const { option } = this.getSelections();
+                    const instance = await this.forkLayerOptionImage(option);
                     
                     // line from pointer down position to pointer up position
                     const { x: x0, y: y0 } = this.lineStart;
@@ -525,7 +532,8 @@ flickguy.Editor = class extends EventTarget {
                     // fork the current options's image for editing and make an 
                     // undo/redo checkpoint
                     this.stateManager.makeCheckpoint();
-                    const instance = await this.forkLayerOptionImage(this.activeOption);
+                    const { option } = this.getSelections();
+                    const instance = await this.forkLayerOptionImage(option);
                     fillRendering2D(instance);
                     instance.drawImage(this.preview.canvas, 0, 0);
                     
@@ -545,6 +553,8 @@ flickguy.Editor = class extends EventTarget {
     }
 
     /**
+     * Return the various "selected" / "active" objects from editor state and
+     * either the given project data or the present project data.
      * @param {FlickguyDataProject} data
      */
     getSelections(data = undefined) {
