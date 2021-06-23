@@ -269,7 +269,7 @@ flickguy.Editor = class extends EventTarget {
 
         // state of the paint tools:
         // is the color pick key held down?
-        this.heldColorPick = false;
+        this.heldColorPick = undefined;
         // current brush recolored with current color
         this.activeBrush = undefined;
         // saved start coordinates during a line draw
@@ -336,6 +336,7 @@ flickguy.Editor = class extends EventTarget {
                 if (event.code === "KeyW") this.toolSelect.selectedIndex = 1;
                 if (event.code === "KeyE") this.toolSelect.selectedIndex = 2;
                 if (event.code === "KeyR") this.toolSelect.selectedIndex = 3;
+                if (event.code === "KeyT") this.toolSelect.selectedIndex = 4;
     
                 if (event.code === "KeyA") this.brushSelect.selectedIndex = 0;
                 if (event.code === "KeyS") this.brushSelect.selectedIndex = 1;
@@ -343,12 +344,19 @@ flickguy.Editor = class extends EventTarget {
                 if (event.code === "KeyF") this.brushSelect.selectedIndex = 3;
             }
 
-            this.heldColorPick = event.altKey;
+            if (event.altKey && this.heldColorPick === undefined) {
+                this.heldColorPick = this.toolSelect.selectedIndex;
+                this.toolSelect.selectedIndex = 3;
+                event.preventDefault();
+            }
         });
 
         // stop temporarily color picking if the alt key is released
         document.addEventListener("keyup", (event) => {
-            this.heldColorPick = event.altKey;
+            if (!event.altKey && this.heldColorPick !== undefined) {
+                this.toolSelect.selectedIndex = this.heldColorPick;
+                this.heldColorPick = undefined;
+            }
         });
 
         // changes in layer select bar
@@ -572,26 +580,9 @@ flickguy.Editor = class extends EventTarget {
             return this.forkLayerOptionImage(option);
         };
 
-        /**
-         * @param {HTMLCanvasElement} canvas 
-         * @param {ui.PointerDrag} drag 
-         */
-        function trackCanvasStroke(canvas, drag) {
-            const positions = [mouseEventToCanvasPixelCoords(canvas, drag.downEvent)];
-            const update = (event) => positions.push(mouseEventToCanvasPixelCoords(canvas, event.detail));
-            drag.addEventListener("up", update);
-            drag.addEventListener("move", update);
-            return positions;
-        }
+        const starts = {};
 
-        // color picker selected or color pick hotkey held
-        if (this.toolSelect.value === "pick" || this.heldColorPick) {
-            drag.addEventListener("click", () => this.pickColor(positions[0].x, positions[0].y));
-        // flood fill selected
-        } else if (this.toolSelect.value === "fill") {
-            drag.addEventListener("click", () => this.floodFill(positions[0].x, positions[0].y));
-        // freehand drawing selected
-        } else if (this.toolSelect.value === "freehand") {
+        starts.freehand = async () => {
             const instance = await startStroke();
 
             // draw the brush at the position the drag begins
@@ -612,8 +603,8 @@ flickguy.Editor = class extends EventTarget {
                 lineplot(x0, y0, x1, y1, plotMask);
                 drawMask(instance);
             });
-        // line drawing selected
-        } else if (this.toolSelect.value === "line") {
+        };
+        starts.line = async () => {
             // need to save this to draw the line preview
             this.lineStart = positions[0];
             this.refreshPreview(positions[0].x, positions[0].y);
@@ -632,7 +623,10 @@ flickguy.Editor = class extends EventTarget {
                 // stop tracking line drawing
                 this.lineStart = undefined;
             });
-        } else if (this.toolSelect.value === "shift") {
+        };
+        starts.fill = async () => drag.addEventListener("click", () => this.floodFill(positions[0].x, positions[0].y));
+        starts.pick = async () => drag.addEventListener("click", () => this.pickColor(positions[0].x, positions[0].y));
+        starts.shift = async () => {
             this.shiftStart = positions[0];
 
             drag.addEventListener("up", async (event) => {
@@ -650,6 +644,8 @@ flickguy.Editor = class extends EventTarget {
                 this.refreshPreview(x1, y1);
             });
         }
+
+        await starts[this.toolSelect.value]();
     }
 
     refreshPreview(x, y) {
@@ -661,26 +657,41 @@ flickguy.Editor = class extends EventTarget {
         // prepare plot function
         const plot = (x, y) => this.preview.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
 
-        // move tool has a special cursor, crosshair for everything else
-        const cursor = this.toolSelect.value === "shift" ? "move" : "crosshair";
-        this.rendering.canvas.style.setProperty("cursor", cursor);
+        const cursors = {
+            freehand: "crosshair",
+            line: "crosshair",
+            fill: "crosshair",
+            pick: "crosshair",
+            shift: "move",
+        }
 
-        if (this.shiftStart) {
-            // show another copy of the current layer as moved by the mouse
-            const { x: ox, y: oy } = this.shiftStart;
-            this.preview.drawImage(this.stackActive.canvas, x - ox, y - oy);
-        } else if (this.heldColorPick) {
-            // no preview for color picking
-        } else if (this.lineStart) {
-            // draw a line between the pointer down location and the current 
-            // pointer location
-            const { x: x0, y: y0 } = this.lineStart;
-            lineplot(x0, y0, x, y, plot);
-        } else if (this.toolSelect.value === "freehand" || this.toolSelect.value === "line") {
-            // draw the colored brush at the current pointer location
-            plot(x, y);
-        } 
+        this.rendering.canvas.style.setProperty("cursor", cursors[this.toolSelect.value]);
 
+        const previews = {
+            freehand: () => plot(x, y),
+            line: () => {
+                if (this.lineStart) {
+                    // draw a line between the pointer down location and the current 
+                    // pointer location
+                    const { x: x0, y: y0 } = this.lineStart;
+                    lineplot(x0, y0, x, y, plot);
+                } else {
+                    plot(x, y);
+                }
+            },
+            fill: () => {},
+            pick: () => {},
+            shift: () => {
+                if (this.shiftStart) {
+                    // show another copy of the current layer as moved by the mouse
+                    const { x: ox, y: oy } = this.shiftStart;
+                    this.preview.drawImage(this.stackActive.canvas, x - ox, y - oy);
+                }
+            }
+        }
+
+        previews[this.toolSelect.value](); 
+        
         this.render();
     }
 

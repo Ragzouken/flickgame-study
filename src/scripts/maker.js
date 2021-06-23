@@ -611,6 +611,18 @@ ui.drag = (event) => new ui.PointerDrag(event);
 }
 
 /**
+ * @param {HTMLCanvasElement} canvas 
+ * @param {ui.PointerDrag} drag 
+ */
+    function trackCanvasStroke(canvas, drag) {
+    const positions = [mouseEventToCanvasPixelCoords(canvas, drag.downEvent)];
+    const update = (event) => positions.push(mouseEventToCanvasPixelCoords(canvas, event.detail));
+    drag.addEventListener("up", update);
+    drag.addEventListener("move", update);
+    return positions;
+}
+
+/**
  * Deep copy an object by serializing it to json and parsing it again.
  * @template T
  * @param {T} object
