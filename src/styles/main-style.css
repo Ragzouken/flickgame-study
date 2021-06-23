@@ -9,6 +9,16 @@
     font-family: sans-serif;
 }
 
+:root[data-app-mode="editor"] [data-hidden-in-editor] {
+    display: none !important;
+    visibility: hidden;
+}
+
+:root[data-app-mode="player"] [data-hidden-in-player] {
+    display: none !important;
+    visibility: hidden;
+}
+
 html, body {
     margin: 0; padding: 0;
     min-height: 100vh;

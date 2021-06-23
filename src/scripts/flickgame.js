@@ -1,3 +1,8 @@
+const flickgame = {};
+
+// browser saves will be stored under the id "flickgame-study"
+flickgame.storage = new maker.ProjectStorage("flickgame-study");
+
 // add a resource type called "canvas-datauri" that describes how to load a
 // canvas rendering context from a datauri, how to copy one, and how to convert
 // one back into a datauri
@@ -16,24 +21,27 @@ maker.resourceHandlers.set("canvas-datauri", {
 /**
  * @typedef {Object} FlickgameDataProject
  * @property {FlickgameDataScene[]} scenes
+ * @property {string[]} palette
  */
 
-/** 
- * @param {FlickgameDataProject} data 
- * @returns {string[]}
- */
-function getFlickgameManifest(data) {
-    // scene images are the only resource dependencies in a flickgame
+// define how to determine which resources a particular flickgame project data
+// depends on. in this case resources are the individual images, so the 
+// dependencies are all image ids in the project
+flickgame.getManifest = function (data) {
     return data.scenes.map((scene) => scene.image);
 }
 
+// keep the image size constant in one place--haven't checked whether you can
+// actually change these numbers and not break things
+flickgame.sceneWidth = 160;
+flickgame.sceneHeight = 100;
+
 /** @returns {maker.ProjectBundle<FlickgameDataProject>} */
 function makeBlankBundle() {
-    const blank = createRendering2D(160, 100);
-    blank.fillStyle = "#140c1c";
-    blank.fillRect(0, 0, 160, 100);
+    const blank = createRendering2D(flickgame.sceneWidth, flickgame.sceneHeight);
+    fillRendering2D(blank, "#140c1c");
     const scenes = ZEROES(16).map(() => ({ image: "0", jumps: {} }));
-    const project = { scenes };
+    const project = { scenes, palette: flickgame.defaultPalette };
     const resources = {
         "0": { type: "canvas-datauri", data: blank.canvas.toDataURL() },
     };
@@ -41,14 +49,12 @@ function makeBlankBundle() {
     return { project, resources };
 }
 
-/**
- * @param {FlickgameDataProject} data 
- * @param {number} srcIndex 
- * @param {number} colorIndex 
- * @param {number} dstIndex 
+/** 
+ * Update the given flickgame project data so that it's valid for this current
+ * version of flickgame.
+ * @param {FlickgameDataProject} project 
  */
-function setSceneJump(data, srcIndex, colorIndex, dstIndex) {
-    data.scenes[srcIndex].jumps[colorIndex.toString()] = dstIndex.toString();
+flickgame.updateProject = function(project) {
 }
 
 /**
@@ -73,11 +79,8 @@ function fitCanvasToParent(canvas) {
     canvas.style.setProperty("height", `${canvas.height * scale}px`);
 }
 
-// datauri for a default title scene image
-const defaultScene = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAABkCAYAAAABtjuPAAAAAXNSR0IArs4c6QAABu1JREFUeJztnE2OHDcMhekgyyyzDHwCr43BLAcDH9owZtkYeD0n8EWSVQWKoh+SIkVSxQ8wYPRUSWrp9ZNEserTn3/89TckiRG/WTcguTcpwMSUFGBiSgowMSUFmJjyu3YFP56//Pv/18eHdnVJMD5xwzClsCi0RBhVpFHbffHz1/fpNV8/fxMpv1cO2QE5wnt9fDTv631GHcy6HE0xcH94UblEhBViT9Q/f31vloESYK/TpQa6J9AR3oVwtc+rM2LcT7rMlginAmwNtEanckTYA+Oio7p697ZENXP2ne6sSc/Byr9zQE/BnjtuJoia2TUr7uXdmVfoiZAivroMtACxazPvAzDaONRtp65HMWVz1rjSaEy/XMTigD+ev0zFJ9nxWssADLNpd2X6vxtTB+Suzax/5S0wIrk+7619V8JPJwhvthakIh6I9ig8AJ2YHWWD5iVm6Gn6BdhwEuKNWSBcstxW2V5/oBRKF+QIuryfJEAPC2gOPYGtCo+61rPuO2/uB4AUIGX9womv7WIWrpFsn5cp1ztHTcHY474aizXhbjy6H4BgGKbV0a+PD5MBoNSp2T4v4vMMKxlhFsLwCPW0RLK+U5FwVbQDntihklNv/cM8Iea3A/WMaK0dqAQabYgkwq+fv/3nnwUsAWIO8zFHcwD7nNVKDF5EWAusJTisCCXFShLgSCwz0VlN4b3N0cVIIKPvNPrMavNlCddJ1cIwKwOgFUvsbaCwKVyXsLjJs6eKsuWu2A2K+Bowyq9/R2ZOKyXLy5SsDdYJ2Q6ocSw3m+Jn7RmV28rHW0m/Gl1bluspC4biTKMyJCE7YAR3m+FFEJFZEXIp4rAPplM3O9ylAUesEZ4JaQloJiqNUI27s2DqgHMHdJYsQJ12W5/V5XoQXzkNezgfNhfg6nTIEWzr2Y/ZPZi667J3ZMR4yLppZUljxW0uwBbaHYmNA3La0Urp18y2af1do/9m0y9WcHU5rFdzeM7547LyUJH2d8Y4NLVNlOm3Jz7OFE5+MP0ueEnhKqFstDyFe3qwX81RE9XlIsFxWQ0RjqZeibhiOmAANJ4znolnV3ZM2DjgXcAkgHDpiYwivtUMmts6oIfwBQfpDaCE061MxbcR4CztyqsIZ23z2u6SkcjdC1Ai5KGxO1xt12rMzpvweg+qzxzWrQC10+Up9Ui2BVtWhLBKC+qU7m4T0lpY73jOgvPsisR7CSWOIut/kXDlgBonDJxThNG1o/tH67XWpmdFLNGE1sONA9YDtDPZtYfUTll7x133VyRxunDA0QBJdyZn8T+7FuuCI3fEtsfb5mMVUwes1yz1r1j6XSuazoBN2dIkojhdOCDA3jdXaYNNRl3d6UaaanuYCXDkfLPrW6xmNUtQT8UanCC6EnMHnEX5sR3OWXthoa7RduYLRpoZWpgLsAf2eQrtdd0ux6EeB0YX3oVbAdb0Bmg1jqcBVUgaAeoohBEggL8Mlh3tiRrfw+ImEF2zeli/+jyvRvk7iHYk59oBr2l3xQVGx17lKzokzmSxrxZZDUhrB+t3Yi7A2btULDsXUzfmFETyPBrbriiYTcGz8IvGi4Nm9WLvmSW3Yq+VRuMMXRtzBwQY73AjgNnJSkzzUfqDgukmRHKHt+vtA706MefYyf9xtQumDNzoWkoZF5phlBOdSwrzKXj2siDM+ot6BKe16C/L1RLdac5qLkCAcaiEk4SAvfe6RlIs3IeTuH+PjgsBXlB2m5wkBu55srSbeVnveoD1dqxT6Alh9/R5kqCo3FqAiT2udsHJ/UgBJqakABNTUoAVj/cXeLy/WDfjNrgKw1iRgrPjdgKMIraync9Pb+T7KPdYEkaAPeFgO3omPOkBkxTC4/0FVU6UH1eJ+zggplN7g7NbdBp1U5wwmvsBOHfAehDrjr3+Pruu/hzrFNgB5Qw89p7npzdUeyO6H0CQXfDz01tzoLAD3rt/hOSAXvW32kCpZ2U28IprB7wYrYFGHS4xGFj3o5ZHua90wVZfRHU/AOcOWHa0VHxOa7CoYq+/G4Xyeu5u2QuuBdjiEuKqkDwMFqUN9RSOXfd6x70ApdZPGty9fgncC7CkJUbpRTyHne7T+jFGdT+AYAIsaa0PsQKLPGA10b9LWAECtDt/17QkIfYTptBVQgsQgBfjk66fw8ru9SThhhfgxU4RWgogetil5hgBaomiLne1nnqtyhXRCeIDCHISMkN789EqXyIL585T70V4B6zdRMoZtB3mFAdbxVU6FjWrZMd6yNOJQ8R0qxkup+BRR69Mhxy8DPaJ0y+AMwcE4GeXnM6J7gfg0AEx6UqnDcKdceeAyb0IvwtOYpMCTExJASampAATU1KAiSkpwMSUFGBiyj/y5HMr5wYaSwAAAABJRU5ErkJggg==";
-
 // default palette copied from flickgame
-const palette = [
+flickgame.defaultPalette = [
     "#140c1c", "#442434", "#30346d", "#4e4a4e",
     "#854c30", "#346524", "#d04648", "#757161",
     "#597dce", "#d27d2c", "#8595a1", "#6daa2c",
@@ -85,7 +88,7 @@ const palette = [
 ];
 
 // brush names and datauris
-const brushes = [
+flickgame.brushes = [
     { name: "1px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABlJREFUOI1jYBgFwx38/////0C7YRQMDQAApd4D/cefQokAAAAASUVORK5CYII=" },
     { name: "2px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAABpJREFUOI1jYBgFwx38hwJ8apjo5ZhRMKgBADvbB/vPRl6wAAAAAElFTkSuQmCC" },
     { name: "3px circle", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAACNJREFUOI1jYBgFgxz8////PyE1jMRoZmRkxKmOYheMgmEBAARbC/qDr1pMAAAAAElFTkSuQmCC" },
@@ -93,7 +96,7 @@ const brushes = [
 ];
 
 // brush pattern names and datauris
-const patterns = [
+flickgame.patterns = [
     { name: "solid", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAANQTFRF////p8QbyAAAAA1JREFUGJVjYBgFyAAAARAAATPJ8WoAAAAASUVORK5CYII=" },
     { name: "dither", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAAZQTFRF////AAAAVcLTfgAAAAJ0Uk5T/wDltzBKAAAAEElEQVQYlWNgYCQAGUaUCgBFEACBOeFM/QAAAABJRU5ErkJggg==" },
     { name: "grate", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAACpJREFUOI1j+P///38GJEAqH0WQXJosm7FqJoseDYPRMBgNA4b/////BwD1yX6QPhXhyAAAAABJRU5ErkJggg==" },
@@ -104,15 +107,19 @@ const patterns = [
     { name: "tiles", image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAFNJREFUOI3Nk8EKACAIQ/f/P71OQVCzLQryJAz3VBQAQJIoYtR7vqwpRWEoCY4hSX7Q/k60jE+pcgeK6o65pyauT3cQ06SeXOKUX2vfHcMqSB6qAfbO4x1nFCH3AAAAAElFTkSuQmCC" },
 ];
 
-class FlickgamePlayer extends EventTarget {
+flickgame.Player = class extends EventTarget {
     constructor() {
         super();
         // home for data of the project we're playing
         this.stateManager = new maker.StateManager();
         // final composite of any graphics
-        this.rendering = createRendering2D(160, 100);
+        this.rendering = createRendering2D(flickgame.sceneWidth, flickgame.sceneHeight);
         // start the player in scene 0
         this.activeSceneIndex = 0;
+    }
+
+    async init() {
+        return this;
     }
 
     async copyFrom(stateManager) {
@@ -136,7 +143,7 @@ class FlickgamePlayer extends EventTarget {
         const image = this.stateManager.resources.get(scene.image);
         
         // clear the rendering and draw the current scene
-        this.rendering.clearRect(0, 0, 160, 100);
+        fillRendering2D(this.rendering);
         this.rendering.drawImage(image.canvas, 0, 0);
 
         // signal, to anyone listening, that rendering happened
@@ -152,7 +159,7 @@ class FlickgamePlayer extends EventTarget {
         const [r, g, b] = image.getImageData(x, y, 1, 1).data;
         // convert to hexadecimal to compare with the flickgame palette
         const hex = rgbToHex({ r, g, b});
-        const index = palette.findIndex((color) => color === hex);
+        const index = this.stateManager.present.palette.findIndex((color) => color === hex);
 
         // consult the current scene's jump table for the corresponding color
         return scene.jumps[index];
@@ -176,22 +183,22 @@ class FlickgamePlayer extends EventTarget {
     }
 }
 
-class FlickgameEditor extends EventTarget {
+flickgame.Editor = class extends EventTarget {
     constructor() {
         super();
 
         // to determine which resources are still in use for the project we
         // combine everything the flickgame needs plus anything this editor
         // needs
-        const getManifest = (data) => [...getFlickgameManifest(data), ...this.getManifest()];
+        const getManifest = (data) => [...flickgame.getManifest(data), ...this.getManifest()];
 
         /** @type {maker.StateManager<FlickgameDataProject>} */
         this.stateManager = new maker.StateManager(getManifest);
         /** @type {CanvasRenderingContext2D} */
         this.rendering = ONE("#renderer").getContext("2d");
         this.rendering.canvas.style.setProperty("cursor", "crosshair");
-        this.preview = createRendering2D(160, 100); 
-        this.thumbnails = ZEROES(16).map(() => createRendering2D(160, 100));
+        this.preview = createRendering2D(flickgame.sceneWidth, flickgame.sceneHeight); 
+        this.thumbnails = ZEROES(16).map(() => createRendering2D(flickgame.sceneWidth, flickgame.sceneHeight));
 
         // find all the ui already defined in the html
         this.sceneSelect = ui.radio("scene-select");
@@ -217,24 +224,24 @@ class FlickgameEditor extends EventTarget {
     
         // recolor the color select buttons to the corresponding color
         ALL("#color-select label").forEach((label, index) => {
-            label.style.backgroundColor = palette[index];
+            label.style.backgroundColor = flickgame.defaultPalette[index];
         });
     
         // add brush icons and tooltips to brush select buttons
         ALL("#brush-select label").forEach((label, index) => {
-            ONE("input", label).title = brushes[index].name + " brush";
-            ONE("img", label).src = brushes[index].image;
+            ONE("input", label).title = flickgame.brushes[index].name + " brush";
+            ONE("img", label).src = flickgame.brushes[index].image;
         });
 
         // add pattern icons and tooltips to brush select buttons
         ALL("#pattern-select label").forEach((label, index) => {
-            ONE("input", label).title = patterns[index].name + " pattern";
-            ONE("img", label).src = patterns[index].image;
+            ONE("input", label).title = flickgame.patterns[index].name + " pattern";
+            ONE("img", label).src = flickgame.patterns[index].image;
         });
 
         // state of the paint tools:
         // is the color pick key held down?
-        this.heldColorPick = false;
+        this.heldColorPick = undefined;
         // current brush and pattern recolored with current color
         this.activeBrush = undefined;
         this.activePattern = undefined;
@@ -245,16 +252,24 @@ class FlickgameEditor extends EventTarget {
 
         // editor actions controlled by html buttons
         this.actions = {
+            // editor toolbar
             undo: ui.action("undo", () => this.stateManager.undo()),
             redo: ui.action("redo", () => this.stateManager.redo()),
             copy: ui.action("copy", () => this.copyScene()),
             paste: ui.action("paste", () => this.pasteScene()),
             clear: ui.action("clear", () => this.clearScene()),
+            save: ui.action("save", () => this.save()),
 
+            // editor menu
             export_: ui.action("export", () => this.exportProject()),
             import_: ui.action("import", () => this.importProject()),
             reset: ui.action("reset", () => this.resetProject()),
             help: ui.action("help", () => this.toggleHelp()),
+            update: ui.action("update", () => this.updateEditor()),
+
+            // special feature
+            importPalettes: ui.action("import-palettes", () => this.importPalettes()),
+            exportPalettes: ui.action("export-palettes", () => this.exportPalettes()),
         };
 
         // can't undo/redo/paste yet
@@ -264,36 +279,44 @@ class FlickgameEditor extends EventTarget {
 
         // hotkeys
         document.addEventListener("keydown", (event) => {
-            if (event.ctrlKey && event.key === "z") this.actions.undo.invoke();
-            if (event.ctrlKey && event.key === "y") this.actions.redo.invoke();
-            if (event.ctrlKey && event.key === "c") this.actions.copy.invoke();
-            if (event.ctrlKey && event.key === "v") this.actions.paste.invoke();
-            if (event.ctrlKey && event.key === "x") {
-                this.actions.copy.invoke();
-                this.actions.clear.invoke();
-            }
-
-            for (let i = 0; i < 8; ++i) {
-                if (event.code === `Digit${i+1}`) {
-                    this.sceneSelect.selectedIndex = event.shiftKey ? i+8 : i;
+            if (event.ctrlKey) {
+                if (event.key === "z") this.actions.undo.invoke();
+                if (event.key === "y") this.actions.redo.invoke();
+                if (event.key === "c") this.actions.copy.invoke();
+                if (event.key === "v") this.actions.paste.invoke();
+                if (event.key === "x") {
+                    this.actions.copy.invoke();
+                    this.actions.clear.invoke();
                 }
+                if (event.key === "s") {
+                    event.preventDefault();
+                    this.actions.save.invoke();
+                }
+            } else {
+                if (event.code === "KeyQ") this.toolSelect.selectedIndex = 0;
+                if (event.code === "KeyW") this.toolSelect.selectedIndex = 1;
+                if (event.code === "KeyE") this.toolSelect.selectedIndex = 2;
+                if (event.code === "KeyR") this.toolSelect.selectedIndex = 3;
+    
+                if (event.code === "KeyA") this.brushSelect.selectedIndex = 0;
+                if (event.code === "KeyS") this.brushSelect.selectedIndex = 1;
+                if (event.code === "KeyD") this.brushSelect.selectedIndex = 2;
+                if (event.code === "KeyF") this.brushSelect.selectedIndex = 3;
             }
 
-            if (event.code === "KeyQ") this.toolSelect.selectedIndex = 0;
-            if (event.code === "KeyW") this.toolSelect.selectedIndex = 1;
-            if (event.code === "KeyE") this.toolSelect.selectedIndex = 2;
-            if (event.code === "KeyR") this.toolSelect.selectedIndex = 3;
-
-            if (event.code === "KeyA") this.brushSelect.selectedIndex = 0;
-            if (event.code === "KeyS") this.brushSelect.selectedIndex = 1;
-            if (event.code === "KeyD") this.brushSelect.selectedIndex = 2;
-            if (event.code === "KeyF") this.brushSelect.selectedIndex = 3;
-
-            this.heldColorPick = event.altKey;
+            if (event.altKey && this.heldColorPick === undefined) {
+                this.heldColorPick = this.toolSelect.selectedIndex;
+                this.toolSelect.selectedIndex = 3;
+                event.preventDefault();
+            }
         });
 
+        // stop temporarily color picking if the alt key is released
         document.addEventListener("keyup", (event) => {
-            this.heldColorPick = event.altKey;
+            if (!event.altKey && this.heldColorPick !== undefined) {
+                this.toolSelect.selectedIndex = this.heldColorPick;
+                this.heldColorPick = undefined;
+            }
         });
 
         // changes in scene select bar
@@ -304,15 +327,9 @@ class FlickgameEditor extends EventTarget {
 
         // changes in the jump select dropdown
         this.jumpSelect.addEventListener("change", () => {
-            if (!this.selectedScene) return;
-    
             this.stateManager.makeChange(async (data) => {
-                setSceneJump(
-                    data, 
-                    this.sceneSelect.selectedIndex, 
-                    this.colorSelect.selectedIndex, 
-                    this.jumpSelect.selectedIndex,
-                );
+                const { scene } = this.getSelections();
+                scene.jumps[this.colorSelect.value] = this.jumpSelect.value;
             });
         });
 
@@ -328,6 +345,11 @@ class FlickgameEditor extends EventTarget {
     
         // whenever the project data is changed
         this.stateManager.addEventListener("change", () => {
+            this.unsavedChanges = true;
+            this.ready = true;
+
+            this.refreshActiveBrush();
+
             // redraw all the scene select thumbnails
             this.stateManager.present.scenes.forEach((scene, index) => {
                 const image = this.stateManager.resources.get(scene.image).canvas;
@@ -364,7 +386,7 @@ class FlickgameEditor extends EventTarget {
             const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
 
             // prepare the pattern mask and plot function
-            const mask = createRendering2D(160, 100);
+            const mask = createRendering2D(flickgame.sceneWidth, flickgame.sceneHeight);
             const plotMask = (x, y) => mask.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
             const pattern = mask.createPattern(this.activePattern.canvas, 'repeat');
             const drawPatternedMask = (instance) => {
@@ -439,19 +461,42 @@ class FlickgameEditor extends EventTarget {
     }
 
     async init() {
-        // load the default scene graphic
-        this.defaultSceneGraphic = await loadImage(defaultScene);
-
         // load all the brush and pattern images
-        this.brushRenders = await Promise.all(brushes.map(({ image }) => loadImage(image).then(imageToRendering2D)));
-        this.patternRenders = await Promise.all(patterns.map(({ image }) => loadImage(image).then(imageToRendering2D)));
-        
-        // make brush and pattern valid
-        this.refreshActiveBrush();
+        this.brushRenders = await Promise.all(flickgame.brushes.map(({ image }) => loadImage(image).then(imageToRendering2D)));
+        this.patternRenders = await Promise.all(flickgame.patterns.map(({ image }) => loadImage(image).then(imageToRendering2D)));
+
+        return this;
     }
 
-    get selectedScene() {
-        return this.stateManager.present.scenes[this.sceneSelect.selectedIndex];
+    /**
+     * Replace the current flickgame data with the given bundle.
+     * @param {maker.ProjectBundle<FlickgameDataProject>} bundle
+     */
+    async loadBundle(bundle) {
+        this.ready = false;
+
+        // account for changes between flickguy versions
+        flickgame.updateProject(bundle.project);
+
+        await this.stateManager.loadBundle(bundle);
+        this.unsavedChanges = false;
+    }
+
+    /**
+     * Return the various "selected" / "active" objects from editor state and
+     * either the given project data or the present project data.
+     * @param {FlickgameDataProject} data
+     */
+    getSelections(data = undefined) {
+        data = data || this.stateManager.present;
+        const scene = data.scenes[this.sceneSelect.selectedIndex];
+        const palette = data.palette;
+        const color = palette[this.colorSelect.selectedIndex];
+        const brush = this.brushRenders[this.brushSelect.selectedIndex];
+        const pattern = this.patternRenders[this.patternSelect.selectedIndex];
+        const instance = this.stateManager.resources.get(scene.image);
+
+        return { data, scene, palette, color, instance, brush, pattern };
     }
 
     async forkSceneImage(scene) {
@@ -464,13 +509,13 @@ class FlickgameEditor extends EventTarget {
     }
 
     render() {
-        if (!this.selectedScene) return;
-        // get the current scene's image
-        const image = this.stateManager.resources.get(this.selectedScene.image);
+        if (!this.ready) return;
+
+        const { instance } = this.getSelections();
 
         // draw paint preview over current scene image
         fillRendering2D(this.rendering);
-        this.rendering.drawImage(image.canvas, 0, 0);
+        this.rendering.drawImage(instance.canvas, 0, 0);
         this.rendering.drawImage(this.preview.canvas, 0, 0);
 
         // signal, to anyone listening, that rendering happened
@@ -478,7 +523,7 @@ class FlickgameEditor extends EventTarget {
     }
 
     refreshPreview(x, y) {
-        if (!this.stateManager.present) return;
+        if (!this.ready) return;
 
         // clear existing preview
         fillRendering2D(this.preview);
@@ -508,18 +553,20 @@ class FlickgameEditor extends EventTarget {
     }
 
     refreshActiveBrush() {
-        const pattern = this.patternRenders[this.patternSelect.selectedIndex];
-        const brush = this.brushRenders[this.brushSelect.selectedIndex];
-        const color = palette[this.colorSelect.selectedIndex];
-        if (!pattern || !brush || !color) return;
+        if (!this.ready) return;
+
+        const { pattern, brush, color } = this.getSelections();
+
         this.activeBrush = recolorMask(brush, color);
         this.activePattern = recolorMask(pattern, color);
     }
 
     refreshJumpSelect() {
-        const jump = this.selectedScene.jumps[this.colorSelect.value];
+        const { scene, color } = this.getSelections();
+
+        const jump = scene.jumps[this.colorSelect.value];
         this.jumpSelect.value = jump ? jump : "none";
-        this.jumpColorIndicator.style.backgroundColor = palette[this.colorSelect.selectedIndex];
+        this.jumpColorIndicator.style.backgroundColor = color;
     }
 
     floodFill(x, y) {
@@ -539,7 +586,9 @@ class FlickgameEditor extends EventTarget {
     }
 
     pickColor(x, y) {
-        const [r, g, b] = this.rendering.getImageData(x, y, 1, 1).data;
+        const { palette, instance } = this.getSelections();
+
+        const [r, g, b] = instance.getImageData(x, y, 1, 1).data;
         const hex = rgbToHex({ r, g, b});
         this.colorSelect.selectedIndex = palette.findIndex((color) => color === hex);
     }
@@ -563,8 +612,7 @@ class FlickgameEditor extends EventTarget {
         this.stateManager.makeChange(async (data) => {
             const scene = data.scenes[this.sceneSelect.selectedIndex];
             const instance = await this.forkSceneImage(scene);
-            instance.fillStyle = palette[this.colorSelect.selectedIndex];
-            instance.fillRect(0, 0, 160, 100);
+            fillRendering2D(instance, palette[this.colorSelect.selectedIndex]);
         });
     }
 
@@ -612,31 +660,149 @@ class FlickgameEditor extends EventTarget {
 
     async resetProject() {
         // open a blank project in the editor
-        await this.stateManager.loadBundle(makeBlankBundle());
-        // draw a default graphic in the first scene
-        await this.stateManager.makeChange(async (data) => {
-            const instance = await this.forkSceneImage(data.scenes[0]);
-            instance.drawImage(this.defaultSceneGraphic, 0, 0);
+        await this.loadBundle(makeBlankBundle());
+    }
+
+    /**
+     * Open a new tab with the original editor and send the current project to it.
+     */
+     async updateEditor() {
+        // original editor url is stored in the html (may be different for 
+        // custom editor mods)
+        const liveURL = document.documentElement.getAttribute("data-editor-live");
+        
+        const bundle = await this.stateManager.makeBundle();
+        
+        // the original editor will check to see if it was opened by another
+        // tab and then send us a message--if we receive it then we send the
+        // bundle back 
+        window.addEventListener("message", (event) => {
+            event.data.port.postMessage({ bundle });
         });
+        window.open(liveURL);
+    }
+
+    async exportPalettes() {
+        const rendering = createRendering2D(8, 10);
+
+        withPixels(rendering, (pixels) => {
+            this.stateManager.present.palettes.forEach((palette, y) => {
+                palette.forEach((hex, x) => {
+                    pixels[y * 8 + x] = hexToUint32(hex);
+                });
+            });
+
+            this.stateManager.present.fixedPalette.forEach((hex, i) => {
+                pixels[8 * 8 + i] = hexToUint32(hex);
+            })
+        });
+
+        rendering.canvas.toBlob((blob) => maker.saveAs(blob, "flickguy-palettes.png"));
+    }
+
+    async importPalettes() {
+        // ask user to provide palette image
+        const [file] = await maker.pickFiles("image/*");
+        const dataUri = await maker.dataURIFromFile(file);
+        const image = await loadImage(dataUri);
+        const rendering = imageToRendering2D(image);
+
+        const prevPalettes = this.stateManager.present.palettes;
+        const nextPalettes = ZEROES(8).map(() => REPEAT(8, "#000000"));
+        
+        const prevFixedPalette = this.stateManager.present.fixedPalette;
+        const nextFixedPalette = REPEAT(16, "#000000");
+
+        // read palettes from image (8 rows of 8 colors, ignore first column)
+        withPixels(rendering, (pixels) => {
+            for (let p = 0; p < 8; ++p) {
+                for (let i = 1; i < 8; ++i) {
+                    nextPalettes[p][i] = rgbToHex(uint32ToRGB(pixels[p * 8 + i]));
+                }
+            }
+
+            for (let i = 0; i < 16; ++i) {
+                nextFixedPalette[i] = rgbToHex(uint32ToRGB(pixels[8 * 8 + i]));
+            }
+        });
+
+        // palette swap all images to the corresponding palette from the new set
+        await this.stateManager.makeChange(async (data) => {
+            data.palettes = nextPalettes;
+            data.fixedPalette = nextFixedPalette;
+            const promises = data.layers.flatMap((layer) => {
+                return layer.options.map(async (option) => {
+                    const instance = await this.forkLayerOptionImage(option);
+
+                    if (option.palette !== undefined) {
+                        flickguy.swapPalette(
+                            instance, 
+                            prevPalettes[option.palette], 
+                            nextPalettes[option.palette],
+                        );
+                    } else {
+                        flickguy.swapPalette(
+                            instance,
+                            prevFixedPalette,
+                            nextFixedPalette,
+                        );
+                    }
+                });
+            });
+
+            return Promise.all(promises);
+        });
+    }
+
+    async save() {
+        // visual feedback that saving is occuring
+        this.actions.save.disabled = true;
+        const timer = sleep(250);
+
+        // make bundle and save it
+        const bundle = await this.stateManager.makeBundle();
+        flickgame.storage.save(bundle, "slot0");
+        
+        // successful save, no unsaved changes
+        this.unsavedChanges = false;
+
+        // allow saving again when enough time has passed to see visual feedback
+        await timer;
+        this.actions.save.disabled = false;
+    }
+
+    async enterPlayerMode() {
+        this.editorMode = false;
+        // used to show/hide elements in css
+        document.documentElement.setAttribute("data-app-mode", "player");
+        // normal browser cursor in player mode
+        this.rendering.canvas.style.setProperty("cursor", "unset");
+
+        await flickgame.player.copyFrom(this.stateManager);
+        flickgame.player.enter();
+    }
+
+    enterEditorMode() {
+        this.editorMode = true;
+        // used to show/hide elements in css
+        document.documentElement.setAttribute("data-app-mode", "editor");
+        // default to crosshair paint cursor in editor mode
+        this.rendering.canvas.style.setProperty("cursor", "crosshair");
+
+        this.render();
+
+        // check if storage is available for saving
+        this.actions.save.disabled = !flickgame.storage.available;
     }
 
     toggleHelp() {
         this.helpContainer.hidden = !this.helpContainer.hidden;
     }
-
-    enter() {
-        this.render();
-    }
-}
-
-async function makeEditor() {
-    const editor = new FlickgameEditor();
-    await editor.init();
-    return editor;
 }
 
 async function makePlayer() {
-    const player = new FlickgamePlayer();
+    const player = new flickgame.Player();
+    await player.init();
 
     const playCanvas = /** @type {HTMLCanvasElement} */ (ONE("#player canvas"));
     const playRendering = /** @type {CanvasRenderingContext2D} */ (playCanvas.getContext("2d"));
@@ -657,7 +823,7 @@ async function makePlayer() {
     // update the canvas size every render just in case..
     player.addEventListener("render", () => {
         playRendering.drawImage(player.rendering.canvas, 0, 0);
-        fitCanvasToParent(playCanvas)
+        fitCanvasToParent(playCanvas);
     });
 
     // update the canvas size whenever the browser window resizes
@@ -668,3 +834,52 @@ async function makePlayer() {
 
     return player;
 }
+
+flickgame.start = async function () {
+    const editor = await new flickgame.Editor().init();
+    const player = await makePlayer();
+
+    // setup play/edit buttons to switch between modes
+    const play = ui.action("play", () => editor.enterPlayerMode());
+    const edit = ui.action("edit", () => editor.enterEditorMode());
+
+    // determine if there is a project bundle embedded in this page
+    const bundle = maker.bundleFromHTML(document);
+
+    if (bundle) {
+        // embedded project, load it in the player
+        await editor.loadBundle(bundle);
+        play.invoke();
+    } else {
+        // no embedded project, start editor with save or editor embed
+        const save = await flickgame.storage.load("slot0").catch(() => undefined);
+        const bundle = save || maker.bundleFromHTML(document, "#editor-embed");
+        
+        // load bundle and enter editor mode
+        await editor.loadBundle(bundle);
+        editor.enterEditorMode();
+
+        // unsaved changes warning
+        window.addEventListener("beforeunload", (event) => {
+            if (!editor.unsavedChanges) return;
+            event.preventDefault();
+            return event.returnValue = "Are you sure you want to exit?";
+        });
+    }
+
+    // if there's an opener window, tell it we're open to messages (e.g message
+    // telling us to load a bundle from the "update" button of another flickgame)
+    if (window.opener) {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = async (event) => {
+            if (event.data.bundle) {
+                return editor.loadBundle(event.data.bundle);
+            }
+        };
+        window.opener.postMessage({ port: channel.port2 }, "*", [channel.port2]);
+    }
+
+    flickgame.editor = editor;
+    flickgame.player = player;
+}
+

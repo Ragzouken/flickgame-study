@@ -428,9 +428,6 @@ flickguy.Editor = class extends EventTarget {
     async init() {
         // load all the brush images
         this.brushRenders = await Promise.all(flickguy.brushes.map(({ image }) => loadImage(image).then(imageToRendering2D)));
-        
-        // make brush and pattern valid
-        this.refreshActiveBrush();
     }
 
     /**
@@ -448,7 +445,7 @@ flickguy.Editor = class extends EventTarget {
         const instance = this.stateManager.resources.get(option.image);
         const tool = this.paintTools[this.toolSelect.value];
 
-        return { layer, option, palette, color, instance, brush, tool };
+        return { data, layer, option, palette, color, instance, brush, tool };
     }
 
     /**

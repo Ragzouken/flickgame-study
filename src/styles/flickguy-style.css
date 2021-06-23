@@ -1,13 +1,3 @@
-:root[data-app-mode="editor"] [data-hidden-in-editor] {
-    display: none !important;
-    visibility: hidden;
-}
-
-:root[data-app-mode="player"] [data-hidden-in-player] {
-    display: none !important;
-    visibility: hidden;
-}
-
 body {
     background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url("https://kool.tools/flickguy/background.png");
     background-position: center; 

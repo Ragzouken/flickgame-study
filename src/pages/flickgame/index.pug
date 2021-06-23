@@ -6,8 +6,6 @@ html(lang="en")
         meta(name="viewport" content="width=device-width, initial-scale=1.0")
         // scripts
         script
-            include /scripts/start.js
-        script
             include /scripts/maker.js
         script
             include /scripts/blitsy.js
@@ -20,13 +18,13 @@ html(lang="en")
             include /styles/main-style.css
         style
             include /styles/flickgame-style.css
-    body(onload="start()")
-        #player(hidden)
+    body(onload="flickgame.start()")
+        #player(data-hidden-in-editor)
             #player-container
                 canvas(width=160 height=100)
             #player-menu
                 button(name="edit" title="edit this game") edit
-        #editor(hidden)
+        #editor(data-hidden-in-player)
             main
                 #scene-select.grid8.radio-select
                     each index in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
@@ -86,8 +84,11 @@ html(lang="en")
                                 option(value=`${index}`)= `jump to scene ${index}`
             #menu.hanging-menu
                 button(name="play" title="playtest this game") play
+                button(name="save" title="save to browser") save
                 button(name="export" title="export as webpage") export
                 button(name="import" title="import from webpage") import
                 button(name="reset" title="reset to blank") reset
                 button(name="help" title="how to use this tool") help
         script#bundle-embed(type="application/json")
+        script#editor-embed(type="application/json")
+            include default.json
