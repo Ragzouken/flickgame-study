@@ -86,25 +86,6 @@ flickguy.updateProject = function(project) {
 }
 
 /**
- * In the given rendering, replace every instance of a color in the prev palette
- * with the corresponding color in the next palette, ignoring colors that don't
- * appear. This is broken in firefox because colors are not stored exactly. 
- * @param {CanvasRenderingContext2D} rendering 
- * @param {string[]} prev 
- * @param {string[]} next 
- */
-function swapPalette(rendering, prev, next) {
-    const mapping = new Map();
-    prev.forEach((hex, index) => mapping.set(hexToUint32(prev[index]), hexToUint32(next[index])));
-
-    withPixels(rendering, (pixels) => {
-        for (let i = 0; i < pixels.length; ++i) {
-            pixels[i] = mapping.get(pixels[i]) || pixels[i];
-        }
-    });
-}
-
-/**
  * Replace every color in the given rendering. Each existing color is matched
  * to the closest color in the prev palette and replaced with the corresponding
  * color in the next palette. 
@@ -112,47 +93,15 @@ function swapPalette(rendering, prev, next) {
  * @param {string[]} prev 
  * @param {string[]} next 
  */
- function swapPaletteSafe(rendering, prev, next) {
-    const mapping = new Map();
+ flickguy.swapPalette = function(rendering, prev, next) {
     const prevUint32 = prev.map((hex) => hexToUint32(hex));
     const nextUint32 = next.map((hex) => hexToUint32(hex));
-    prevUint32.forEach((_, i) => mapping.set(prevUint32[i], nextUint32[i % nextUint32.length]));
-    mapping.set(0, 0);
+    
+    // always map transparent to transparent
+    prevUint32.push(0);
+    nextUint32.push(0);
 
-    function addMissing(prev) {
-        let bestDistance = Infinity;
-        let bestNext = nextUint32[0];
-
-        const pr = prev >>>  0 & 0xFF;
-        const pg = prev >>>  8 & 0xFF;
-        const pb = prev >>> 16 & 0xFF;
-
-        for (let i = 0; i < prevUint32.length; ++i) {
-            const target = prevUint32[i];
-            const tr = target >>>  0 & 0xFF;
-            const tg = target >>>  8 & 0xFF;
-            const tb = target >>> 16 & 0xFF;
-
-            const dist = Math.abs(pr - tr) 
-                       + Math.abs(pg - tg) 
-                       + Math.abs(pb - tb);
-
-            if (dist < bestDistance) {
-                bestDistance = dist;
-                bestNext = nextUint32[i];
-            }
-        }
-
-        mapping.set(prev, bestNext);
-        return bestNext;
-    }
-
-    withPixels(rendering, (pixels) => {
-        for (let i = 0; i < pixels.length; ++i) {
-            const prev = pixels[i];
-            if (prev) pixels[i] = mapping.get(prev) || addMissing(prev);
-        }
-    });
+    swapPaletteSafe(rendering, prevUint32, nextUint32);
 }
 
 /**
@@ -272,10 +221,6 @@ flickguy.Editor = class extends EventTarget {
         this.heldColorPick = undefined;
         // current brush recolored with current color
         this.activeBrush = undefined;
-        // saved start coordinates during a line draw
-        this.lineStart = undefined;
-        // saved start coordinates during shift
-        this.shiftStart = undefined;
         // layer option currently in the clipboard
         this.copiedLayerOption = undefined;
 
@@ -437,11 +382,47 @@ flickguy.Editor = class extends EventTarget {
         // valid to move the mouse outside the edges of the drawing area
         document.addEventListener("pointermove", (event) => {
             const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
-            this.refreshPreview(x, y);
+            this.refreshPaintToolPreview(x, y);
         });
         
         // all painting begins by a pointer press on the rendering canvas
         this.rendering.canvas.addEventListener("pointerdown", (event) => this.onPaintPointerDown(event));
+
+        // awful paint code
+        this.paintTools = {
+            freehand: {},
+            line: {},
+            fill: {},
+            pick: {},
+            shift: {},
+        };
+
+        this.paintTools.freehand.cursor = "crosshair";
+        this.paintTools.line.cursor = "crosshair";
+        this.paintTools.fill.cursor = "crosshair";
+        this.paintTools.pick.cursor = "crosshair";
+        this.paintTools.shift.cursor = "move";
+
+        this.paintTools.freehand.preview = (plot, x, y) => plot(x, y);
+        this.paintTools.line.preview = (plot, x, y) => {
+            if (this.paintTools.line.start) {
+                // draw a line between the pointer down location and the current 
+                // pointer location
+                const { x: x0, y: y0 } = this.paintTools.line.start;
+                lineplot(x0, y0, x, y, plot);
+            } else {
+                plot(x, y);
+            }
+        };
+        this.paintTools.fill.preview = (plot, x, y) => {};
+        this.paintTools.pick.preview = (plot, x, y) => {};
+        this.paintTools.shift.preview = (plot, x, y) => {
+            if (this.paintTools.shift.start) {
+                // show another copy of the current layer as moved by the mouse
+                const { x: ox, y: oy } = this.paintTools.shift.start;
+                this.preview.drawImage(this.stackActive.canvas, x - ox, y - oy);
+            }
+        };
     }
 
     async init() {
@@ -465,8 +446,9 @@ flickguy.Editor = class extends EventTarget {
         const brush = this.brushRenders[this.brushSelect.selectedIndex];
         const color = palette[this.colorSelect.selectedIndex];
         const instance = this.stateManager.resources.get(option.image);
+        const tool = this.paintTools[this.toolSelect.value];
 
-        return { layer, option, palette, color, instance, brush };
+        return { layer, option, palette, color, instance, brush, tool };
     }
 
     /**
@@ -606,8 +588,7 @@ flickguy.Editor = class extends EventTarget {
         };
         starts.line = async () => {
             // need to save this to draw the line preview
-            this.lineStart = positions[0];
-            this.refreshPreview(positions[0].x, positions[0].y);
+            this.paintTools.line.start = positions[0];
 
             // only actually draw the line at the end
             drag.addEventListener("up", async (event) => {
@@ -621,13 +602,13 @@ flickguy.Editor = class extends EventTarget {
                 drawMask(instance);
 
                 // stop tracking line drawing
-                this.lineStart = undefined;
+                this.paintTools.line.start = undefined;
             });
         };
         starts.fill = async () => drag.addEventListener("click", () => this.floodFill(positions[0].x, positions[0].y));
         starts.pick = async () => drag.addEventListener("click", () => this.pickColor(positions[0].x, positions[0].y));
         starts.shift = async () => {
-            this.shiftStart = positions[0];
+            this.paintTools.shift.start = positions[0];
 
             drag.addEventListener("up", async (event) => {
                 const { x: x0, y: y0 } = positions[0];
@@ -640,15 +621,23 @@ flickguy.Editor = class extends EventTarget {
                 fillRendering2D(instance);
                 instance.drawImage(this.preview.canvas, 0, 0);
                 
-                this.shiftStart = undefined;
-                this.refreshPreview(x1, y1);
+                this.paintTools.shift.start = undefined;
             });
         }
 
         await starts[this.toolSelect.value]();
+
+        const refreshPreview = () => {
+            const { x, y } = positions[positions.length-1];
+            this.refreshPaintToolPreview(x, y);
+        }
+
+        refreshPreview();
+        drag.addEventListener("move", refreshPreview);
+        drag.addEventListener("up", refreshPreview);
     }
 
-    refreshPreview(x, y) {
+    refreshPaintToolPreview(x, y) {
         if (!this.editorMode || !this.activeBrush) return;
 
         // clear existing preview
@@ -657,40 +646,8 @@ flickguy.Editor = class extends EventTarget {
         // prepare plot function
         const plot = (x, y) => this.preview.drawImage(this.activeBrush.canvas, (x - 7) | 0, (y - 7) | 0);
 
-        const cursors = {
-            freehand: "crosshair",
-            line: "crosshair",
-            fill: "crosshair",
-            pick: "crosshair",
-            shift: "move",
-        }
-
-        this.rendering.canvas.style.setProperty("cursor", cursors[this.toolSelect.value]);
-
-        const previews = {
-            freehand: () => plot(x, y),
-            line: () => {
-                if (this.lineStart) {
-                    // draw a line between the pointer down location and the current 
-                    // pointer location
-                    const { x: x0, y: y0 } = this.lineStart;
-                    lineplot(x0, y0, x, y, plot);
-                } else {
-                    plot(x, y);
-                }
-            },
-            fill: () => {},
-            pick: () => {},
-            shift: () => {
-                if (this.shiftStart) {
-                    // show another copy of the current layer as moved by the mouse
-                    const { x: ox, y: oy } = this.shiftStart;
-                    this.preview.drawImage(this.stackActive.canvas, x - ox, y - oy);
-                }
-            }
-        }
-
-        previews[this.toolSelect.value](); 
+        const { tool } = this.getSelections();
+        tool.preview(plot, x, y); 
         
         this.render();
     }
@@ -892,7 +849,7 @@ flickguy.Editor = class extends EventTarget {
         // only swap if necessary
         if (prev !== next) {
             const instance = await this.forkLayerOptionImage(option);
-            swapPaletteSafe(instance, prev, next);
+            flickguy.swapPalette(instance, prev, next);
         }
     }
 
@@ -1063,13 +1020,13 @@ flickguy.Editor = class extends EventTarget {
                     const instance = await this.forkLayerOptionImage(option);
 
                     if (option.palette !== undefined) {
-                        swapPaletteSafe(
+                        flickguy.swapPalette(
                             instance, 
                             prevPalettes[option.palette], 
                             nextPalettes[option.palette],
                         );
                     } else {
-                        swapPaletteSafe(
+                        flickguy.swapPalette(
                             instance,
                             prevFixedPalette,
                             nextFixedPalette,

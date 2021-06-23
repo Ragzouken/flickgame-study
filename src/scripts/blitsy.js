@@ -405,3 +405,72 @@ async function loadImage(src) {
         image.src = src;
     });
 }
+
+/**
+ * In the given rendering, replace every instance of a color in the prev palette
+ * with the corresponding color in the next palette, ignoring colors that don't
+ * appear. This is broken in firefox because colors are not stored exactly. 
+ * @param {CanvasRenderingContext2D} rendering 
+ * @param {string[]} prev 
+ * @param {string[]} next 
+ */
+ function swapPalette(rendering, prev, next) {
+    const mapping = new Map();
+    prev.forEach((pixel, index) => mapping.set(prev[index], next[index]));
+
+    withPixels(rendering, (pixels) => {
+        for (let i = 0; i < pixels.length; ++i) {
+            pixels[i] = mapping.get(pixels[i]) || pixels[i];
+        }
+    });
+}
+
+/**
+ * Replace every color in the given rendering. Each existing color is matched
+ * to the closest color in the prev palette and replaced with the corresponding
+ * color in the next palette. 
+ * @param {CanvasRenderingContext2D} rendering 
+ * @param {number[]} prev 
+ * @param {number[]} next 
+ */
+function swapPaletteSafe(rendering, prev, next) {
+    const mapping = new Map();
+    for (let i = 0; i < prev.length; ++i) {
+        mapping.set(prev[i], next[i % next.length]);
+    }
+
+    function addMissing(prev) {
+        let bestDistance = Infinity;
+        let bestNext = next[0];
+
+        const pr = prev >>>  0 & 0xFF;
+        const pg = prev >>>  8 & 0xFF;
+        const pb = prev >>> 16 & 0xFF;
+
+        for (let i = 0; i < prev.length; ++i) {
+            const target = prev[i];
+            const tr = target >>>  0 & 0xFF;
+            const tg = target >>>  8 & 0xFF;
+            const tb = target >>> 16 & 0xFF;
+
+            const dist = Math.abs(pr - tr) 
+                       + Math.abs(pg - tg) 
+                       + Math.abs(pb - tb);
+
+            if (dist < bestDistance) {
+                bestDistance = dist;
+                bestNext = next[i];
+            }
+        }
+
+        mapping.set(prev, bestNext);
+        return bestNext;
+    }
+
+    withPixels(rendering, (pixels) => {
+        for (let i = 0; i < pixels.length; ++i) {
+            const prev = pixels[i];
+            pixels[i] =  mapping.get(prev) ?? addMissing(prev);
+        }
+    });
+}
