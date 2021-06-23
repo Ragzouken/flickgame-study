@@ -58,6 +58,21 @@ flickgame.updateProject = function(project) {
 }
 
 /**
+ * Replace every color in the given rendering. Each existing color is matched
+ * to the closest color in the prev palette and replaced with the corresponding
+ * color in the next palette. 
+ * @param {CanvasRenderingContext2D} rendering 
+ * @param {string[]} prev 
+ * @param {string[]} next 
+ */
+ flickgame.swapPalette = function(rendering, prev, next) {
+    const prevUint32 = prev.map((hex) => hexToUint32(hex));
+    const nextUint32 = next.map((hex) => hexToUint32(hex));
+
+    swapPaletteSafe(rendering, prevUint32, nextUint32);
+}
+
+/**
  * @param {number} min 
  * @param {number} max 
  * @returns {number}
@@ -222,11 +237,6 @@ flickgame.Editor = class extends EventTarget {
             input.after(this.thumbnails[index].canvas);
         });
     
-        // recolor the color select buttons to the corresponding color
-        ALL("#color-select label").forEach((label, index) => {
-            label.style.backgroundColor = flickgame.defaultPalette[index];
-        });
-    
         // add brush icons and tooltips to brush select buttons
         ALL("#brush-select label").forEach((label, index) => {
             ONE("input", label).title = flickgame.brushes[index].name + " brush";
@@ -268,8 +278,8 @@ flickgame.Editor = class extends EventTarget {
             update: ui.action("update", () => this.updateEditor()),
 
             // special feature
-            importPalettes: ui.action("import-palettes", () => this.importPalettes()),
-            exportPalettes: ui.action("export-palettes", () => this.exportPalettes()),
+            importPalettes: ui.action("import-palette", () => this.importPalette()),
+            exportPalettes: ui.action("export-palette", () => this.exportPalette()),
         };
 
         // can't undo/redo/paste yet
@@ -348,23 +358,17 @@ flickgame.Editor = class extends EventTarget {
             this.unsavedChanges = true;
             this.ready = true;
 
+            this.refreshSceneThumbs();
             this.refreshActiveBrush();
-
-            // redraw all the scene select thumbnails
-            this.stateManager.present.scenes.forEach((scene, index) => {
-                const image = this.stateManager.resources.get(scene.image).canvas;
-                this.thumbnails[index].drawImage(image, 0, 0);
-            });
+            this.refreshColorSelect();
+            this.refreshJumpSelect();
     
             // redraw the current scene view
             this.render();
     
             // enable/disable undo/redo buttons
             this.actions.undo.disabled = !this.stateManager.canUndo;
-            this.actions.redo.disabled = !this.stateManager.canRedo;
-    
-            // update jump select ui
-            this.refreshJumpSelect();
+            this.actions.redo.disabled = !this.stateManager.canRedo;            
         });
 
         // whenever a pointer moves anywhere on screen, update the paint cursors
@@ -475,7 +479,7 @@ flickgame.Editor = class extends EventTarget {
     async loadBundle(bundle) {
         this.ready = false;
 
-        // account for changes between flickguy versions
+        // account for changes between flickgame versions
         flickgame.updateProject(bundle.project);
 
         await this.stateManager.loadBundle(bundle);
@@ -559,6 +563,23 @@ flickgame.Editor = class extends EventTarget {
 
         this.activeBrush = recolorMask(brush, color);
         this.activePattern = recolorMask(pattern, color);
+    }
+
+    refreshSceneThumbs() {
+        // redraw all the scene select thumbnails
+        this.stateManager.present.scenes.forEach((scene, index) => {
+            const image = this.stateManager.resources.get(scene.image).canvas;
+            this.thumbnails[index].drawImage(image, 0, 0);
+        });
+    }
+
+    refreshColorSelect() {
+        const { palette } = this.getSelections();
+
+        // recolor the color select buttons to the corresponding color
+        ALL("#color-select label").forEach((label, index) => {
+            label.style.background = palette[index];
+        });
     }
 
     refreshJumpSelect() {
@@ -687,72 +708,46 @@ flickgame.Editor = class extends EventTarget {
         window.open(liveURL);
     }
 
-    async exportPalettes() {
-        const rendering = createRendering2D(8, 10);
+    async exportPalette() {
+        const rendering = createRendering2D(8, 1);
 
         withPixels(rendering, (pixels) => {
-            this.stateManager.present.palettes.forEach((palette, y) => {
-                palette.forEach((hex, x) => {
-                    pixels[y * 8 + x] = hexToUint32(hex);
-                });
+            this.stateManager.present.palette.forEach((hex, x) => {
+                    pixels[x] = hexToUint32(hex);
             });
-
-            this.stateManager.present.fixedPalette.forEach((hex, i) => {
-                pixels[8 * 8 + i] = hexToUint32(hex);
-            })
         });
 
-        rendering.canvas.toBlob((blob) => maker.saveAs(blob, "flickguy-palettes.png"));
+        rendering.canvas.toBlob((blob) => maker.saveAs(blob, "flickgame-palette.png"));
     }
 
-    async importPalettes() {
+    async importPalette() {
         // ask user to provide palette image
         const [file] = await maker.pickFiles("image/*");
         const dataUri = await maker.dataURIFromFile(file);
         const image = await loadImage(dataUri);
         const rendering = imageToRendering2D(image);
 
-        const prevPalettes = this.stateManager.present.palettes;
-        const nextPalettes = ZEROES(8).map(() => REPEAT(8, "#000000"));
+        const prevPalette = this.stateManager.present.palette;
+        const nextPalette = REPEAT(8, "#000000");
         
-        const prevFixedPalette = this.stateManager.present.fixedPalette;
-        const nextFixedPalette = REPEAT(16, "#000000");
-
-        // read palettes from image (8 rows of 8 colors, ignore first column)
+        // read palettes from image (16 colors)
         withPixels(rendering, (pixels) => {
-            for (let p = 0; p < 8; ++p) {
-                for (let i = 1; i < 8; ++i) {
-                    nextPalettes[p][i] = rgbToHex(uint32ToRGB(pixels[p * 8 + i]));
-                }
-            }
-
             for (let i = 0; i < 16; ++i) {
-                nextFixedPalette[i] = rgbToHex(uint32ToRGB(pixels[8 * 8 + i]));
+                nextPalette[i] = rgbToHex(uint32ToRGB(pixels[i]));
             }
         });
 
-        // palette swap all images to the corresponding palette from the new set
+        // palette swap all images to the corresponding palette
         await this.stateManager.makeChange(async (data) => {
-            data.palettes = nextPalettes;
-            data.fixedPalette = nextFixedPalette;
-            const promises = data.layers.flatMap((layer) => {
-                return layer.options.map(async (option) => {
-                    const instance = await this.forkLayerOptionImage(option);
+            data.palette = nextPalette;
+            const promises = data.scenes.map(async (scene) => {
+                const instance = await this.forkSceneImage(scene);
 
-                    if (option.palette !== undefined) {
-                        flickguy.swapPalette(
-                            instance, 
-                            prevPalettes[option.palette], 
-                            nextPalettes[option.palette],
-                        );
-                    } else {
-                        flickguy.swapPalette(
-                            instance,
-                            prevFixedPalette,
-                            nextFixedPalette,
-                        );
-                    }
-                });
+                flickgame.swapPalette(
+                    instance,
+                    prevPalette,
+                    nextPalette,
+                );
             });
 
             return Promise.all(promises);
