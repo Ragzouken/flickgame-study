@@ -16,7 +16,7 @@ adjustments to their guy or make a whole new derivative flickguy to let others u
  * __ctrl+y__: redo
  * __ctrl+c__: copy image
  * __ctrl+v__: paste image
- * __qwer__: change tool
+ * __qwert__: change tool
  * __asdf__: change brush
  * __ctrl+,__: randomise options
  * __ctrl+.__: randomise colors

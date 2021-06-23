@@ -1,5 +1,5 @@
 doctype html
-html(lang="en")
+html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/flickgame-study" data-app-mode="editor")
     head
         title flickgame study 1
         meta(charset="utf-8")
@@ -84,9 +84,10 @@ html(lang="en")
                                 option(value=`${index}`)= `jump to scene ${index}`
             #menu.hanging-menu
                 button(name="play" title="playtest this game") play
-                button(name="save" title="save to browser") save
+                button(name="save" title="save to browser" data-original-only) save
                 button(name="export" title="export as webpage") export
-                button(name="import" title="import from webpage") import
+                button(name="update" title="open this flickgame study in the latest version" data-remix-only) update
+                button(name="import" title="import from webpage" data-original-only) import
                 button(name="reset" title="reset to blank") reset
                 button(name="help" title="how to use this tool") help
         script#bundle-embed(type="application/json")

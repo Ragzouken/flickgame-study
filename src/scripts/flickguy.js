@@ -1085,6 +1085,8 @@ flickguy.start = async function () {
     const editor = new flickguy.Editor();
     await editor.init();
 
+    flickguy.editor = editor;
+
     // setup play/edit buttons to switch between modes
     const play = ui.action("play", () => editor.enterPlayerMode());
     const edit = ui.action("edit", () => editor.enterEditorMode());
@@ -1124,6 +1126,4 @@ flickguy.start = async function () {
         };
         window.opener.postMessage({ port: channel.port2 }, "*", [channel.port2]);
     }
-
-    flickguy.editor = editor;
 }

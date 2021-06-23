@@ -637,8 +637,13 @@ flickgame.Editor = class extends EventTarget {
         ALL("[data-editor-only]", clone).forEach((element) => element.remove());
         // insert the project bundle data into the page copy 
         ONE("#bundle-embed", clone).innerHTML = JSON.stringify(bundle);
-        // hide the editor in the page copy so it doesn't show before loading
-        ONE("#editor", clone).hidden = true;
+
+        // track how many remixes this is (remixes have soft-limits to encourage finding updates)
+        const generation = parseInt(clone.getAttribute("data-remix-generation"));
+        clone.setAttribute("data-remix-generation", `${generation + 1}`);
+
+        // default to player mode
+        clone.setAttribute("data-app-mode", "player");
 
         // prompt the browser to download the page
         const name = "flickgame.html";
@@ -655,8 +660,8 @@ flickgame.Editor = class extends EventTarget {
         // extract the bundle from the imported page
         const bundle = maker.bundleFromHTML(html);
         // load the contents of the bundle into the editor
-        await this.stateManager.loadBundle(bundle);
-    } 
+        await this.loadBundle(bundle);
+    }
 
     async resetProject() {
         // open a blank project in the editor
@@ -839,6 +844,9 @@ flickgame.start = async function () {
     const editor = await new flickgame.Editor().init();
     const player = await makePlayer();
 
+    flickgame.editor = editor;
+    flickgame.player = player;
+
     // setup play/edit buttons to switch between modes
     const play = ui.action("play", () => editor.enterPlayerMode());
     const edit = ui.action("edit", () => editor.enterEditorMode());
@@ -878,8 +886,5 @@ flickgame.start = async function () {
         };
         window.opener.postMessage({ port: channel.port2 }, "*", [channel.port2]);
     }
-
-    flickgame.editor = editor;
-    flickgame.player = player;
 }
 
