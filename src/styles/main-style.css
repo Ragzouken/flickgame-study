@@ -51,10 +51,11 @@ html[data-remix-generation="0"] [data-remix-only] {
 }
 
 #editor main {
-    padding: 1em;
+    display: flex; flex-direction: column;
+    padding: 1em; gap: 1em;
+
     background: #367b6b;
     border-radius: 2em;
-    gap: 1em;
 }
 
 @media (max-width: 650px) {
@@ -160,10 +161,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 #renderer {
-    width: 640px;
-    height: 400px;
     background: magenta;
-
     touch-action: none;
 }
 

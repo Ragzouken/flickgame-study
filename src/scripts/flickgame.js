@@ -3,15 +3,6 @@ const flickgame = {};
 // browser saves will be stored under the id "flickgame-study"
 flickgame.storage = new maker.ProjectStorage("flickgame-study");
 
-// add a resource type called "canvas-datauri" that describes how to load a
-// canvas rendering context from a datauri, how to copy one, and how to convert
-// one back into a datauri
-maker.resourceHandlers.set("canvas-datauri", {
-    load: async (data) => imageToRendering2D(await loadImage(data)),
-    copy: async (instance) => copyRendering2D(instance),
-    save: async (instance) => instance.canvas.toDataURL(),
-});
-
 /**
  * @typedef {Object} FlickgameDataScene
  * @property {string} image
@@ -24,10 +15,13 @@ maker.resourceHandlers.set("canvas-datauri", {
  * @property {string[]} palette
  */
 
-// define how to determine which resources a particular flickgame project data
-// depends on. in this case resources are the individual images, so the 
-// dependencies are all image ids in the project
+/**
+ * Return a list of resource ids that a particular flickgame project depends on. 
+ * @param {FlickgameDataProject} data 
+ * @returns {string[]}
+ */
 flickgame.getManifest = function (data) {
+    // a flickgame project uses a single image resource in each scene
     return data.scenes.map((scene) => scene.image);
 }
 

@@ -1,0 +1,62 @@
+#editor main {
+    flex-direction: row;
+}
+
+#tools {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+}
+
+#viewport {
+    flex-direction: row;
+    gap: .65em;
+}
+
+#renderer {
+    height: 512px;
+}
+
+#tile-select {
+    --tile-size: calc(8px * 4);
+
+    display: grid;
+    gap: 1px;
+    grid-template-columns: repeat(12, var(--tile-size));
+}
+
+#tile-select label {
+    min-height: unset;
+
+    width: var(--tile-size);
+    height: var(--tile-size);
+}
+
+#tile-select input[type="radio"]:checked {
+    background: none;
+    z-index: 5;
+
+    box-shadow: 0 0 0 .5em black;
+}
+
+#room-select {
+    --tile-size: calc(16px * 2);
+
+    display: grid;
+    gap: 1px;
+    grid-template-columns: repeat(12, var(--tile-size));
+}
+
+#room-select label {
+    min-height: unset;
+
+    width: var(--tile-size);
+    height: var(--tile-size);
+}
+
+#room-select input[type="radio"]:checked {
+    background: none;
+    z-index: 5;
+
+    box-shadow: 0 0 0 .5em black;
+}

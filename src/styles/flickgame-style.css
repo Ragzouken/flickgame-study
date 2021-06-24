@@ -71,6 +71,11 @@
         "bar     bar  ";
 }
 
+#renderer {
+    width: 640px;
+    height: 400px;
+}
+
 #scene-select {
     grid-area: scene;
 

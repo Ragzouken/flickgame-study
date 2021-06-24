@@ -37,6 +37,15 @@ const storage = {};
 /** @type {Map<string, maker.ResourceHandler<any, any>>} */
 maker.resourceHandlers = new Map();
 
+// add a resource type called "canvas-datauri" that describes how to load a
+// canvas rendering context from a datauri, how to copy one, and how to convert
+// one back into a datauri
+maker.resourceHandlers.set("canvas-datauri", {
+    load: async (data) => imageToRendering2D(await loadImage(data)),
+    copy: async (instance) => copyRendering2D(instance),
+    save: async (instance) => instance.canvas.toDataURL("image/png", 1),
+});
+
 maker.ResourceManager = class {
     constructor() {
         this.lastId = 0;

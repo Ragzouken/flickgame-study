@@ -439,13 +439,13 @@ function swapPaletteSafe(rendering, prev, next) {
         mapping.set(prev[i], next[i % next.length]);
     }
 
-    function addMissing(prev) {
+    function addMissing(prevPixel) {
         let bestDistance = Infinity;
-        let bestNext = next[0];
+        let bestNextPixel = next[0];
 
-        const pr = prev >>>  0 & 0xFF;
-        const pg = prev >>>  8 & 0xFF;
-        const pb = prev >>> 16 & 0xFF;
+        const pr = prevPixel >>>  0 & 0xFF;
+        const pg = prevPixel >>>  8 & 0xFF;
+        const pb = prevPixel >>> 16 & 0xFF;
 
         for (let i = 0; i < prev.length; ++i) {
             const target = prev[i];
@@ -459,18 +459,18 @@ function swapPaletteSafe(rendering, prev, next) {
 
             if (dist < bestDistance) {
                 bestDistance = dist;
-                bestNext = next[i];
+                bestNextPixel = next[i];
             }
         }
 
-        mapping.set(prev, bestNext);
-        return bestNext;
+        mapping.set(prevPixel, bestNextPixel);
+        return bestNextPixel;
     }
 
     withPixels(rendering, (pixels) => {
         for (let i = 0; i < pixels.length; ++i) {
             const prev = pixels[i];
-            pixels[i] =  mapping.get(prev) ?? addMissing(prev);
+            pixels[i] = mapping.get(prev) ?? addMissing(prev);
         }
     });
 }

@@ -3,15 +3,6 @@ const flickguy = {};
 // browser saves will be stored under the id "flickguy"
 flickguy.storage = new maker.ProjectStorage("flickguy");
 
-// add a resource type called "canvas-datauri" that describes how to load a
-// canvas rendering context from a datauri, how to copy one, and how to convert
-// one back into a datauri
-maker.resourceHandlers.set("canvas-datauri", {
-    load: async (data) => imageToRendering2D(await loadImage(data)),
-    copy: async (instance) => copyRendering2D(instance),
-    save: async (instance) => instance.canvas.toDataURL("image/png", 1),
-});
-
 // type definitions for the structure of flickguy project data. useful for the
 // code editor, ignored by the browser 
 /**
@@ -32,15 +23,12 @@ maker.resourceHandlers.set("canvas-datauri", {
  * @property {FlickguyDataLayer[]} layers
  * @property {number[]} selected
  */
-
-/** 
+ 
+/**
+ * Return a list of resource ids that a particular flickguy project depends on. 
  * @param {FlickguyDataProject} data 
  * @returns {string[]}
  */
-
-// define how to determine which resources a particular flickguy project data
-// depends on. in this case resources are the individual images, so the 
-// dependencies are all image ids in the project
 flickguy.getManifest = function (data) {
     // layer option images are the only resource dependencies in a flickguy
     return data.layers.flatMap((layer) => layer.options.map((option) => option.image));
