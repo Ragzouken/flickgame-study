@@ -17,5 +17,12 @@ this is a tool for painting picture scenes and specifying links between them
  * __asdf__: change brush
  * __alt+click__: pick color
 
+## credits
+thanks to [stephen lavelle](https://www.increpare.com/) for the original flickgame
+
+thanks to [sean](https://twitter.com/SeanSLeBlanc) for testing and advice
+
+icons from [bootstrap][https://icons.getbootstrap.com/]
+
 [1]: http://flickgame.org
 [2]: https://kool.tools/blog/flickgame-study.html
