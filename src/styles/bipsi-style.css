@@ -1,28 +1,137 @@
-#editor main {
-    flex-direction: row;
+.horizontal-capsule {
+    flex: 1;
+}
+
+.row {
+    display: flex; flex-direction: row;
+    flex: 1;
+}
+
+.column {
+    display: flex; flex-direction: column;
+    flex: 1;
+}
+
+#renderer {
+    width: 512px;
+    height: 512px;
+
+    background: var(--trans-gradient);
+}
+
+#editor {
+    display: flex; flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: stretch;
+}
+
+#controls {
+    flex: 1;
+
+    display: flex; flex-direction: column;
+    gap: .5rem;
+
+    height: 512px;
+    width: 512px;
+}
+
+#controls .hanging-menu {
+    gap: .5em;
+}
+
+#controls .hanging-menu > * {
+    border-radius: .75rem;
+}
+
+#test {
+    display: flex; flex-direction: row;
+    gap: .5rem;
+}
+
+#upper-toolbar {
+    display: flex; flex-direction: row;
+    gap: 1rem;
+}
+
+#upper-toolbar .button-row > * {
+    min-width: 48px;
 }
 
 #tools {
-    display: flex;
-    flex-direction: column;
-    gap: 1em;
+    flex: 1;
+
+    display: flex; flex-direction: column;
+    padding: 1rem; gap: 1rem;
+
+    background: #367b6b;
+    border-radius: 1rem;
+
+    overflow: auto;
 }
 
 #viewport {
-    flex-direction: row;
-    gap: .65em;
+    padding: 0;
+    border-radius: 0;
 }
 
 #renderer {
     height: 512px;
 }
 
+#mode-body {
+    flex: 1;
+
+    display: flex; flex-direction: column;
+    overflow: hidden;
+}
+
+#palette-edit {
+    flex: 1;
+
+    border-radius: 1rem;
+    background: var(--trans-gradient);
+
+    padding: 1rem;
+    gap: 1rem;
+}
+
+#palette-edit-select > :first-child {
+    border-radius: 1rem 0 0 0;
+}
+
+#palette-edit-select > :last-child {
+    border-radius: 0 1rem 0 0;
+}
+
+#palette-edit-select label img {
+    filter: none;
+}
+
+#color-select {
+    gap: .5rem;
+}
+
+#color-select label {
+    min-height: 0;
+}
+
+#color-edit {
+    gap: 1rem;
+}
+
 #tile-select {
-    --tile-size: calc(8px * 4);
+    padding: .5rem;
+    --tile-size: calc(8px * 5);
 
     display: grid;
-    gap: 1px;
-    grid-template-columns: repeat(12, var(--tile-size));
+    grid-template-columns: repeat(10, var(--tile-size));
+    gap: 4px;
+    justify-content: center;
+
+    border-radius: .5rem;
+    background: var(--trans-gradient);
+    overflow: hidden scroll;
 }
 
 #tile-select label {
@@ -36,27 +145,123 @@
     background: none;
     z-index: 5;
 
-    box-shadow: 0 0 0 .5em black;
+    box-shadow: 0 0 0 .5em white;
 }
 
 #room-select {
-    --tile-size: calc(16px * 2);
+    padding: .5em;
+    --room-size: calc(16px * 3);
 
     display: grid;
-    gap: 1px;
-    grid-template-columns: repeat(12, var(--tile-size));
+    grid-template-columns: repeat(8, var(--room-size));
+    gap: 4px;
+    justify-content: center;
 }
 
 #room-select label {
     min-height: unset;
 
-    width: var(--tile-size);
-    height: var(--tile-size);
+    width: var(--room-size);
+    height: var(--room-size);
 }
 
 #room-select input[type="radio"]:checked {
     background: none;
     z-index: 5;
 
-    box-shadow: 0 0 0 .5em black;
+    box-shadow: 0 0 0 .5em white;
+}
+
+#event-edit {
+    gap: 1rem;
+}
+
+#event-edit > * {
+    flex: 1;
+}
+
+#event-lines {
+    padding: .5rem;
+    gap: .5rem;
+
+    border-radius: .5rem;
+    background: var(--trans-gradient);
+    overflow: hidden scroll;
+}
+
+#event-lines > label {
+    display: flex; flex-direction: row;
+    gap: 0;
+
+    min-height: unset;
+
+    background: none;
+
+    border-radius: .5rem 0 0 .5rem;
+}
+
+#event-lines input:checked {
+    background: none;
+
+    z-index: 5;
+    box-shadow: 0 0 0 .5em white;
+}
+
+#event-lines .type {
+    width: 64px;
+    font-weight: bold;
+    padding: .5rem 1rem;
+
+    color: black;
+    border-radius: .5rem 0 0 .5rem;
+    background: var(--button-color);
+}
+
+#event-lines .detail {
+    flex: 1;
+
+    font-family: monospace;
+    color: white;
+    background: black;
+
+    display: flex;
+    align-items: center;
+    padding-left: 1rem;
+}
+
+#event-lines > button {
+    flex: 0;
+    border-radius: .5rem;
+    width: 64px;
+    font-weight: bold;
+    padding: .5rem 1rem;
+}
+
+#event-lines-toolbar {
+    flex: 0;
+    flex-basis: 48px;
+    gap: .5rem;
+}
+
+#event-lines-toolbar > button {
+    border-radius: 0 .5rem .5rem 0;
+}
+
+#event-action-type-select {
+    padding: .5em;
+
+    border: none;
+    border-radius: 1rem 0 0 1rem;
+
+    background-color: var(--button-color);
+
+    font-weight: bold;
+
+    height: 48px;
+}
+
+#dialogue-edit {
+    resize: none;
+    border-radius: 0 1rem 1rem 1rem;
+    margin: 0;
 }

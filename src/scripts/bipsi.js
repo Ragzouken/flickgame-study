@@ -47,26 +47,22 @@ bipsi.getManifest = function (data) {
 bipsi.constants = {
     tileSize: 8,
     roomSize: 16,
+    tileset: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAAjUlEQVR42u3XMQ4AEBAEwPv/p2kUIo5ScmYqQWU3QsSkDbu5TFBHVoDTfqemAFQKfy3BOs7WKBT+HLQCfBB+dgPcHnoKULAIp7ECfFoA30AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOCFDjCu5xlD93/uAAAAAElFTkSuQmCC",
 }
 
 /** 
- * Create a valid bundle for an empty flickguy project.
- * @returns {maker.ProjectBundle<FlickguyDataProject>} 
+ * Create a valid bundle for an empty bipsi project.
+ * @returns {maker.ProjectBundle<BipsiDataProject>} 
  */
-flickguy.makeBlankBundle = function () {
-    const blank = createRendering2D(flickguy.layerWidth, flickguy.layerHeight);
-    fillRendering2D(blank);
-    const layers = ZEROES(8).map(() => ({  
-        options: ZEROES(8).map(() => ({ image: "0", palette: 0 })),
-    }));
-    const project = { 
-        palettes: flickguy.defaultPalettes, 
-        fixedPalette: this.defaultFixedPalette,
-        layers, 
-        selected: ZEROES(8), 
+bipsi.makeBlankBundle = function () {
+    const project = {
+        settings: { title: "bipsi game" },
+
+        tilesets: ["0", "0"],
     };
+
     const resources = {
-        "0": { type: "canvas-datauri", data: blank.canvas.toDataURL() },
+        "0": { type: "canvas-datauri", data: bipsi.constants.tileset },
     };
 
     return { project, resources };
