@@ -520,6 +520,18 @@ ui.radio = (name) => new RadioGroupWrapper(ALL(`input[type="radio"][name="${name
 ui.toggle = (name) => new CheckboxWrapper(ALL(`input[type="checkbox"][name="${name}"]`));
 
 /**
+ * @param {string} name 
+ * @returns {HTMLInputElement}
+ */
+ui.slider = (name) => ONE(`input[type="range"][name=${name}]`);
+
+/**
+ * @param {string} name 
+ * @returns {HTMLInputElement | HTMLTextAreaElement}
+ */
+ ui.text = (name) => ONE(`[name=${name}]`);
+
+/**
  * Get an action linked to all button elements sharing the given name. 
  * Optionally provide a default listener for the action.
  * @param {string} name
