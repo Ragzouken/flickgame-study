@@ -332,6 +332,7 @@ bipsi.TileBrowser = class {
         const blobs = await Promise.all(canvases.map(canvasToBlob));
         this.thumbnailURIs = blobs.map(URL.createObjectURL);
         prev.map(URL.revokeObjectURL);
+        this.updateCSS();
     }
 
     updateCSS() {
@@ -470,7 +471,7 @@ bipsi.Editor = class extends EventTarget {
             const data = this.stateManager.present;
             /** @type {CanvasRenderingContext2D} */
             const tileset = recolorMask(this.stateManager.resources.get(data.tilesets[0]), data.palettes[0][1]);
-            const tileset2 = recolorMask(this.stateManager.resources.get(data.tilesets[0]), data.palettes[0][2]);
+            const tileset2 = recolorMask(this.stateManager.resources.get(data.tilesets[1]), data.palettes[0][1]);
 
             this.tileBrowser.setFrames([tileset.canvas, tileset2.canvas]);
 
