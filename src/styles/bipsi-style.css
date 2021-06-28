@@ -94,6 +94,10 @@ input[type="text"], textarea {
     border-bottom-right-radius: 0;
 }
 
+#mode-select.radio-select input[type="radio"]:checked {
+    background: #367b6b;
+}
+
 #undo-row {
     padding-bottom: .5rem;
     gap: .5rem;
@@ -155,7 +159,7 @@ input[type="text"], textarea {
 
     display: grid;
     grid-template-columns: repeat(10, var(--tile-size));
-    gap: 4px;
+    gap: 5px;
     justify-content: center;
 
     border-radius: .5rem;
@@ -168,6 +172,15 @@ input[type="text"], textarea {
 
     width: var(--tile-size);
     height: var(--tile-size);
+
+    background-color: var(--tileset-background-color);
+    background-image: var(--tileset-background-image);
+    background-size: var(--tileset-background-size);
+
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-crisp-edges;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
 }
 
 #tile-select input[type="radio"]:checked {

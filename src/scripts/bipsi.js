@@ -47,6 +47,8 @@ bipsi.getManifest = function (data) {
 bipsi.constants = {
     tileSize: 8,
     roomSize: 16,
+    frameInterval: 400,
+
     tileset: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAAjUlEQVR42u3XMQ4AEBAEwPv/p2kUIo5ScmYqQWU3QsSkDbu5TFBHVoDTfqemAFQKfy3BOs7WKBT+HLQCfBB+dgPcHnoKULAIp7ECfFoA30AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOCFDjCu5xlD93/uAAAAAElFTkSuQmCC",
 
     colorwheelMargin: 12,
@@ -109,6 +111,9 @@ function generateColorWheel(width, height) {
     });
     return rendering;
 }
+
+const TEST_FG_DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAD04JH5AAAAAXNSR0IArs4c6QAAAAZQTFRFAAAA////pdmf3QAAAAJ0Uk5TAP9bkSK1AAAEUElEQVR4nO1Xi64bKwy0//+nr9oE8GvABjaproKqrg7Leobx2BCi3/iN3/iNf2rwV3GYmPnvg+jBZ8MJab3X/Xk89Wz/Avw3racVANuHibk/IM7XCXx/fFsC/hADjLODDy09ZYDm68EYF9UE/6ICOwTuZnonBTBWnRr3/67g1PF52loxg1sE9hT4H/WBpn01B7cUaCVYLcVrCuwSuJVpZm5VsNONoog1atsEbqVgX4GTPiCQAIEEl4MqkFCaAAcryjgJ7pBAtAIzqDKTDBQZr0AiBQcKqNZvFGC/YhpmZ+jDz6aA3Ypy/Bx1qADbFWWckz5Q6WK7fcAcfoECyeNxswrs2eOrIHk67aYAEBAZSBLYVMD1HVcFcWeq4CwzMCWQP52KdgVlP7SPpfAREnBmZQs3IyA8EBBQESCO3nCVwDQFIYF8H/g0gTAFnCBA0AOfSgEJD/BlBVYE3tuPquGKArxUoM+fK+AJtWhLBaK6xAQgXpCClwIz07cMPGXCN8qi6mKK9/rAYIDKviv2SBW84GhGgKnZcO2BjT4wGEwbn10xKB8qIDYHCbwW6RU3O+GQwhNoNlRmGaV72Af6YdACBQqM3KtqoFFHSTyYgrkH+uatRqaXQhzxBimgiAQKzM4Cr8BeH3D7E3hDAU+g4IFJH2heo+45X4YzBXiKk1HAes4SIDvBPsK+AiSlNwowYKQJqNCbfYBVDgZeI0GdW6wAYxw4BAFR5e1HqNwwGUZegQxs9kpGAZ5cIhiIAh7Rzy+lXgFZH1qBHkYxOCSA7h/AhNToNYCNKgg3bHPgGWkXNegLvwtizyEC1P4YDIoK6DuhrAvFICTQ4jZ03uyEstPHfQedBXLbCw94QqITyn3KKtC4FHrAMYACIBPKDdsJ7QF/H/Ab3zGhzTCRmZBvgAKSQZnAkQeYDcBxH4g6Ib4R9QgQBypg2XQFmgdopUANBzPTBIQCtFCgiJNSQFcBOQV4X4H5cNHthp0SdYhsClgUhpYmpcBmCoJVPlI36Hwv5Rd5BtQZbBAQPTtLbK6mLf/URyvIHptBsMTe130g4SHMYIbPc4NwX6RWxK0UMRAyqu9E3OKhjBgvNdAvElLJHx6ZT1fnuyeQS0Ev5ja77GtxRPOdiDvvA47ApZEgIFKwYFrGVnGrKXi9sofd8hnVTlUB8ULGTQ4iZ+WiAntnqo5GPU46tRHTMzNAZVcLR6ehkYC8FXoGUNyIAb1vXOqaT/LqV7LAuKeIuOf3geOxPA2fIqJSMlmgpnxyx6uUGdjX0vo+MCZ8/Rv8nBnmOJZZwPlkmH5A6xTfqn8cd7FgXv99dc4Crh+sU9BwQP0bAikLyH5At4W9O3LcCmVcWtlaML2ur+jZlyNzrL63d05Ji0XqwdPge28sv9f7UDtK7gD0CW5Hzfx73GayKURltKzzFU6NgLfAMYEs/qhu5QFtxd/4wEB94MP4rg/8xsfGty1wzQP/AQudDla7VWHbAAAAAElFTkSuQmCC";
+const TEST_HI_DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAD04JH5AAAAAXNSR0IArs4c6QAAAAZQTFRFAAAA////pdmf3QAAAAJ0Uk5TAP9bkSK1AAAAUklEQVR4nO3WgQkAIAwDwXb/pQWXeNC7BRKqlM4AAAAAAAAAAAAAADxl6/wtG+zEE/h7/LdBnN8XAL5Sb92t936e3+/99vDZ/gvUL5AXAAAecwABZAAkhEAZyAAAAABJRU5ErkJggg==";
 
 bipsi.PaletteEditor = class {
     /**
@@ -183,6 +188,8 @@ bipsi.PaletteEditor = class {
                 this.refreshDisplay();
             };
 
+            update(event);
+
             drag.addEventListener("move", (event) => {
                 update(event.detail);
             });
@@ -193,7 +200,16 @@ bipsi.PaletteEditor = class {
         });
     }
 
-    getSelections(data) {
+    async init() {
+        this.test_fg = imageToRendering2D(await loadImage(TEST_FG_DATA));
+        this.test_hi = imageToRendering2D(await loadImage(TEST_HI_DATA));
+    }
+
+    /**
+     * @param {BipsiDataProject} data 
+     * @returns 
+     */
+    getSelections(data = undefined) {
         data = data ?? this.editor.stateManager.present;
         const [paletteIndex, colorIndex] = this.colorSelect.value.split(",").map((v) => parseInt(v, 10));
         const palette = this.editor.stateManager.present.palettes[paletteIndex];
@@ -205,7 +221,7 @@ bipsi.PaletteEditor = class {
     refreshDisplay() {
         if (this.temporary === undefined) this.updateTemporaryFromData();
 
-        const { data, color } = this.getSelections();
+        const { data, color, palette } = this.getSelections();
 
         // recolor the color select buttons to the corresponding color
         ALL("#color-select .horizontal-capsule").forEach((capsule, y) => {
@@ -249,6 +265,21 @@ bipsi.PaletteEditor = class {
         this.colorValue.valueAsNumber = color.v;
         this.colorHex.value = color.hex;
         this.colorSelect.selectedInput.style.setProperty("background", color.hex);
+
+        this.refreshPreview();
+    }
+
+    refreshPreview() {
+        const { color, palette, colorIndex } = this.getSelections();
+        const previewPalette = [ ...palette ];
+        previewPalette[colorIndex] = color.hex;
+        const [ bg, fg, hi ] = previewPalette;
+
+        fillRendering2D(this.editor.rendering, bg);
+        const foreground = recolorMask(this.test_fg, fg);
+        this.editor.rendering.drawImage(foreground.canvas, 0, 0, 256, 256);
+        const highlight = recolorMask(this.test_hi, hi);
+        this.editor.rendering.drawImage(highlight.canvas, 0, 0, 256, 256);
     }
 
     updateTemporaryFromData() {
@@ -280,6 +311,37 @@ bipsi.PaletteEditor = class {
     }
 }
 
+bipsi.TileBrowser = class {
+    /**
+     * @param {bipsi.Editor} editor 
+     */
+    constructor(editor) {
+        this.editor = editor;
+
+        this.thumbnailURIs = [];
+
+        window.setInterval(() => {
+            const prev = this.thumbnailURIs.shift();
+            if (prev) this.thumbnailURIs.push(prev);
+            this.updateCSS();
+        }, bipsi.constants.frameInterval);
+    }
+
+    async setFrames(canvases) {
+        const prev = [...this.thumbnailURIs];
+        const blobs = await Promise.all(canvases.map(canvasToBlob));
+        this.thumbnailURIs = blobs.map(URL.createObjectURL);
+        prev.map(URL.revokeObjectURL);
+    }
+
+    updateCSS() {
+        document.documentElement.style.setProperty(
+            "--tileset-background-image", 
+            `url("${this.thumbnailURIs[0]}")`,
+        );
+    }
+}
+
 bipsi.Editor = class extends EventTarget {
     /**
      * Setup most of the stuff for the flickguy editor (the rest is in init
@@ -306,7 +368,11 @@ bipsi.Editor = class extends EventTarget {
 
         /** @type {maker.StateManager<BipsiDataProject>} */
         this.stateManager = new maker.StateManager(getManifest);
+        /** @type {CanvasRenderingContext2D} */
+        this.rendering = ONE("#renderer").getContext("2d");
+        this.rendering.imageSmoothingEnabled = false;
 
+        this.tileBrowser = new bipsi.TileBrowser(this);
         this.paletteEditor = new bipsi.PaletteEditor(this);
 
         // thumbnails for various ui buttons
@@ -317,12 +383,20 @@ bipsi.Editor = class extends EventTarget {
         // find all the ui already defined in the html
         this.modeSelect = ui.radio("mode-select");
 
+        this.modeSelect.tab(ONE("#event-edit"), "events");
+        this.modeSelect.tab(ONE("#palette-edit"), "palettes");
+        this.modeSelect.tab(ONE("#tile-select"), "draw-room", "draw-tiles");
+
         // initial selections
         this.modeSelect.selectedIndex = 0;
 
-        // add thumbnails to the layer select bar
-        ALL("#layer-select canvas").forEach((canvas, index) => {
-            // canvas.replaceWith(this.layerThumbs[index].canvas);
+        // tile select sprite
+        ALL("#tile-select label").forEach((label, index) => {
+            const width = 16;
+            const x = bipsi.constants.tileSize * (index % 16);
+            const y = bipsi.constants.tileSize * Math.floor(index / width);
+
+            label.style.backgroundPosition = `calc(-${x}px -${y}px`;
         });
 
         // editor actions controlled by html buttons
@@ -392,6 +466,31 @@ bipsi.Editor = class extends EventTarget {
             // enable/disable undo/redo buttons
             this.actions.undo.disabled = !this.stateManager.canUndo;
             this.actions.redo.disabled = !this.stateManager.canRedo;
+
+            const data = this.stateManager.present;
+            /** @type {CanvasRenderingContext2D} */
+            const tileset = recolorMask(this.stateManager.resources.get(data.tilesets[0]), data.palettes[0][1]);
+            const tileset2 = recolorMask(this.stateManager.resources.get(data.tilesets[0]), data.palettes[0][2]);
+
+            this.tileBrowser.setFrames([tileset.canvas, tileset2.canvas]);
+
+            tileset.canvas.toBlob((blob) => {
+                const root = ONE(":root");
+                const scale = 5;
+                const w = tileset.canvas.width * scale;
+                const h = tileset.canvas.height * scale;
+
+                root.style.setProperty("--tileset-background-size", `${w}px ${h}px`);
+                root.style.setProperty("--tileset-background-color", data.palettes[0][0]);
+
+                ALL("#tile-select label").forEach((label, index) => {
+                    const width = 16;
+                    const x = bipsi.constants.tileSize * scale * (index % 16);
+                    const y = bipsi.constants.tileSize * scale * Math.floor(index / width);
+        
+                    label.style.backgroundPosition = `-${x}px -${y}px`;
+                });
+            });
         });
 
         // whenever a pointer moves anywhere on screen, update the paint cursors
@@ -407,6 +506,7 @@ bipsi.Editor = class extends EventTarget {
     }
 
     async init() {
+        await this.paletteEditor.init();
     }
 
     /**
@@ -550,8 +650,8 @@ bipsi.start = async function () {
         const bundle = save || maker.bundleFromHTML(document, "#editor-embed");
         
         // load bundle and enter editor mode
-        // await editor.loadBundle(bundle);
-        await editor.loadBundle(bipsi.makeBlankBundle());
+        await editor.loadBundle(bundle);
+        //await editor.loadBundle(bipsi.makeBlankBundle());
         editor.enterEditorMode();
 
         // unsaved changes warning

@@ -474,3 +474,10 @@ function swapPaletteSafe(rendering, prev, next) {
         }
     });
 }
+
+/**
+ * @param {HTMLCanvasElement} canvas 
+ */
+async function canvasToBlob(canvas) {
+    return new Promise((resolve) => canvas.toBlob(resolve));
+}
