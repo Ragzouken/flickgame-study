@@ -433,6 +433,12 @@ class RadioGroupWrapper extends EventTarget {
                 this.dispatchEvent(new CustomEvent("change"));
             });
         });
+
+        const group = this;
+        this.onRadioChange = function() {
+            if (!this.checked) return;
+            group.dispatchEvent(new CustomEvent("change"));
+        }
     }
 
     get selectedIndex() {
@@ -451,6 +457,10 @@ class RadioGroupWrapper extends EventTarget {
         return this.selectedInput?.value;
     }
 
+    get valueAsNumber() {
+        return parseInt(this.selectedInput?.value ?? "-1", 10);
+    }
+
     setSelectedIndexSilent(value) {
         this.inputs.forEach((input, index) => input.checked = index === value);
     }
@@ -461,6 +471,22 @@ class RadioGroupWrapper extends EventTarget {
      */
     tab(element, ...values) {
         this.addEventListener("change", () => element.hidden = !values.includes(this.value));
+    }
+
+    /**
+     * @param {HTMLInputElement} radioElement 
+     */
+    add(radioElement) {
+        this.inputs.push(radioElement);
+        radioElement.addEventListener("change", this.onRadioChange);
+    }
+
+    /**
+     * @param {HTMLInputElement} radioElement 
+     */
+    remove(radioElement) {
+        arrayDiscard(this.inputs, radioElement);
+        radioElement.removeEventListener("change", this.onRadioChange);
     }
 }
 
@@ -575,6 +601,18 @@ const ONE = (query, element = undefined) => (element || document).querySelector(
  */
 const ALL = (query, element = undefined) => Array.from((element || document).querySelectorAll(query));
 
+/**
+ * @template {any} T
+ * @param {T[]} array 
+ * @param {T} value
+ * @returns {boolean}
+ */
+ function arrayDiscard(array, value) {
+    const index = array.indexOf(value);
+    if (index >= 0) array.splice(index, 1);
+    return index >= 0;
+}
+
 ui.PointerDrag = class extends EventTarget {
     /** 
      * @param {MouseEvent} event
@@ -643,7 +681,7 @@ ui.drag = (event) => new ui.PointerDrag(event);
  * @param {HTMLCanvasElement} canvas 
  * @param {ui.PointerDrag} drag 
  */
-    function trackCanvasStroke(canvas, drag) {
+function trackCanvasStroke(canvas, drag) {
     const positions = [mouseEventToCanvasPixelCoords(canvas, drag.downEvent)];
     const update = (event) => positions.push(mouseEventToCanvasPixelCoords(canvas, event.detail));
     drag.addEventListener("up", update);

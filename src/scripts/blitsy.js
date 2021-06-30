@@ -28,19 +28,30 @@ function fillRendering2D(rendering, fillStyle = undefined) {
 }
 
 /**
- * @param {CanvasRenderingContext2D} rendering
+ * @param {CanvasRenderingContext2D} source
  * @param {CanvasRenderingContext2D} destination
+ * @param {{ x: number, y: number, w: number, h: number }} rect
  */
-function copyRendering2D(rendering, destination = undefined) {
-    destination = destination || createRendering2D(rendering.canvas.width, rendering.canvas.height);
-    destination.canvas.width = rendering.canvas.width;
-    destination.canvas.height = rendering.canvas.height;
-    destination.drawImage(rendering.canvas, 0, 0);
+function copyRendering2D(
+    source, 
+    destination = undefined,
+    rect = undefined,
+) {
+    rect = rect ?? { x: 0, y: 0, w: source.canvas.width, h: source.canvas.height };
+    destination = destination || createRendering2D(rect.w, rect.h);
+    destination.canvas.width = rect.w;
+    destination.canvas.height = rect.h;
+
+    destination.drawImage(
+        source.canvas, 
+        rect.x, rect.y, rect.w, rect.h,
+        0, 0, rect.w, rect.h,
+    );
+
     return destination;
 }
 
 /**
-
  * @param {CanvasRenderingContext2D} rendering 
  * @param {number} width 
  * @param {number} height 

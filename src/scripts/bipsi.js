@@ -115,6 +115,21 @@ function generateColorWheel(width, height) {
 const TEST_FG_DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAD04JH5AAAAAXNSR0IArs4c6QAAAAZQTFRFAAAA////pdmf3QAAAAJ0Uk5TAP9bkSK1AAAEUElEQVR4nO1Xi64bKwy0//+nr9oE8GvABjaproKqrg7Leobx2BCi3/iN3/iNf2rwV3GYmPnvg+jBZ8MJab3X/Xk89Wz/Avw3racVANuHibk/IM7XCXx/fFsC/hADjLODDy09ZYDm68EYF9UE/6ICOwTuZnonBTBWnRr3/67g1PF52loxg1sE9hT4H/WBpn01B7cUaCVYLcVrCuwSuJVpZm5VsNONoog1atsEbqVgX4GTPiCQAIEEl4MqkFCaAAcryjgJ7pBAtAIzqDKTDBQZr0AiBQcKqNZvFGC/YhpmZ+jDz6aA3Ypy/Bx1qADbFWWckz5Q6WK7fcAcfoECyeNxswrs2eOrIHk67aYAEBAZSBLYVMD1HVcFcWeq4CwzMCWQP52KdgVlP7SPpfAREnBmZQs3IyA8EBBQESCO3nCVwDQFIYF8H/g0gTAFnCBA0AOfSgEJD/BlBVYE3tuPquGKArxUoM+fK+AJtWhLBaK6xAQgXpCClwIz07cMPGXCN8qi6mKK9/rAYIDKviv2SBW84GhGgKnZcO2BjT4wGEwbn10xKB8qIDYHCbwW6RU3O+GQwhNoNlRmGaV72Af6YdACBQqM3KtqoFFHSTyYgrkH+uatRqaXQhzxBimgiAQKzM4Cr8BeH3D7E3hDAU+g4IFJH2heo+45X4YzBXiKk1HAes4SIDvBPsK+AiSlNwowYKQJqNCbfYBVDgZeI0GdW6wAYxw4BAFR5e1HqNwwGUZegQxs9kpGAZ5cIhiIAh7Rzy+lXgFZH1qBHkYxOCSA7h/AhNToNYCNKgg3bHPgGWkXNegLvwtizyEC1P4YDIoK6DuhrAvFICTQ4jZ03uyEstPHfQedBXLbCw94QqITyn3KKtC4FHrAMYACIBPKDdsJ7QF/H/Ab3zGhzTCRmZBvgAKSQZnAkQeYDcBxH4g6Ib4R9QgQBypg2XQFmgdopUANBzPTBIQCtFCgiJNSQFcBOQV4X4H5cNHthp0SdYhsClgUhpYmpcBmCoJVPlI36Hwv5Rd5BtQZbBAQPTtLbK6mLf/URyvIHptBsMTe130g4SHMYIbPc4NwX6RWxK0UMRAyqu9E3OKhjBgvNdAvElLJHx6ZT1fnuyeQS0Ev5ja77GtxRPOdiDvvA47ApZEgIFKwYFrGVnGrKXi9sofd8hnVTlUB8ULGTQ4iZ+WiAntnqo5GPU46tRHTMzNAZVcLR6ehkYC8FXoGUNyIAb1vXOqaT/LqV7LAuKeIuOf3geOxPA2fIqJSMlmgpnxyx6uUGdjX0vo+MCZ8/Rv8nBnmOJZZwPlkmH5A6xTfqn8cd7FgXv99dc4Crh+sU9BwQP0bAikLyH5At4W9O3LcCmVcWtlaML2ur+jZlyNzrL63d05Ji0XqwdPge28sv9f7UDtK7gD0CW5Hzfx73GayKURltKzzFU6NgLfAMYEs/qhu5QFtxd/4wEB94MP4rg/8xsfGty1wzQP/AQudDla7VWHbAAAAAElFTkSuQmCC";
 const TEST_HI_DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAD04JH5AAAAAXNSR0IArs4c6QAAAAZQTFRFAAAA////pdmf3QAAAAJ0Uk5TAP9bkSK1AAAAUklEQVR4nO3WgQkAIAwDwXb/pQWXeNC7BRKqlM4AAAAAAAAAAAAAADxl6/wtG+zEE/h7/LdBnN8XAL5Sb92t936e3+/99vDZ/gvUL5AXAAAecwABZAAkhEAZyAAAAABJRU5ErkJggg==";
 
+/**
+ * @param {HTMLCanvasElement} tileset 
+ * @param {number} index 
+ */
+function getTileCoords(tileset, index) {
+    const size = bipsi.constants.tileSize;
+    const columns = tileset.width / size;
+
+    return {
+        x: size * (index % columns),
+        y: size * Math.floor(index / columns),
+        size,
+    }
+}
+
 bipsi.PaletteEditor = class {
     /**
      * 
@@ -180,6 +195,7 @@ bipsi.PaletteEditor = class {
             /** @param {PointerEvent} event */
             const update = (event) => {
                 const { x, y } = mouseEventToCanvasPixelCoords(this.colorHueSat, event);
+                
                 const center = this.colorHueSat.width / 2;
                 const [dx, dy] = [x - center, y - center];
                 this.temporary.h = (Math.atan2(dy, dx) / (Math.PI * 2) + 1) % 1;
@@ -275,11 +291,11 @@ bipsi.PaletteEditor = class {
         previewPalette[colorIndex] = color.hex;
         const [ bg, fg, hi ] = previewPalette;
 
-        fillRendering2D(this.editor.rendering, bg);
+        fillRendering2D(this.editor.renderings.roomPaint, bg);
         const foreground = recolorMask(this.test_fg, fg);
-        this.editor.rendering.drawImage(foreground.canvas, 0, 0, 256, 256);
+        this.editor.renderings.roomPaint.drawImage(foreground.canvas, 0, 0);
         const highlight = recolorMask(this.test_hi, hi);
-        this.editor.rendering.drawImage(highlight.canvas, 0, 0, 256, 256);
+        this.editor.renderings.roomPaint.drawImage(highlight.canvas, 0, 0);
     }
 
     updateTemporaryFromData() {
@@ -319,12 +335,56 @@ bipsi.TileBrowser = class {
         this.editor = editor;
 
         this.thumbnailURIs = [];
+        this.itemTemplate = ONE("#tile-select-item-template");
+        this.itemContainer = this.itemTemplate.parentElement;
+        this.itemTemplate.remove();
+        /** @type {HTMLLabelElement[]} */
+        this.items = [];
+
+        this.select = ui.radio("tile-select");
+
+        this.select.addEventListener("change", () => {
+            this.redraw();
+        });
+
+        this.frame = 0;
 
         window.setInterval(() => {
-            const prev = this.thumbnailURIs.shift();
-            if (prev) this.thumbnailURIs.push(prev);
+            this.frame = 1 - this.frame;
             this.updateCSS();
+            this.redraw();
         }, bipsi.constants.frameInterval);
+    }
+
+    get selectedTileIndex() {
+        return this.select.valueAsNumber;
+    }
+
+    redraw() {
+        const state = this.editor.stateManager;
+        const tilesets = state.present.tilesets.map((id) => state.resources.get(id));
+        const { x, y, size } = getTileCoords(tilesets[0].canvas, this.select.valueAsNumber);
+
+        const [bg, fg] =  state.present.palettes[0];
+
+        fillRendering2D(this.editor.renderings.tilePaint0, bg);
+        this.editor.renderings.tilePaint0.drawImage(
+            recolorMask(tilesets[0], fg).canvas,
+            x, y, size, size,
+            0, 0, size, size,
+        );
+
+        fillRendering2D(this.editor.renderings.tilePaint1, bg);
+        this.editor.renderings.tilePaint1.drawImage(
+            recolorMask(tilesets[1], fg).canvas,
+            x, y, size, size,
+            0, 0, size, size,
+        );
+
+        this.editor.renderings.tilePaintA.drawImage(
+            [this.editor.renderings.tilePaint0, this.editor.renderings.tilePaint1][this.frame].canvas,
+            0, 0,
+        );
     }
 
     async setFrames(canvases) {
@@ -333,13 +393,121 @@ bipsi.TileBrowser = class {
         this.thumbnailURIs = blobs.map(URL.createObjectURL);
         prev.map(URL.revokeObjectURL);
         this.updateCSS();
+
+        // TODO: can factor this out if tileset size is constant...
+        const root = ONE(":root");
+        const scale = 5;
+        const w = canvases[0].width * scale;
+        const h = canvases[0].height * scale;
+
+        root.style.setProperty("--tileset-background-size", `${w}px ${h}px`);
+        root.style.setProperty("--tileset-background-color", this.editor.stateManager.present.palettes[0][0]);
+
+        const columns = canvases[0].width / bipsi.constants.tileSize;
+        const rows = canvases[0].height / bipsi.constants.tileSize;
+        this.updateTileCount(rows * columns);
+        this.items.forEach((label, index) => {
+            const { x, y } = getTileCoords(canvases[0], index);
+            label.style.backgroundPosition = `-${x * scale}px -${y * scale}px`;
+        });
     }
 
     updateCSS() {
         document.documentElement.style.setProperty(
             "--tileset-background-image", 
-            `url("${this.thumbnailURIs[0]}")`,
+            `url("${this.thumbnailURIs[this.frame]}")`,
         );
+    }
+
+    updateTileCount(count) {
+        const missing = count - this.items.length;
+
+        if (missing < 0) {
+            const excess = this.items.splice(-missing, missing);
+            excess.forEach((element) => {
+                element.remove();
+                const radio = ONE("input", element);
+                this.select.remove(radio);
+            });
+        } else if (missing > 0) {
+            const extras = ZEROES(missing).map((_, i) => {
+                const index = this.items.length + i;
+                const label = this.itemTemplate.cloneNode(true);
+                const radio = ONE("input", label);
+                radio.title = `select tile ${index}`;
+                radio.value = index.toString();
+                this.select.add(radio);
+                return label;
+            });
+
+            this.itemContainer.append(...extras);
+            this.items.push(...extras);
+        }
+
+        if (this.select.selectedIndex === -1) {
+            this.select.selectedIndex = 0;
+        }
+    }
+}
+
+bipsi.TileEditor = class {
+    /**
+     * @param {bipsi.Editor} editor 
+     */
+    constructor(editor) {
+        this.editor = editor;
+
+        const tile0 = this.editor.renderings.tilePaint0;
+        const tile1 = this.editor.renderings.tilePaint1;
+
+        tile0.canvas.addEventListener("pointerdown", (event) => this.startDrag(event, 0));
+        tile1.canvas.addEventListener("pointerdown", (event) => this.startDrag(event, 1));
+    }
+
+    async startDrag(event, frameIndex) {
+        const rendering = [
+            this.editor.renderings.tilePaint0,
+            this.editor.renderings.tilePaint1,
+        ][frameIndex];
+
+        const tileIndex = this.editor.tileBrowser.select.selectedIndex;
+        const { tilesets } = this.editor.getSelections();
+        const { x: tx, y: ty } = getTileCoords(tilesets[0].canvas, tileIndex);
+ 
+        this.editor.stateManager.makeCheckpoint();
+        const frame = await this.editor.forkTilesetFrame(frameIndex);
+        const width = frame.canvas.width;
+
+        const redraw = () => {
+            this.editor.tileBrowser.redraw();
+        };
+
+        const drag = ui.drag(event);
+        const positions = trackCanvasStroke(rendering.canvas, drag);
+
+        const { x, y } = positions[0];
+        const pixel = frame.getImageData(x + tx, y + ty, 1, 1).data;
+        const value = pixel[3] === 0 ? 0xFFFFFFFF : 0;
+
+        const plot = (x, y) => {
+            withPixels(frame, (pixels) => pixels[(y + ty) * width + (x + tx)] = value);
+        };
+
+        plot(x, y);
+
+        drag.addEventListener("move", (event) => {
+            const { x: x0, y: y0 } = positions[positions.length - 2];
+            const { x: x1, y: y1 } = positions[positions.length - 1];
+            lineplot(x0, y0, x1, y1, plot);
+            redraw();
+        });
+
+        drag.addEventListener("up", (event) => {
+            const { x, y } = positions[positions.length - 1];
+            plot(x, y);
+            redraw();
+            this.editor.stateManager.changed();
+        });
     }
 }
 
@@ -373,7 +541,15 @@ bipsi.Editor = class extends EventTarget {
         this.rendering = ONE("#renderer").getContext("2d");
         this.rendering.imageSmoothingEnabled = false;
 
+        this.renderings = {
+            roomPaint: ONE("#room-paint").getContext("2d"),
+            tilePaint0: ONE("#tile-paint-0").getContext("2d"),
+            tilePaint1: ONE("#tile-paint-1").getContext("2d"),
+            tilePaintA: ONE("#tile-paint-a").getContext("2d"),
+        };
+
         this.tileBrowser = new bipsi.TileBrowser(this);
+        this.tileEditor = new bipsi.TileEditor(this);
         this.paletteEditor = new bipsi.PaletteEditor(this);
 
         // thumbnails for various ui buttons
@@ -386,19 +562,13 @@ bipsi.Editor = class extends EventTarget {
 
         this.modeSelect.tab(ONE("#event-edit"), "events");
         this.modeSelect.tab(ONE("#palette-edit"), "palettes");
-        this.modeSelect.tab(ONE("#tile-select"), "draw-room", "draw-tiles");
+        this.modeSelect.tab(ONE("#tile-select-tab"), "draw-room", "draw-tiles");
+
+        this.modeSelect.tab(ONE("#tile-paint-tab"), "draw-tiles");
+        this.modeSelect.tab(ONE("#tile-map-tab"), "draw-room");
 
         // initial selections
         this.modeSelect.selectedIndex = 0;
-
-        // tile select sprite
-        ALL("#tile-select label").forEach((label, index) => {
-            const width = 16;
-            const x = bipsi.constants.tileSize * (index % 16);
-            const y = bipsi.constants.tileSize * Math.floor(index / width);
-
-            label.style.backgroundPosition = `calc(-${x}px -${y}px`;
-        });
 
         // editor actions controlled by html buttons
         this.actions = {
@@ -428,12 +598,17 @@ bipsi.Editor = class extends EventTarget {
             // special feature
             importPalettes: ui.action("import-palettes", () => this.importPalettes()),
             exportPalettes: ui.action("export-palettes", () => this.exportPalettes()),
+
+            copyTile: ui.action("copy-tile", () => this.copySelectedTile()),
+            pasteTile: ui.action("paste-tile", () => this.pasteSelectedTile()),
+            clearTile: ui.action("clear-tile", () => this.clearSelectedTile()),
         };
 
         // can't undo/redo/paste yet
         this.actions.undo.disabled = true;
         this.actions.redo.disabled = true;
         this.actions.paste.disabled = true;
+        this.actions.pasteTile.disabled = true;
 
         // hotkeys
         document.addEventListener("keydown", (event) => {
@@ -475,39 +650,100 @@ bipsi.Editor = class extends EventTarget {
 
             this.tileBrowser.setFrames([tileset.canvas, tileset2.canvas]);
 
-            tileset.canvas.toBlob((blob) => {
-                const root = ONE(":root");
-                const scale = 5;
-                const w = tileset.canvas.width * scale;
-                const h = tileset.canvas.height * scale;
+            // render room
+            this.rendering.fillStyle = data.palettes[0][0];
+            this.rendering.fillRect(0, 0, 128, 128);
+            const room = this.stateManager.present.rooms[0];
+            const size = bipsi.constants.tileSize;
 
-                root.style.setProperty("--tileset-background-size", `${w}px ${h}px`);
-                root.style.setProperty("--tileset-background-color", data.palettes[0][0]);
+            const columns = tileset.canvas.width / size;
+            const rows = tileset.canvas.height / size;
 
-                ALL("#tile-select label").forEach((label, index) => {
-                    const width = 16;
-                    const x = bipsi.constants.tileSize * scale * (index % 16);
-                    const y = bipsi.constants.tileSize * scale * Math.floor(index / width);
-        
-                    label.style.backgroundPosition = `-${x}px -${y}px`;
+            room.tilemap.forEach((row, dy) => {
+                row.forEach((cell, dx) => {
+                    const sx = size * (cell % 16);
+                    const sy = size * Math.floor(cell / columns);
+
+                    this.rendering.drawImage(
+                        tileset.canvas,
+                        sx, sy, size, size, 
+                        dx * size, dy * size, size, size,
+                    );
                 });
             });
-        });
 
-        // whenever a pointer moves anywhere on screen, update the paint cursors
-        // --listen on the whole document because for e.g line drawing it is 
-        // valid to move the mouse outside the edges of the drawing area
-        document.addEventListener("pointermove", (event) => {
-            //const { x, y } = mouseEventToCanvasPixelCoords(this.rendering.canvas, event);
-            //this.refreshPaintToolPreview(x, y);
+            this.tileBrowser.redraw();
         });
-        
-        // all painting begins by a pointer press on the rendering canvas
-        //this.rendering.canvas.addEventListener("pointerdown", (event) => this.onPaintPointerDown(event));
     }
 
     async init() {
         await this.paletteEditor.init();
+    }
+
+    /**
+     * @param {BipsiDataProject} data 
+     */
+    getSelections(data = undefined) {
+        data = data || this.stateManager.present;
+        
+        const tilesets = [
+            this.stateManager.resources.get(data.tilesets[0]),
+            this.stateManager.resources.get(data.tilesets[1]),
+        ];
+        
+        return { tilesets };
+    }
+
+    /**
+     * @param {number} frame 
+     * @returns {Promise<CanvasRenderingContext2D>}
+     */
+    async forkTilesetFrame(frame) {
+        const tilesetId = this.stateManager.present.tilesets[frame];
+        // create a new copy of the image resource
+        const { id, instance } = await this.stateManager.resources.fork(tilesetId);
+        // replace the tileset frame's image with the new copy
+        this.stateManager.present.tilesets[frame] = id;
+        // return the instance of the image for editing
+        return instance;
+    }
+
+    async copySelectedTile() {
+        const { tilesets } = this.getSelections();
+        const { x, y, size } = getTileCoords(tilesets[0].canvas, this.tileBrowser.selectedTileIndex);
+
+        this.copiedTileFrames = [
+            copyRendering2D(tilesets[0], undefined, { x, y, w: size, h: size }),
+            copyRendering2D(tilesets[1], undefined, { x, y, w: size, h: size }),
+        ];
+
+        this.actions.pasteTile.disabled = false;
+    }
+
+    async pasteSelectedTile() {
+        return this.stateManager.makeChange(async (data) => {
+            const tileset0 = await this.forkTilesetFrame(0);
+            const tileset1 = await this.forkTilesetFrame(1);
+
+            const { x, y, size } = getTileCoords(tileset0.canvas, this.tileBrowser.selectedTileIndex);
+
+            tileset0.clearRect(x, y, size, size);
+            tileset0.drawImage(this.copiedTileFrames[0].canvas, x, y);
+            tileset1.clearRect(x, y, size, size);
+            tileset1.drawImage(this.copiedTileFrames[1].canvas, x, y);
+        });
+    }
+    
+    async clearSelectedTile() {
+        return this.stateManager.makeChange(async (data) => {
+            const tileset0 = await this.forkTilesetFrame(0);
+            const tileset1 = await this.forkTilesetFrame(1);
+
+            const { x, y, size } = getTileCoords(tileset0.canvas, this.tileBrowser.selectedTileIndex);
+
+            tileset0.clearRect(x, y, size, size);
+            tileset1.clearRect(x, y, size, size);
+        });
     }
 
     /**
