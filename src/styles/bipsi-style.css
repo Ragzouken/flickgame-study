@@ -446,15 +446,18 @@ canvas.tile-paint {
     grid-area: buttons;
 }
 
-#tile-paint-frames {
-    display: flex; flex-direction: column;
-
-    grid-area: tiles;
-}
-
 #tile-paint-tab {
     display: flex; flex-direction: column;
-    gap: 1rem;
+    gap: .5rem;
+}
+
+#tile-paint-previews {
+    display: flex; flex-direction: row;
+}
+
+#tile-paint-previews > div {
+    flex: 1;
+    display: flex;
 }
 
 #tile-paint-canvases {
@@ -467,6 +470,7 @@ canvas.tile-paint {
     border-radius: 1rem;
 
     align-items: center;
+    justify-content: space-evenly;
 }
 
 #tile-paint-buttons {
@@ -486,6 +490,7 @@ canvas.tile-paint {
 
 #tile-paint-a {
     cursor: not-allowed;
+    margin: auto;
 }
 
 #viewport[data-mode="tile-paint"] .tile-paint {

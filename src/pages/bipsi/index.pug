@@ -38,14 +38,15 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/bi
                     canvas#room-paint.tile-paint(width="128" height="128" draggable="false")
 
                 #tile-paint-tab
-                    .row
+                    #tile-paint-previews
                         canvas#tile-paint-room(width="128" height="128" draggable="false")
-                        canvas#tile-paint-a.tile-paint(width="8" height="8" draggable="false" title="tile animation preview")
+                        div
+                            canvas#tile-paint-a.tile-paint(width="8" height="8" draggable="false" title="tile animation preview")
                     #tile-paint-canvases.radio-select
                         canvas#tile-paint-0.tile-paint(width="8" height="8" draggable="false" title="edit tile frame 0")
                         canvas#tile-paint-1.tile-paint(width="8" height="8" draggable="false" title="edit tile frame 1")
                     #tile-paint-buttons.viewport-toolbar
-                        button(name="shit-tile-up" title="shift tile up")
+                        button(name="shift-tile-up" title="shift tile up")
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-up" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L7.5 2.707V14.5a.5.5 0 0 0 .5.5z"/></svg>
                         button(name="shift-tile-down" title="shift tile down")
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 1a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L7.5 13.293V1.5A.5.5 0 0 1 8 1z"/></svg>

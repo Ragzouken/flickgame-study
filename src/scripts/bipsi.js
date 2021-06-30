@@ -602,6 +602,11 @@ bipsi.Editor = class extends EventTarget {
             copyTile: ui.action("copy-tile", () => this.copySelectedTile()),
             pasteTile: ui.action("paste-tile", () => this.pasteSelectedTile()),
             clearTile: ui.action("clear-tile", () => this.clearSelectedTile()),
+
+            shiftTileUp: ui.action("shift-tile-up", () => this.shiftSelectedTile(0, -1)),
+            shiftTileDown: ui.action("shift-tile-down", () => this.shiftSelectedTile(0, 1)),
+            shiftTileLeft: ui.action("shift-tile-left", () => this.shiftSelectedTile(-1, 0)),
+            shiftTileRight: ui.action("shift-tile-right", () => this.shiftSelectedTile(1, 0)),
         };
 
         // can't undo/redo/paste yet
@@ -743,6 +748,31 @@ bipsi.Editor = class extends EventTarget {
 
             tileset0.clearRect(x, y, size, size);
             tileset1.clearRect(x, y, size, size);
+        });
+    }
+
+    async shiftSelectedTile(dx, dy) {
+        return this.stateManager.makeChange(async (data) => {
+            const tileset0 = await this.forkTilesetFrame(0);
+            const tileset1 = await this.forkTilesetFrame(1);
+
+            const sx = -Math.sign(dx);
+            const sy = -Math.sign(dy);
+
+            [tileset0, tileset1].forEach((tileset) => {
+                const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
+                const frame = copyRendering2D(tileset, undefined, { x, y, w: size, h: size });
+                const temp = copyRendering2D(frame);
+
+                fillRendering2D(frame);
+                frame.drawImage(temp.canvas, dx,           dy          );
+                frame.drawImage(temp.canvas, dx + size*sx, dy          ); 
+                frame.drawImage(temp.canvas, dx + size*sx, dy + size*sy); 
+                frame.drawImage(temp.canvas, dx,           dy + size*sy); 
+
+                tileset.clearRect(x, y, size, size);
+                tileset.drawImage(frame.canvas, x, y);
+            });
         });
     }
 
