@@ -551,3 +551,17 @@ canvas.tile-paint {
 
     background: var(--trans-gradient);
 }
+
+#tile-paint-canvases * {
+    background: none;
+}
+
+#tile-paint-canvases input:checked {
+    pointer-events: none;
+    background: none;
+}
+
+#tile-paint-canvases input:not(:checked) + canvas {
+    pointer-events: none;
+    opacity: 50%;
+}

@@ -560,6 +560,7 @@ bipsi.Editor = class extends EventTarget {
 
         // find all the ui already defined in the html
         this.modeSelect = ui.radio("mode-select");
+        this.tilePaintFrameSelect = ui.radio("tile-paint-frame");
 
         this.modeSelect.tab(ONE("#event-edit"), "events");
         this.modeSelect.tab(ONE("#palette-edit"), "palettes");
@@ -615,6 +616,12 @@ bipsi.Editor = class extends EventTarget {
             flipTile: ui.action("flip-tile", () => this.flipSelectedTile()),
             mirrorTile: ui.action("mirror-tile", () => this.mirrorSelectedTile()),
             invertTile: ui.action("invert-tile", () => this.invertSelectedTile()),
+ 
+            copyTileFrame: ui.action("copy-tile-frame", () => this.copySelectedTileFrame()),
+            pasteTileFrame: ui.action("paste-tile-frame", () => this.pasteSelectedTileFrame()),
+            clearTileFrame: ui.action("clear-tile-frame", () => this.clearSelectedTileFrame()),
+
+            swapTileFrames: ui.action("swap-tile-frames", () => this.swapSelectedTileFrames()),
         };
 
         // can't undo/redo/paste yet
@@ -622,6 +629,7 @@ bipsi.Editor = class extends EventTarget {
         this.actions.redo.disabled = true;
         this.actions.paste.disabled = true;
         this.actions.pasteTile.disabled = true;
+        this.actions.pasteTileFrame.disabled = true;
 
         // hotkeys
         document.addEventListener("keydown", (event) => {
@@ -703,8 +711,10 @@ bipsi.Editor = class extends EventTarget {
             this.stateManager.resources.get(data.tilesets[0]),
             this.stateManager.resources.get(data.tilesets[1]),
         ];
+
+        const frameIndex = this.tilePaintFrameSelect.selectedIndex;
         
-        return { tilesets };
+        return { tilesets, frameIndex };
     }
 
     /**
@@ -761,108 +771,144 @@ bipsi.Editor = class extends EventTarget {
 
     async shiftSelectedTile(dx, dy) {
         return this.stateManager.makeChange(async (data) => {
-            const tileset0 = await this.forkTilesetFrame(0);
-            const tileset1 = await this.forkTilesetFrame(1);
+            const { frameIndex } = this.getSelections();
+            const tileset = await this.forkTilesetFrame(frameIndex);
 
             const sx = -Math.sign(dx);
             const sy = -Math.sign(dy);
 
-            [tileset0, tileset1].forEach((tileset) => {
-                const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
-                const frame = copyRendering2D(tileset, undefined, { x, y, w: size, h: size });
-                const temp = copyRendering2D(frame);
+            const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
+            const frame = copyRendering2D(tileset, undefined, { x, y, w: size, h: size });
+            const temp = copyRendering2D(frame);
 
-                fillRendering2D(frame);
-                frame.drawImage(temp.canvas, dx,           dy          );
-                frame.drawImage(temp.canvas, dx + size*sx, dy          ); 
-                frame.drawImage(temp.canvas, dx + size*sx, dy + size*sy); 
-                frame.drawImage(temp.canvas, dx,           dy + size*sy); 
+            fillRendering2D(frame);
+            frame.drawImage(temp.canvas, dx,           dy          );
+            frame.drawImage(temp.canvas, dx + size*sx, dy          ); 
+            frame.drawImage(temp.canvas, dx + size*sx, dy + size*sy); 
+            frame.drawImage(temp.canvas, dx,           dy + size*sy); 
 
-                tileset.clearRect(x, y, size, size);
-                tileset.drawImage(frame.canvas, x, y);
-            });
+            tileset.clearRect(x, y, size, size);
+            tileset.drawImage(frame.canvas, x, y);
         });
     }
 
     async rotateSelectedTile(turns) {
         return this.stateManager.makeChange(async (data) => {
-            const tileset0 = await this.forkTilesetFrame(0);
-            const tileset1 = await this.forkTilesetFrame(1);
+            const { frameIndex } = this.getSelections();
+            const tileset = await this.forkTilesetFrame(frameIndex);
 
-            [tileset0, tileset1].forEach((tileset) => {
-                const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
-                const frame = copyRendering2D(tileset, undefined, { x, y, w: size, h: size });
-                const temp = copyRendering2D(frame);
+            const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
+            const frame = copyRendering2D(tileset, undefined, { x, y, w: size, h: size });
+            const temp = copyRendering2D(frame);
 
-                fillRendering2D(frame);
-                frame.setTransform(1, 0, 0, 1, size/2, size/2);
-                frame.rotate(turns * Math.PI / 2);
-                frame.drawImage(temp.canvas, -size/2, -size/2);
+            fillRendering2D(frame);
+            frame.setTransform(1, 0, 0, 1, size/2, size/2);
+            frame.rotate(turns * Math.PI / 2);
+            frame.drawImage(temp.canvas, -size/2, -size/2);
 
-                tileset.clearRect(x, y, size, size);
-                tileset.drawImage(frame.canvas, x, y);
-            });
+            tileset.clearRect(x, y, size, size);
+            tileset.drawImage(frame.canvas, x, y);
         });
     }
 
     async flipSelectedTile() {
         return this.stateManager.makeChange(async (data) => {
-            const tileset0 = await this.forkTilesetFrame(0);
-            const tileset1 = await this.forkTilesetFrame(1);
+            const { frameIndex } = this.getSelections();
+            const tileset = await this.forkTilesetFrame(frameIndex);
 
-            [tileset0, tileset1].forEach((tileset) => {
-                const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
-                const frame = copyRendering2D(tileset, undefined, { x, y, w: size, h: size });
-                const temp = copyRendering2D(frame);
+            const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
+            const frame = copyRendering2D(tileset, undefined, { x, y, w: size, h: size });
+            const temp = copyRendering2D(frame);
 
-                fillRendering2D(frame);
-                frame.scale(1, -1);
-                frame.drawImage(temp.canvas, 0, -size);
+            fillRendering2D(frame);
+            frame.scale(1, -1);
+            frame.drawImage(temp.canvas, 0, -size);
 
-                tileset.clearRect(x, y, size, size);
-                tileset.drawImage(frame.canvas, x, y);
-            });
+            tileset.clearRect(x, y, size, size);
+            tileset.drawImage(frame.canvas, x, y);
         });
     }
 
     async mirrorSelectedTile() {
         return this.stateManager.makeChange(async (data) => {
-            const tileset0 = await this.forkTilesetFrame(0);
-            const tileset1 = await this.forkTilesetFrame(1);
+            const { frameIndex } = this.getSelections();
+            const tileset = await this.forkTilesetFrame(frameIndex);
 
-            [tileset0, tileset1].forEach((tileset) => {
-                const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
-                const frame = copyRendering2D(tileset, undefined, { x, y, w: size, h: size });
-                const temp = copyRendering2D(frame);
+            const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
+            const frame = copyRendering2D(tileset, undefined, { x, y, w: size, h: size });
+            const temp = copyRendering2D(frame);
 
-                fillRendering2D(frame);
-                frame.scale(-1, 1);
-                frame.drawImage(temp.canvas, -size, 0);
+            fillRendering2D(frame);
+            frame.scale(-1, 1);
+            frame.drawImage(temp.canvas, -size, 0);
 
-                tileset.clearRect(x, y, size, size);
-                tileset.drawImage(frame.canvas, x, y);
-            });
+            tileset.clearRect(x, y, size, size);
+            tileset.drawImage(frame.canvas, x, y);
         });
     }
 
     async invertSelectedTile() {
         return this.stateManager.makeChange(async (data) => {
+            const { frameIndex } = this.getSelections();
+            const tileset = await this.forkTilesetFrame(frameIndex);
+
+            const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
+            const frame = copyRendering2D(tileset, undefined, { x, y, w: size, h: size });
+            
+            withPixels(frame, (pixels) => {
+                for (let i = 0; i < pixels.length; ++i) {
+                    pixels[i] = 0xFFFFFFFF - pixels[i];
+                }
+            });
+
+            tileset.clearRect(x, y, size, size);
+            tileset.drawImage(frame.canvas, x, y);
+        });
+    }
+
+    async copySelectedTileFrame() {
+        const { tilesets, frameIndex } = this.getSelections();
+        const { x, y, size } = getTileCoords(tilesets[frameIndex].canvas, this.tileBrowser.selectedTileIndex);
+        this.copiedTileFrame = copyRendering2D(tilesets[frameIndex], undefined, { x, y, w: size, h: size });
+        this.actions.pasteTileFrame.disabled = false;
+    }
+
+    async pasteSelectedTileFrame() {
+        return this.stateManager.makeChange(async (data) => {
+            const { frameIndex } = this.getSelections();
+            const tileset = await this.forkTilesetFrame(frameIndex);
+
+            const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
+
+            tileset.clearRect(x, y, size, size);
+            tileset.drawImage(this.copiedTileFrame.canvas, x, y);
+        });
+    }
+    
+    async clearSelectedTileFrame() {
+        return this.stateManager.makeChange(async (data) => {
+            const { frameIndex } = this.getSelections();
+            const tileset = await this.forkTilesetFrame(frameIndex);
+
+            const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
+
+            tileset.clearRect(x, y, size, size);
+        });
+    }
+
+    async swapSelectedTileFrames() {
+        return this.stateManager.makeChange(async (data) => {
             const tileset0 = await this.forkTilesetFrame(0);
             const tileset1 = await this.forkTilesetFrame(1);
 
-            [tileset0, tileset1].forEach((tileset) => {
-                const { x, y, size } = getTileCoords(tileset.canvas, this.tileBrowser.selectedTileIndex);
-                const frame = copyRendering2D(tileset, undefined, { x, y, w: size, h: size });
-                
-                withPixels(frame, (pixels) => {
-                    for (let i = 0; i < pixels.length; ++i) {
-                        pixels[i] = 0xFFFFFFFF - pixels[i];
-                    }
-                });
+            const { x, y, size } = getTileCoords(tileset0.canvas, this.tileBrowser.selectedTileIndex);
+            const frame0 = copyRendering2D(tileset0, undefined, { x, y, w: size, h: size });
+            const frame1 = copyRendering2D(tileset1, undefined, { x, y, w: size, h: size });
 
-                tileset.clearRect(x, y, size, size);
-                tileset.drawImage(frame.canvas, x, y);
-            });
+            tileset0.clearRect(x, y, size, size);
+            tileset0.drawImage(frame1.canvas, x, y);
+            tileset1.clearRect(x, y, size, size);
+            tileset1.drawImage(frame0.canvas, x, y);
         });
     }
 
