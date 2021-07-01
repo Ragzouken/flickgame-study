@@ -258,6 +258,13 @@ bipsi.PaletteEditor = class {
         return { data, palette, colorIndex, color: this.temporary, dataHex };
     }
 
+    getPreviewPalette() {
+        const { color, palette, colorIndex } = this.getSelections();
+        const previewPalette = [ ...palette ];
+        previewPalette[colorIndex] = color.hex;
+        return previewPalette;
+    }
+
     refreshDisplay() {
         if (this.temporary === undefined) this.updateTemporaryFromData();
 
@@ -306,20 +313,7 @@ bipsi.PaletteEditor = class {
         this.colorHex.value = color.hex;
         this.colorSelect.selectedInput.style.setProperty("background", color.hex);
 
-        this.refreshPreview();
-    }
-
-    refreshPreview() {
-        const { color, palette, colorIndex } = this.getSelections();
-        const previewPalette = [ ...palette ];
-        previewPalette[colorIndex] = color.hex;
-        const [ bg, fg, hi ] = previewPalette;
-
-        fillRendering2D(this.editor.renderings.roomPaint, bg);
-        const foreground = recolorMask(this.test_fg, fg);
-        this.editor.renderings.roomPaint.drawImage(foreground.canvas, 0, 0);
-        const highlight = recolorMask(this.test_hi, hi);
-        this.editor.renderings.roomPaint.drawImage(highlight.canvas, 0, 0);
+        this.editor.redraw();
     }
 
     updateTemporaryFromData() {
@@ -502,9 +496,7 @@ bipsi.TileEditor = class {
         const frame = await this.editor.forkTilesetFrame(frameIndex);
         const width = frame.canvas.width;
 
-        const redraw = () => {
-            this.editor.tileBrowser.redraw();
-        };
+        const redraw = () => this.editor.stateManager.changed();
 
         const drag = ui.drag(event);
         const positions = trackCanvasStroke(rendering.canvas, drag);
@@ -566,21 +558,23 @@ bipsi.Editor = class extends EventTarget {
         this.rendering.imageSmoothingEnabled = false;
 
         this.renderings = {
-            roomPaint: ONE("#room-paint").getContext("2d"),
             tilePaint0: ONE("#tile-paint-0").getContext("2d"),
             tilePaint1: ONE("#tile-paint-1").getContext("2d"),
             tilePaintA: ONE("#tile-paint-a").getContext("2d"),
 
             tileMapPaint: ONE("#tile-map-paint").getContext("2d"),
             tilePaintRoom: ONE("#tile-paint-room").getContext("2d"),
+            paletteRoom: ONE("#palette-room").getContext("2d"),
         };
 
         this.tileBrowser = new bipsi.TileBrowser(this);
         this.tileEditor = new bipsi.TileEditor(this);
         this.paletteEditor = new bipsi.PaletteEditor(this);
 
-        // bla
-        this.roomFrames
+        // rendering
+        this.layers = {
+            tilemapMask: ZEROES(2).map(() => createRendering2D(128, 128)),
+        };
 
         // find all the ui already defined in the html
         this.modeSelect = ui.radio("mode-select");
@@ -592,6 +586,7 @@ bipsi.Editor = class extends EventTarget {
 
         this.modeSelect.tab(ONE("#tile-paint-tab"), "draw-tiles");
         this.modeSelect.tab(ONE("#tile-map-tab"), "draw-room");
+        this.modeSelect.tab(ONE("#palette-tab"), "palettes");
 
         // initial selections
         this.modeSelect.selectedIndex = 0;
@@ -687,33 +682,8 @@ bipsi.Editor = class extends EventTarget {
             this.tileBrowser.setFrames([tileset.canvas, tileset2.canvas]);
 
             // render room
-            this.renderings.tileMapPaint.fillStyle = data.palettes[0][0];
-            this.renderings.tileMapPaint.fillRect(0, 0, 128, 128);
-
-            this.renderings.tilePaintRoom.fillStyle = data.palettes[0][0];
-            this.renderings.tilePaintRoom.fillRect(0, 0, 128, 128);
-
-            const room = this.stateManager.present.rooms[0];
-
-            room.tilemap.forEach((row, dy) => {
-                row.forEach((tileIndex, dx) => {
-                    if (tileIndex < 0) return;
-
-                    const { x, y, size } = getTileCoords(tileset.canvas, tileIndex);
-
-                    this.renderings.tileMapPaint.drawImage(
-                        tileset.canvas,
-                        x, y, size, size, 
-                        dx * size, dy * size, size, size,
-                    );
-                    this.renderings.tilePaintRoom.drawImage(
-                        tileset.canvas,
-                        x, y, size, size, 
-                        dx * size, dy * size, size, size,
-                    );
-                });
-            });
-
+            this.renderMasks();
+            this.redraw();
             this.tileBrowser.redraw();
         });
 
@@ -762,6 +732,15 @@ bipsi.Editor = class extends EventTarget {
 
         this.renderings.tileMapPaint.canvas.addEventListener("pointerdown", (event) => onRoomPointer(event, this.renderings.tileMapPaint.canvas));
         this.renderings.tilePaintRoom.canvas.addEventListener("pointerdown", (event) => onRoomPointer(event, this.renderings.tilePaintRoom.canvas));
+
+        this.frame = 0;
+
+        window.setInterval(() => {
+            if (!this.ready) return;
+
+            this.frame = 1 - this.frame;
+            this.redraw();
+        }, bipsi.constants.frameInterval);
     }
 
     async init() {
@@ -784,7 +763,7 @@ bipsi.Editor = class extends EventTarget {
         
         const room = data.rooms[0];
 
-        return { tilesets, frameIndex, tileIndex, room };
+        return { data, tilesets, frameIndex, tileIndex, room };
     }
 
     /**
@@ -799,6 +778,54 @@ bipsi.Editor = class extends EventTarget {
         this.stateManager.present.tilesets[frame] = id;
         // return the instance of the image for editing
         return instance;
+    }
+
+    redraw() {
+        const { data } = this.getSelections();
+        const palette = this.modeSelect.value === "palettes" 
+                      ? this.paletteEditor.getPreviewPalette()  
+                      : data.palettes[0];
+        const [background, foreground] = palette;
+
+        const tilemapM = this.layers.tilemapMask[this.frame];
+        const tilemapC = recolorMask(tilemapM, foreground);
+
+        const targets = [
+            this.renderings.tileMapPaint, 
+            this.renderings.tilePaintRoom, 
+            this.renderings.paletteRoom,
+        ];
+
+        targets.forEach((target) => {
+            target.fillStyle = background;
+            target.fillRect(0, 0, 128, 128);
+            target.drawImage(tilemapC.canvas, 0, 0);
+        });
+    }
+
+    renderMasks() {
+        const { data, tilesets } = this.getSelections();
+        const room = data.rooms[0];
+
+        this.layers.tilemapMask.forEach((rendering, frameIndex) => {
+            const tileset = tilesets[frameIndex];
+            
+            fillRendering2D(rendering);
+
+            room.tilemap.forEach((row, dy) => {
+                row.forEach((tileIndex, dx) => {
+                    if (tileIndex < 0) return;
+
+                    const { x, y, size } = getTileCoords(tileset.canvas, tileIndex);
+
+                    rendering.drawImage(
+                        tileset.canvas,
+                        x, y, size, size, 
+                        dx * size, dy * size, size, size,
+                    );
+                });
+            });
+        });
     }
 
     async copySelectedTile() {

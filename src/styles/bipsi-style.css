@@ -533,6 +533,12 @@ canvas.tile-paint {
     min-width: 48px;
 }
 
+#palette-room {
+    width: 512px; height: 512px;
+    background: var(--trans-gradient);
+    cursor: not-allowed;
+}
+
 #tile-map-tab {
     display: flex; flex-direction: column;
     gap: .5rem;

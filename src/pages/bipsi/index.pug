@@ -35,7 +35,9 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/bi
             #viewport(data-mode="room-paint")
                 #fuck(hidden)
                     canvas#renderer(width="256" height="256" draggable="false" hidden)
-                    canvas#room-paint.tile-paint(width="128" height="128" draggable="false")
+
+                #palette-tab
+                    canvas#palette-room(width="128" height="128" draggable="false")
 
                 #tile-paint-tab
                     #tile-paint-previews
