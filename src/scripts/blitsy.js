@@ -64,6 +64,73 @@ function resizeRendering2D(rendering, width, height) {
 }
 
 /**
+ * @param {CanvasRenderingContext2D} rendering 
+ */
+function invertMask(rendering) {
+    withPixels(rendering, (pixels) => {
+        for (let i = 0; i < pixels.length; ++i) {
+            pixels[i] = 0xFFFFFFFF - pixels[i];
+        }
+    });
+}
+
+/**
+ * @param {CanvasRenderingContext2D} rendering 
+ * @param {number} dx
+ * @param {number} dy
+ */
+function cycleRendering2D(rendering, dx, dy) {
+    const { width, height } = rendering.canvas;
+    const sx = -Math.sign(dx);
+    const sy = -Math.sign(dy);
+
+    const temp = copyRendering2D(rendering);
+
+    fillRendering2D(rendering);
+    rendering.drawImage(temp.canvas, dx,            dy            );
+    rendering.drawImage(temp.canvas, dx + width*sx, dy            ); 
+    rendering.drawImage(temp.canvas, dx + width*sx, dy + height*sy); 
+    rendering.drawImage(temp.canvas, dx,            dy + height*sy); 
+}
+
+/**
+ * @param {CanvasRenderingContext2D} rendering 
+ */
+function mirrorRendering2D(rendering) {
+    const prevComposite = rendering.globalCompositeOperation;
+    rendering.globalCompositeOperation = "copy";
+    rendering.scale(-1, 1);
+    rendering.drawImage(rendering.canvas, -rendering.canvas.width, 0);
+    rendering.globalCompositeOperation = prevComposite;
+}
+
+/**
+ * @param {CanvasRenderingContext2D} rendering 
+ */
+ function flipRendering2D(rendering) {
+    const prevComposite = rendering.globalCompositeOperation;
+    rendering.globalCompositeOperation = "copy";
+    rendering.scale(1, -1);
+    rendering.drawImage(rendering.canvas, 0, -rendering.canvas.height);
+    rendering.globalCompositeOperation = prevComposite;
+}
+
+/**
+ * @param {CanvasRenderingContext2D} rendering 
+ * @param {number} turns
+ */
+ function turnRendering2D(rendering, turns=1) {
+    const { width, height } = rendering.canvas;
+    const prevComposite = rendering.globalCompositeOperation;
+
+    rendering.globalCompositeOperation = "copy";
+    rendering.setTransform(1, 0, 0, 1, width/2, height/2);
+    rendering.rotate(turns * Math.PI / 2);
+    rendering.drawImage(rendering.canvas, -width/2, -height/2);
+    rendering.globalCompositeOperation = prevComposite;
+}
+
+/**
  * @callback pixelsAction
  * @param {Uint32Array} pixels
  */

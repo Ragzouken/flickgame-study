@@ -465,7 +465,7 @@ canvas.tile-paint {
 
     display: flex; flex-direction: row;
 
-    padding: 1rem; gap: 1rem;
+    padding: .5rem; gap: .5rem;
     background: var(--trans-gradient);
     border-radius: 1rem;
 
@@ -543,6 +543,8 @@ canvas.tile-paint {
     height: 512px;
 
     background: var(--trans-gradient);
+
+    cursor: crosshair;
 }
 
 #tile-paint-room {
@@ -550,6 +552,8 @@ canvas.tile-paint {
     height: 256px;
 
     background: var(--trans-gradient);
+
+    cursor: crosshair;
 }
 
 #tile-paint-canvases * {
