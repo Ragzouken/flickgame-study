@@ -1103,15 +1103,40 @@ flickguy.start = async function () {
         });
     }
 
+    ONE('[name="send-guy"]').hidden = true;
+
     // if there's an opener window, tell it we're open to messages (e.g message
     // telling us to load a bundle from the "update" button of another flickguy)
-    if (window.opener) {
+    const parent = window.parent !== window ? window.parent : undefined;
+    const opener = window.opener ?? parent;
+    if (opener) {
         const channel = new MessageChannel();
+
+        const sendGuy = ui.action("send-guy", () => {
+            const dataURI = editor.rendering.canvas.toDataURL();
+            channel.port1.postMessage({ dataURI });
+        });
+        sendGuy.disabled = true;
+
         channel.port1.onmessage = async (event) => {
             if (event.data.bundle) {
                 return editor.loadBundle(event.data.bundle);
             }
+
+            if (event.data.requestGuys) {
+                ONE('[name="send-guy"]').hidden = false;
+                sendGuy.disabled = false;
+            }
+
+            if (event.data.requestBundle) {
+                const bundle = await editor.stateManager.makeBundle();
+                channel.port1.postMessage({ bundle });
+            }
+
+            if (event.data.action) {
+                ui.actions.get(event.data.action).invoke();
+            }
         };
-        window.opener.postMessage({ port: channel.port2 }, "*", [channel.port2]);
+        opener.postMessage({ port: channel.port2 }, "*", [channel.port2]);
     }
 }

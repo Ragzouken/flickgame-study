@@ -456,13 +456,18 @@ class RadioGroupWrapper extends EventTarget {
     get value() {
         return this.selectedInput?.value;
     }
-
+    
     get valueAsNumber() {
         return parseInt(this.selectedInput?.value ?? "-1", 10);
     }
 
     setSelectedIndexSilent(value) {
         this.inputs.forEach((input, index) => input.checked = index === value);
+    }
+
+    setValueSilent(value) {
+        value = value.toString();
+        this.inputs.forEach((input) => input.checked = input.value === value);
     }
 
     /**
@@ -563,8 +568,10 @@ ui.slider = (name) => ONE(`input[type="range"][name=${name}]`);
  * @param {string} name 
  * @returns {HTMLInputElement | HTMLTextAreaElement}
  */
- ui.text = (name) => ONE(`[name=${name}]`);
+ui.text = (name) => ONE(`[name=${name}]`);
 
+/** @type {Map<string, ButtonAction>} */
+ui.actions = new Map();
 /**
  * Get an action linked to all button elements sharing the given name. 
  * Optionally provide a default listener for the action.
@@ -574,6 +581,7 @@ ui.slider = (name) => ONE(`input[type="range"][name=${name}]`);
  */
 ui.action = function (name, listener=undefined) {
     const action = new ButtonAction(ALL(`button[name="${name}"]`));
+    ui.actions.set(name, action);
     if (listener) action.addEventListener("invoke", listener);
     return action;
 }

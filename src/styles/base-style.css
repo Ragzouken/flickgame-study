@@ -25,8 +25,8 @@ button, select { font-family: inherit; font-size: inherit; }
 /* clickable things should use this cursor imo */
 button, a, input[type="radio"],  input[type="checkbox"], select, option, label { cursor: pointer; }
 
-/* crisp pixelart */
-canvas, img {
+/* crisp pixelart for images and backgrounds */
+* {
     image-rendering: -moz-crisp-edges;
     image-rendering: -webkit-crisp-edges;
     image-rendering: pixelated;

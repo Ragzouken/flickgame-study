@@ -25,13 +25,6 @@ input[type="text"], textarea {
     flex: 1;
 }
 
-#renderer {
-    width: 512px;
-    height: 512px;
-
-    background: var(--trans-gradient);
-}
-
 #editor {
     display: flex; flex-direction: row;
     flex-wrap: wrap;
@@ -52,11 +45,6 @@ input[type="text"], textarea {
 
 #controls .hanging-menu > * {
     border-radius: .75rem;
-}
-
-#test {
-    display: flex; flex-direction: row;
-    gap: .5rem;
 }
 
 #upper-toolbar {
@@ -110,7 +98,7 @@ input[type="text"], textarea {
     gap: .5rem;
 }
 
-#undo-row * {
+#undo-row > * {
     border-radius: .75rem;
 }
 
@@ -191,7 +179,6 @@ input[type="text"], textarea {
 
 #tile-select {
     padding: .5rem;
-    --tile-size: calc(8px * 5);
 
     display: flex; flex-direction: row;
     flex-wrap: wrap;
@@ -211,17 +198,11 @@ input[type="text"], textarea {
 #tile-select label {
     min-height: unset;
 
-    width: var(--tile-size);
-    height: var(--tile-size);
+    width: 40px; height: 40px;
 
     background-color: var(--tileset-background-color);
     background-image: var(--tileset-background-image);
     background-size: var(--tileset-background-size);
-
-    image-rendering: -moz-crisp-edges;
-    image-rendering: -webkit-crisp-edges;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
 }
 
 #tile-select input[type="radio"]:checked {
@@ -422,22 +403,6 @@ label.toggle {
     overflow: auto;
 }
 
-#room-paint {
-    width: 256px;
-    height: 256px;
-
-    grid-area: room;
-}
-
-.tile-paint {
-    --tile-paint-scale: 20;
-}
-
-canvas.tile-paint {
-    width: calc(8px * var(--tile-paint-scale));
-    height: calc(8px * var(--tile-paint-scale));
-}
-
 #tile-paint-tab {
     display: flex; flex-direction: column;
     gap: 1rem;
@@ -461,19 +426,16 @@ canvas.tile-paint {
     justify-content: space-evenly;
 }
 
+#tile-paint-canvases canvas {
+    width: 160px; height: 160px;
+    cursor: crosshair;
+}
+
 #tile-paint-buttons {
     flex: 1;
 
     display: grid;
     grid-template-columns: repeat(3, auto);
-}
-
-#tile-paint-0 {
-    cursor: crosshair;
-}
-
-#tile-paint-1 {
-    cursor: crosshair;
 }
 
 #tile-paint-a {
@@ -484,7 +446,7 @@ canvas.tile-paint {
     height: 96px;
 }
 
-#viewport[data-mode="room-paint"] {
+#viewport {
     display: flex; flex-direction: column;
 
     justify-content: unset;
@@ -493,13 +455,13 @@ canvas.tile-paint {
     gap: .5rem;
 }
 
-#viewport[data-mode="room-paint"] #room-paint {
-    width: 512px; height: 512px;
-}
-
 .viewport-toolbar {
     display: flex; flex-direction: row;
     gap: .5rem;
+}
+
+#palette-room, #tile-map-paint, #events-room {
+    width: 512px; height: 512px;
 }
 
 #room-paint-buttons label {
@@ -512,8 +474,6 @@ canvas.tile-paint {
 }
 
 #palette-room {
-    width: 512px; height: 512px;
-    background: var(--trans-gradient);
     cursor: not-allowed;
 }
 
@@ -523,19 +483,11 @@ canvas.tile-paint {
 }
 
 #tile-map-paint {
-    width: 512px;
-    height: 512px;
-
-    background: var(--trans-gradient);
-
     cursor: crosshair;
 }
 
 #tile-paint-room {
-    width: 256px;
-    height: 256px;
-
-    background: var(--trans-gradient);
+    width: 256px; height: 256px;
 
     cursor: crosshair;
 }
@@ -561,4 +513,29 @@ select {
     border-radius: 1rem;
 
     background-color: var(--button-color);
+}
+
+#room-events-tab {
+    display: flex; flex-direction: column;
+    gap: .5rem;
+
+    cursor: pointer;
+}
+
+#event-empty {
+    display: flex; flex-direction: column;
+    gap: .5rem;
+
+    margin-top: .5rem;
+}
+
+#event-template-list {
+    display: flex; flex-direction: row;
+    gap: .5rem;
+    height: 48px;
+}
+
+#event-properties {
+    display: flex; flex-direction: column;
+    gap: 1rem;
 }
