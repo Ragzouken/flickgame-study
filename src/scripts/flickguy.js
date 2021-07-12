@@ -316,6 +316,7 @@ flickguy.Editor = class extends EventTarget {
             
             this.refreshColorSelect();
             this.render();
+            this.updateURL();
         });
 
         // changes in palette select bar
@@ -329,6 +330,7 @@ flickguy.Editor = class extends EventTarget {
 
             this.render();
             this.refreshColorSelect();
+            this.updateURL();
         });
 
         // changes in stack layers toggle
@@ -363,6 +365,8 @@ flickguy.Editor = class extends EventTarget {
             // enable/disable undo/redo buttons
             this.actions.undo.disabled = !this.stateManager.canUndo;
             this.actions.redo.disabled = !this.stateManager.canRedo;
+
+            this.updateURL();
         });
 
         // whenever a pointer moves anywhere on screen, update the paint cursors
@@ -501,6 +505,14 @@ flickguy.Editor = class extends EventTarget {
 
         // signal, to anyone listening, that rendering happened
         this.dispatchEvent(new CustomEvent("render"));
+    }
+
+    updateURL() {
+        const { data } = this.getSelections();
+        const options = data.selected;
+        const palettes = data.layers.map((layer, i) => layer.options[options[i]].palette);
+        const fragment = "#" + ZEROES(8).map((_, i) => `${options[i]}:${palettes[i]}`).join(",");
+        //window.location.replace(fragment);
     }
 
     /**
@@ -1133,7 +1145,7 @@ flickguy.start = async function () {
                 channel.port1.postMessage({ bundle });
             }
 
-            if (event.data.action) {
+            if (event.data.action && event.data.action !== "save") {
                 ui.actions.get(event.data.action).invoke();
             }
         };

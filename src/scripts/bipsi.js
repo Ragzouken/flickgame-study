@@ -11,11 +11,16 @@ bipsi.storage = new maker.ProjectStorage("bipsi");
  */
 
 /**
+ * @typedef {Object} BipsiDataEventField
+ * @property {string} key
+ * @property {string} type
+ * @property {any} data
+ */
+
+/**
  * @typedef {Object} BipsiDataEvent
- * @property {string} id
- * @property {number} graphic
  * @property {number[]} position
- * @property {string} script
+ * @property {BipsiDataEventField[]} fields
  */
 
 /**
@@ -58,7 +63,7 @@ bipsi.constants = {
 
     colorwheelMargin: 12,
 }
-
+const TEMP_128 = createRendering2D(128, 128);
 const TEMP_256 = createRendering2D(256, 256);
 
 function randomPalette() {
@@ -115,6 +120,12 @@ bipsi.updateProject = function(project) {
     for (let i = project.rooms.length; i < 24; ++i) {
         project.rooms.push(makeBlankRoom());
     }
+    project.rooms.forEach((room) => room.events.forEach((event) => event.fields = event.fields ?? [
+        { key: "graphic", type: "tile", data: 0 },
+        { key: "say", type: "dialogue", data: "hello" },
+        { key: "exit", type: "location", data: [0, 0, 0]},
+        { key: "script", type: "javascript", data: "" },
+    ]));
 }
 
 function generateColorWheel(width, height) {
@@ -468,6 +479,264 @@ bipsi.PaletteEditor = class {
     }
 }
 
+bipsi.EventFieldEditor = class extends EventTarget {
+    /**
+     * @param {bipsi.EventEditor} eventEditor 
+     * @param {HTMLElement} fieldElement
+     */
+    constructor(eventEditor, fieldElement) {
+        super();
+
+        this.eventEditor = eventEditor;
+        this.fieldElement = fieldElement;
+
+        this.nameInput = ONE('input[name="field-name"]', fieldElement);
+        this.typeSelect = ONE('select[name="field-type"]', fieldElement);
+
+        this.nameInput.onchange = () => this.changed();
+        this.typeSelect.onchange = () => this.changed();
+    }
+
+    changed() {
+        this.dispatchEvent(new CustomEvent("change"));
+    }
+
+    setActive(value) {
+        this.fieldElement.classList.toggle("active", value);
+    }
+
+    getData() {
+        return { 
+            key: this.nameInput.value,
+            type: this.typeSelect.value 
+        };
+    }
+
+    pushData(field) {
+        this.nameInput.value = field.key;
+        this.typeSelect.value = field.type;
+    }
+
+    pullData(field) {
+        const { key, type } = this.getData();
+        field.key = key;
+        field.type = type;
+    }
+}
+
+const EVENT_TEMPLATES = {
+    empty: [],
+    exit: [
+        { key: "exit", type: "location", data: [0, 0, 0] },
+    ],
+    message: [
+        { key: "say", type: "dialogue", data: "hello" },
+        { key: "one-time", type: "tag", data: true },
+    ],
+    character: [
+        { key: "graphic", type: "tile", data: 0 },
+        { key: "solid", type: "tag", data: true },
+        { key: "say", type: "dialogue", data: "hello" },
+    ],
+}
+
+bipsi.EventEditor = class {
+    /**
+     * @param {bipsi.Editor} editor 
+     */
+    constructor(editor) {
+        this.editor = editor;
+
+        this.fieldTemplate = ONE("#event-field-template");
+        this.fieldContainer = this.fieldTemplate.parentElement;
+        this.fieldTemplate.remove();
+
+        this.fieldEditors = [];
+
+        this.selectedIndex = 0;
+
+        ui.action("create-event-empty", () => this.editor.createEvent(EVENT_TEMPLATES.empty));
+        ui.action("create-event-exit", () => this.editor.createEvent(EVENT_TEMPLATES.exit));
+        ui.action("create-event-message", () => this.editor.createEvent(EVENT_TEMPLATES.message));
+        ui.action("create-event-character", () => this.editor.createEvent(EVENT_TEMPLATES.character));
+
+        this.actions = {
+            add: ui.action("add-event-field", () => this.addField()),
+            duplicate: ui.action("duplicate-event-field", () => this.duplicateField()),
+            shiftUp: ui.action("shift-up-event-field", () => this.shiftField(-1)),
+            shiftDown: ui.action("shift-down-event-field", () => this.shiftField(1)),
+            delete: ui.action("remove-event-field", () => this.removeField()),
+        }
+
+        this.eventEmptyElement = ONE("#event-empty");
+        this.eventPropertiesElement = ONE("#event-properties");
+        this.valueEditors = {
+            json: ONE("#field-json-editor textarea"),
+            dialogue: ONE("#field-dialogue-editor textarea"),
+        };
+
+        this.valueEditors.json.addEventListener("change", () => {
+            const data_ = JSON.parse(this.valueEditors.json.value);
+
+            this.editor.stateManager.makeChange(async (data) => {
+                const { field } = this.getSelections(data);
+                field.data = data_;
+            });
+        });
+
+        this.valueEditors.dialogue.addEventListener("change", () => {
+            this.editor.stateManager.makeChange(async (data) => {
+                const { field } = this.getSelections(data);
+                field.data = this.valueEditors.dialogue.value;
+            });
+        });
+
+        this.editor.eventTileBrowser.select.addEventListener("change", () => {
+            this.editor.stateManager.makeChange(async (data) => {
+                const { field } = this.getSelections(data);
+                field.data = this.editor.eventTileBrowser.selectedTileIndex;
+            });
+        });
+    }
+
+    /**
+     * @param {BipsiDataProject} data 
+     */
+    getSelections(data = undefined) {
+        data = data ?? this.editor.stateManager.present;
+        const { event } = this.editor.getSelections(data);
+        const fieldIndex = this.selectedIndex;
+        const field = event?.fields[fieldIndex];
+
+        return { event, field, fieldIndex };
+    }
+
+    /**
+     * @param {BipsiDataEvent} event 
+     */
+    showEvent(event) {
+        this.event = event ?? { fields: [] };
+        this.refresh();
+    }
+
+    refresh() {
+        const { event, field, fieldIndex } = this.getSelections();
+
+        if (event) {
+            this.updateFieldCount(event.fields.length);
+            this.fieldEditors.forEach((editor, index) => {
+                editor.setActive(index === fieldIndex);
+                editor.pushData(event.fields[index]);
+            });
+            this.eventEmptyElement.hidden = true;
+            this.eventPropertiesElement.hidden = false;
+
+            ONE("#field-json-editor").hidden = true;
+            ONE("#field-dialogue-editor").hidden = true;
+            ONE("#field-tile-editor").hidden = true;
+
+            if (field) {
+                if (field.type === "tag") {
+                } else if (field.type === "dialogue") {
+                    this.valueEditors.dialogue.value = field.data;
+                    ONE("#field-dialogue-editor").hidden = false;
+                } else if (field.type === "tile") {
+                    ONE("#field-tile-editor").hidden = false;
+                    this.editor.eventTileBrowser.selectedTileIndex = field.data;
+                } else {
+                    this.valueEditors.json.value = JSON.stringify(field.data);
+                    ONE("#field-json-editor").hidden = false;
+                }
+            }
+        } else {
+            this.updateFieldCount(0);
+            this.eventEmptyElement.hidden = false;
+            this.eventPropertiesElement.hidden = true;
+        }
+    }
+
+    setSelectedIndex(index) {
+        this.selectedIndex = index;
+        this.refresh();
+    }
+
+    updateFieldCount(count) {
+        const missing = count - this.fieldEditors.length;
+
+        if (missing < 0) {
+            const excess = this.fieldEditors.splice(missing, -missing);
+            excess.forEach((editor) => editor.fieldElement.remove());
+        } else if (missing > 0) {
+            const extras = ZEROES(missing).map((_, i) => {
+                const index = this.fieldEditors.length + i;
+                const fieldElement = this.fieldTemplate.cloneNode(true);
+                const fieldEditor = new bipsi.EventFieldEditor(this, fieldElement);
+
+                // has to be click so that refresh doesn't overwrite input
+                // before change..
+                fieldElement.onclick = () => this.setSelectedIndex(index);
+
+                fieldEditor.addEventListener("change", () => {
+                    this.editor.stateManager.makeChange(async (data) => {
+                        const { field } = this.getSelections(data);
+                        fieldEditor.pullData(field);
+                        // TODO: convert data on type change..
+                    });
+                });
+
+                return fieldEditor;
+            });
+
+            this.fieldContainer.append(...extras.map((field) => field.fieldElement));
+            this.fieldEditors.push(...extras);
+        }
+
+        this.selectedIndex = Math.min(this.selectedIndex, count - 1);
+
+        if (this.selectedIndex === -1) {
+            this.selectedIndex = 0;
+        }
+    }
+
+    async addField() {
+        this.editor.stateManager.makeChange(async (data) => {
+            const { event } = this.getSelections(data);
+            event.fields.push({ key: "new field", type: "text", data: "" });
+            this.setSelectedIndex(event.fields.length - 1);
+        });
+    }
+
+    async duplicateField() {
+        this.editor.stateManager.makeChange(async (data) => {
+            const { event, fieldIndex } = this.getSelections(data);
+            const copy = COPY(event.fields[fieldIndex]);
+            event.fields.splice(fieldIndex, 0, copy);
+            this.setSelectedIndex(fieldIndex+1);
+        });
+    }
+
+    async shiftField(di) {
+        this.editor.stateManager.makeChange(async (data) => {
+            const { event, fieldIndex } = this.getSelections(data);
+            const prev = fieldIndex;
+            const next = Math.max(0, Math.min(fieldIndex + di, event.fields.length));
+
+            const temp = event.fields[prev];
+            event.fields[prev] = event.fields[next];
+            event.fields[next] = temp;
+
+            this.setSelectedIndex(next);
+        });
+    }
+
+    async removeField() {
+        this.editor.stateManager.makeChange(async (data) => {
+            const { event, fieldIndex } = this.getSelections(data);
+            event.fields.splice(fieldIndex, 1);
+        });
+    }
+}
+
 bipsi.TileBrowser = class {
     /**
      * @param {bipsi.Editor} editor 
@@ -597,12 +866,138 @@ bipsi.TileBrowser = class {
             this.items.push(...extras);
         }
 
-        console.log(this.select.selectedIndex, this.select.inputs[0])
         if (this.select.selectedIndex === -1) {
             this.select.selectedIndex = 0;
         }
     }
 }
+
+bipsi.EventTileBrowser = class {
+    /**
+     * @param {bipsi.Editor} editor 
+     */
+    constructor(editor) {
+        this.editor = editor;
+
+        this.thumbnailURIs = [];
+        this.itemTemplate = ONE("#event-tile-select-item-template");
+        this.itemContainer = this.itemTemplate.parentElement;
+        this.itemTemplate.remove();
+        /** @type {HTMLLabelElement[]} */
+        this.items = [];
+
+        this.select = ui.radio("event-tile-select");
+
+        this.select.addEventListener("change", () => {
+            this.redraw();
+        });
+
+        this.frame = 0;
+
+        window.setInterval(() => {
+            this.frame = 1 - this.frame;
+            this.updateCSS();
+            this.redraw();
+        }, bipsi.constants.frameInterval);
+    }
+
+    get selectedTileIndex() {
+        return this.select.valueAsNumber;
+    }
+
+    set selectedTileIndex(value) { 
+        this.select.setValueSilent(value);
+        this.select.inputs[this.select.selectedIndex].scrollIntoView({ block: "center" }); 
+    }
+
+    redraw() {
+        const { data, tilesets, room, tileIndex } = this.editor.getSelections();
+        const palette = data.palettes[room.palette];
+
+        const { x, y, size } = getTileCoords(tilesets[0].canvas, tileIndex);
+
+        const [bg, fg, hi] =  palette;
+
+        const color = this.editor.roomPaintTool.selectedIndex === 1 ? hi : fg;
+
+        fillRendering2D(this.editor.renderings.tilePaint0, bg);
+        this.editor.renderings.tilePaint0.drawImage(
+            recolorMask(tilesets[0], color).canvas,
+            x, y, size, size,
+            0, 0, size, size,
+        );
+
+        fillRendering2D(this.editor.renderings.tilePaint1, bg);
+        this.editor.renderings.tilePaint1.drawImage(
+            recolorMask(tilesets[1], color).canvas,
+            x, y, size, size,
+            0, 0, size, size,
+        );
+
+        this.editor.renderings.tilePaintA.drawImage(
+            [this.editor.renderings.tilePaint0, this.editor.renderings.tilePaint1][this.frame].canvas,
+            0, 0,
+        );
+    }
+
+    async setFrames(canvases) {
+        const prev = [...this.thumbnailURIs];
+        const blobs = await Promise.all(canvases.map(canvasToBlob));
+        const uris = blobs.map(URL.createObjectURL);
+        await Promise.all(uris.map(loadImage)); // preload against flicker
+        this.thumbnailURIs = uris;
+        this.updateCSS();
+        prev.map(URL.revokeObjectURL);
+
+        const scale = 5;
+        const columns = canvases[0].width / bipsi.constants.tileSize;
+        const rows = canvases[0].height / bipsi.constants.tileSize;
+        this.updateTileCount(rows * columns);
+        this.items.forEach((label, index) => {
+            const { x, y } = getTileCoords(canvases[0], index);
+            label.style.backgroundPosition = `-${x * scale}px -${y * scale}px`;
+        });
+    }
+
+    async updateCSS() {
+        ONE("#field-tile-select").style.setProperty(
+            "--tileset-background-image", 
+            `url("${this.thumbnailURIs[this.frame]}")`,
+        );
+        
+    }
+
+    updateTileCount(count) {
+        const missing = count - this.items.length;
+
+        if (missing < 0) {
+            const excess = this.items.splice(-missing, missing);
+            excess.forEach((element) => {
+                element.remove();
+                const radio = ONE("input", element);
+                this.select.remove(radio);
+            });
+        } else if (missing > 0) {
+            const extras = ZEROES(missing).map((_, i) => {
+                const index = this.items.length + i;
+                const label = this.itemTemplate.cloneNode(true);
+                const radio = ONE("input", label);
+                radio.title = `select tile ${index}`;
+                radio.value = index.toString();
+                this.select.add(radio);
+                return label;
+            });
+
+            this.itemContainer.append(...extras);
+            this.items.push(...extras);
+        }
+
+        if (this.selectedTileIndex === -1) {
+            this.selectedTileIndex = 0;
+        }
+    }
+}
+
 
 bipsi.TileEditor = class {
     /**
@@ -704,8 +1099,11 @@ bipsi.Editor = class extends EventTarget {
         Object.values(this.renderings).forEach((rendering) => rendering.imageSmoothingEnabled = false);
 
         this.tileBrowser = new bipsi.TileBrowser(this);
+        this.eventTileBrowser = new bipsi.EventTileBrowser(this);
+
         this.tileEditor = new bipsi.TileEditor(this);
         this.paletteEditor = new bipsi.PaletteEditor(this);
+        this.eventEditor = new bipsi.EventEditor(this);
 
         // rendering
         this.layers = {
@@ -810,6 +1208,9 @@ bipsi.Editor = class extends EventTarget {
 
         // hotkeys
         document.addEventListener("keydown", (event) => {
+            const targetTag = event.target.tagName.toLowerCase();
+            const textedit = targetTag === "input" || targetTag === "textarea";
+
             if (event.ctrlKey) {
                 if (event.key === "z") this.actions.undo.invoke();
                 if (event.key === "y") this.actions.redo.invoke();
@@ -817,7 +1218,7 @@ bipsi.Editor = class extends EventTarget {
                     event.preventDefault();
                     this.actions.save.invoke();
                 }
-            } else {
+            } else if (!textedit) {
                 const topkeys = ["KeyQ", "KeyW", "KeyE", "KeyR", "KeyT"]; 
                 topkeys.forEach((code, i) => {
                     if (event.code === code) this.modeSelect.selectedIndex = i;
@@ -890,6 +1291,10 @@ bipsi.Editor = class extends EventTarget {
             this.renderMasks();
             this.redraw();
             this.tileBrowser.redraw();
+            this.eventTileBrowser.redraw();
+
+            // events
+            this.eventEditor.refresh();
         });
 
         const onRoomPointer = async (event, canvas) => {
@@ -1021,6 +1426,7 @@ bipsi.Editor = class extends EventTarget {
 
             const event_ = getEventsAt(room.events, x, y)[0];
             const events = event_ === undefined ? room.events : [event_];
+            this.eventEditor.showEvent(event_);
 
             drag.addEventListener("move", (event) => {
                 const { x: x0, y: y0 } = round(positions[positions.length - 2]);
@@ -1077,10 +1483,13 @@ bipsi.Editor = class extends EventTarget {
         const roomIndex = this.roomSelect.selectedIndex;
         const tileIndex = this.tileBrowser.selectedTileIndex;
         const frameIndex = this.tilePaintFrameSelect.selectedIndex;
-        
+
         const room = data.rooms[roomIndex];
 
-        return { data, tilesets, room, roomIndex, frameIndex, tileIndex, tileSize };
+        const { x, y } = this.selectedEventCell;
+        const event = getEventsAt(room.events, x, y)[0];
+
+        return { data, tilesets, room, roomIndex, frameIndex, tileIndex, tileSize, event };
     }
 
     /**
@@ -1098,7 +1507,7 @@ bipsi.Editor = class extends EventTarget {
     }
 
     redraw() {
-        const { data, room, tileSize } = this.getSelections();
+        const { data, room, tileSize, tilesets } = this.getSelections();
         const palette = this.modeSelect.value === "palettes" 
                       ? this.paletteEditor.getPreviewPalette()  
                       : data.palettes[room.palette];
@@ -1110,6 +1519,8 @@ bipsi.Editor = class extends EventTarget {
         const highmapF = this.layers.highmapFill;
         const highmapM = this.layers.highmapMask[this.frame]
         const highmapC = recolorMask(highmapM, highlight);
+
+        const tilesetH = recolorMask(tilesets[this.frame], highlight);
 
         const targets = [
             this.renderings.tileMapPaint, 
@@ -1142,6 +1553,19 @@ bipsi.Editor = class extends EventTarget {
             });
             rendering.globalCompositeOperation = "source-over";
         }
+
+        fillRendering2D(TEMP_128);
+        room.events.forEach((event) => {
+            const [x, y] = event.position;
+            const graphicField = event.fields.find((field) => field.key === "graphic");
+            if (graphicField) {
+                TEMP_128.fillStyle = background;
+                TEMP_128.fillRect(x * 8, y * 8, 8, 8);
+                const tile = copyTile(tilesetH, graphicField.data);
+                TEMP_128.drawImage(tile.canvas, x * 8, y * 8);
+            }
+        });
+        this.renderings.eventsRoom.drawImage(TEMP_128.canvas, 0, 0, 256, 256);
 
         fillRendering2D(TEMP_256);
 
@@ -1195,6 +1619,7 @@ bipsi.Editor = class extends EventTarget {
         const tileset2 = recolorMask(tilesets[1], color);
 
         this.tileBrowser.setFrames([tileset.canvas, tileset2.canvas]);
+        this.eventTileBrowser.setFrames([tileset.canvas, tileset2.canvas]);
     }
 
     async copySelectedRoom() {
@@ -1306,6 +1731,18 @@ bipsi.Editor = class extends EventTarget {
 
             drawTile(tileset0, tileIndex, frame1);
             drawTile(tileset1, tileIndex, frame0);
+        });
+    }
+
+    createEvent(fieldsTemplate = undefined) {
+        this.stateManager.makeChange(async (data) => {
+            const { room } = this.getSelections(data);
+            const { x, y } = this.selectedEventCell;
+            const event = { 
+                position: [x, y],
+                fields: COPY(fieldsTemplate ?? []),
+            }
+            room.events.push(event);
         });
     }
 

@@ -65,7 +65,7 @@ input[type="text"], textarea {
     background: var(--frame-color);
     border-radius: 0 1rem 1rem 1rem;
 
-    overflow: auto;
+    overflow: hidden;
 }
 
 #viewport {
@@ -253,106 +253,6 @@ input[type="text"], textarea {
     width: 100%; height: 100%;
 }
 
-#event-edit {
-    gap: 1rem;
-}
-
-#event-edit > * {
-    flex: 1;
-}
-
-#event-lines {
-    padding: .5rem;
-    gap: .5rem;
-
-    border-radius: .5rem;
-    background: var(--trans-gradient);
-    overflow: hidden scroll;
-}
-
-#event-lines > label {
-    display: flex; flex-direction: row;
-    gap: 0;
-
-    min-height: unset;
-
-    background: none;
-
-    border-radius: .5rem 0 0 .5rem;
-}
-
-#event-lines input:checked {
-    background: none;
-
-    z-index: 5;
-    box-shadow: 0 0 0 .5em white;
-}
-
-#event-lines .type {
-    width: 64px;
-    font-weight: bold;
-    padding: .5rem 1rem;
-
-    color: black;
-    border-radius: .5rem 0 0 .5rem;
-    background: var(--button-color);
-}
-
-#event-lines .detail {
-    flex: 1;
-
-    font-family: monospace;
-    color: white;
-    background: black;
-
-    display: flex;
-    align-items: center;
-    padding-left: 1rem;
-}
-
-#event-lines > button {
-    flex: 0;
-    border-radius: .5rem;
-    width: 64px;
-    font-weight: bold;
-    padding: .5rem 1rem;
-}
-
-#event-lines-toolbar {
-    flex: 0;
-    flex-basis: 48px;
-    gap: .5rem;
-}
-
-#event-lines-toolbar > button {
-    border-radius: 0 .5rem .5rem 0;
-    padding: 0;
-}
-
-#event-action-type-select {
-    padding: .5em;
-
-    border: none;
-    border-radius: 1rem 0 0 1rem;
-
-    background-color: var(--button-color);
-
-    font-weight: bold;
-
-    height: 48px;
-}
-
-#dialogue-edit {
-    resize: none;
-    border-radius: 0 1rem 1rem 1rem;
-    margin: 0;
-}
-
-#event-selected-toolbar {
-    gap: 1rem;
-    padding-right: 1rem;
-}
-
 label.toggle {
     flex: 1;
     flex-direction: column;
@@ -525,8 +425,14 @@ select {
 #event-empty {
     display: flex; flex-direction: column;
     gap: .5rem;
+}
 
-    margin-top: .5rem;
+#event-empty > button {
+    flex: 0;
+
+    display: flex; flex-direction: row;
+    padding: .5rem; gap: .5rem;
+    justify-content: flex-start;
 }
 
 #event-template-list {
@@ -538,4 +444,185 @@ select {
 #event-properties {
     display: flex; flex-direction: column;
     gap: 1rem;
+
+    overflow: hidden;
+}
+
+#event-properties > .row {
+    overflow: hidden;
+}
+
+#event-sheet {
+    flex: 1;
+
+    display: flex; flex-direction: column;
+
+    border-radius: 1rem 0 0 1rem;
+    background: black;
+    overflow: hidden scroll;
+}
+
+#event-sheet > :nth-child(2n+0) {
+    background: var(--trans-color-1);
+}
+
+#event-sheet > :nth-child(2n+1) {
+    background: var(--trans-color-2);
+}
+
+#event-sheet #event-sheet-add {
+    flex: 0;
+    margin: .5rem;
+    background: var(--button-color);
+}
+
+.event-line {
+    display: flex; flex-direction: row;
+    gap: .25rem;
+
+    height: 32px;
+    min-height: 32px;
+
+    cursor: pointer;
+
+    gap: .25rem;
+    padding: 0 .25rem;
+}
+
+.event-line > input, .event-line > select { 
+    color: white;
+    flex: 1;
+    border-radius: 0;
+    background: none;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.event-line:not(.active) > * {
+    pointer-events: none;
+}
+
+.event-line.active {
+    filter: invert();
+}
+
+.event-line :focus {
+    outline: thick solid var(--button-color);
+    z-index: 5;
+}
+
+#event-lines-toolbar {
+    flex: unset;
+    width: 48px;
+    height: 160px;
+    gap: .5rem;
+
+    display: flex; flex-direction: column;
+}
+
+#event-lines-toolbar > button {
+    border-radius: 0 .5rem .5rem 0;
+    padding: 0;
+    height: 40px;
+}
+
+#event-properties textarea {
+    flex: 1;
+    resize: none;
+    border-radius: 1rem;
+}
+
+#field-json-editor {
+    height: 64px;
+
+    display: flex;
+}
+
+#field-dialogue-editor {
+    height: 96px;
+
+    display: flex;
+}
+
+#field-dialogue-editor > .row {
+    gap: .5rem;
+}
+
+#field-dialogue-editor textarea {
+    border-radius: .5rem 1rem 1rem .5rem;
+}
+
+#dialogue-editor-toolbar {
+    display: flex; flex-direction: column;
+    gap: .5rem;
+
+    width: 48px;
+}
+
+#dialogue-editor-toolbar .toggle {
+    border-radius: .5rem;
+}
+
+#event-edit {
+    gap: 1rem;
+    overflow: hidden;
+}
+
+#event-edit > * {
+    flex: 1;
+}
+
+#event-action-type-select {
+    padding: .5em;
+
+    border: none;
+    border-radius: 1rem 0 0 1rem;
+
+    background-color: var(--button-color);
+
+    font-weight: bold;
+
+    height: 48px;
+}
+
+#event-selected-toolbar {
+    gap: 1rem;
+    padding-right: 1rem;
+}
+
+#field-tile-editor {
+    height: 192px;
+}
+
+#field-tile-select {
+    padding: .5rem;
+
+    display: flex; flex-direction: row;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: flex-end;
+
+    border-radius: .5rem;
+    background: var(--trans-gradient);
+    overflow: hidden scroll;
+
+    width: 100%;
+    height: 100%;
+}
+
+#field-tile-select label {
+    min-height: unset;
+
+    width: 40px; height: 40px;
+
+    background-color: var(--tileset-background-color);
+    background-image: var(--tileset-background-image);
+    background-size: var(--tileset-background-size);
+}
+
+#field-tile-select input[type="radio"]:checked {
+    background: none;
+    z-index: 5;
+
+    box-shadow: 0 0 0 5px white;
 }
