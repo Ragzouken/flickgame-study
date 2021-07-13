@@ -120,12 +120,7 @@ bipsi.updateProject = function(project) {
     for (let i = project.rooms.length; i < 24; ++i) {
         project.rooms.push(makeBlankRoom());
     }
-    project.rooms.forEach((room) => room.events.forEach((event) => event.fields = event.fields ?? [
-        { key: "graphic", type: "tile", data: 0 },
-        { key: "say", type: "dialogue", data: "hello" },
-        { key: "exit", type: "location", data: [0, 0, 0]},
-        { key: "script", type: "javascript", data: "" },
-    ]));
+    project.rooms.forEach((room) => room.events.forEach((event) => event.fields = event.fields ?? []));
 }
 
 function generateColorWheel(width, height) {
@@ -479,6 +474,16 @@ bipsi.PaletteEditor = class {
     }
 }
 
+const FIELD_DEFAULTS = {
+    tag: true,
+    tile: 0,
+    dialogue: "",
+    location: { room: 0, position: [0, 0] },
+    javascript: "",
+    json: "",
+    text: "",
+};
+
 bipsi.EventFieldEditor = class extends EventTarget {
     /**
      * @param {bipsi.EventEditor} eventEditor 
@@ -520,6 +525,9 @@ bipsi.EventFieldEditor = class extends EventTarget {
     pullData(field) {
         const { key, type } = this.getData();
         field.key = key;
+        if (field.type !== type) {
+            field.data = FIELD_DEFAULTS[type];
+        }
         field.type = type;
     }
 }
@@ -527,7 +535,7 @@ bipsi.EventFieldEditor = class extends EventTarget {
 const EVENT_TEMPLATES = {
     empty: [],
     exit: [
-        { key: "exit", type: "location", data: [0, 0, 0] },
+        { key: "exit", type: "location", data: { room: 0, position: [0, 0] } },
     ],
     message: [
         { key: "say", type: "dialogue", data: "hello" },
@@ -538,7 +546,11 @@ const EVENT_TEMPLATES = {
         { key: "solid", type: "tag", data: true },
         { key: "say", type: "dialogue", data: "hello" },
     ],
-}
+    player: [
+        { key: "graphic", type: "tile", data: 0 },
+        { key: "is-player", type: "tag", data: true },
+    ],
+};
 
 bipsi.EventEditor = class {
     /**
@@ -559,6 +571,7 @@ bipsi.EventEditor = class {
         ui.action("create-event-exit", () => this.editor.createEvent(EVENT_TEMPLATES.exit));
         ui.action("create-event-message", () => this.editor.createEvent(EVENT_TEMPLATES.message));
         ui.action("create-event-character", () => this.editor.createEvent(EVENT_TEMPLATES.character));
+        ui.action("create-event-player", () => this.editor.createEvent(EVENT_TEMPLATES.player));
 
         this.actions = {
             add: ui.action("add-event-field", () => this.addField()),
@@ -574,6 +587,9 @@ bipsi.EventEditor = class {
             json: ONE("#field-json-editor textarea"),
             dialogue: ONE("#field-dialogue-editor textarea"),
         };
+
+        this.positionSelect = ONE("#field-position-select");
+        this.positionSelectRendering = this.positionSelect.getContext("2d");
 
         this.valueEditors.json.addEventListener("change", () => {
             const data_ = JSON.parse(this.valueEditors.json.value);
@@ -595,6 +611,23 @@ bipsi.EventEditor = class {
             this.editor.stateManager.makeChange(async (data) => {
                 const { field } = this.getSelections(data);
                 field.data = this.editor.eventTileBrowser.selectedTileIndex;
+            });
+        });
+
+        this.editor.fieldRoomSelect.addEventListener("change", () => {
+            this.editor.stateManager.makeChange(async (data) => {
+                const { field } = this.getSelections(data);
+                field.data.room = this.editor.fieldRoomSelect.selectedIndex;
+            });
+        });
+
+        this.positionSelect.addEventListener("click", (event) => {
+            const { x, y } = mouseEventToCanvasPixelCoords(this.positionSelect, event);
+            const tx = Math.floor(x / 8);
+            const ty = Math.floor(y / 8);
+            this.editor.stateManager.makeChange(async (data) => {
+                const { field } = this.getSelections(data);
+                field.data.position = [tx, ty];
             });
         });
     }
@@ -634,6 +667,7 @@ bipsi.EventEditor = class {
             ONE("#field-json-editor").hidden = true;
             ONE("#field-dialogue-editor").hidden = true;
             ONE("#field-tile-editor").hidden = true;
+            ONE("#field-location-editor").hidden = true;
 
             if (field) {
                 if (field.type === "tag") {
@@ -643,6 +677,18 @@ bipsi.EventEditor = class {
                 } else if (field.type === "tile") {
                     ONE("#field-tile-editor").hidden = false;
                     this.editor.eventTileBrowser.selectedTileIndex = field.data;
+                } else if (field.type === "location") {
+                    ONE("#field-location-editor").hidden = false;
+                    this.editor.fieldRoomSelect.selectedIndex = field.data.room;
+                    const [x, y] = field.data.position;
+
+                    this.positionSelectRendering.save();
+                    this.editor.drawRoom(this.positionSelectRendering, field.data.room);
+                    this.positionSelectRendering.globalCompositeOperation = "difference"
+                    this.positionSelectRendering.fillStyle = "white";
+                    this.positionSelectRendering.fillRect(0, y * 8+2, 128, 4);
+                    this.positionSelectRendering.fillRect(x * 8+2, 0, 4, 128);
+                    this.positionSelectRendering.restore();
                 } else {
                     this.valueEditors.json.value = JSON.stringify(field.data);
                     ONE("#field-json-editor").hidden = false;
@@ -1096,6 +1142,8 @@ bipsi.Editor = class extends EventTarget {
             eventsRoom: ONE("#events-room").getContext("2d"),
         };
 
+        this.fieldRoomSelect = ui.radio("field-room-select");
+        
         Object.values(this.renderings).forEach((rendering) => rendering.imageSmoothingEnabled = false);
 
         this.tileBrowser = new bipsi.TileBrowser(this);
@@ -1141,10 +1189,14 @@ bipsi.Editor = class extends EventTarget {
         this.selectedEventCell = { x: 0, y: 0 };
 
         this.roomThumbs = ZEROES(24).map(() => createRendering2D(16, 16));
+        this.roomThumbs2 = ZEROES(24).map(() => createRendering2D(16, 16));
 
-        // add thumbnails to the scene select bar
+        // add thumbnails to the room select bar
         ALL("#room-select input").forEach((input, index) => {
             input.after(this.roomThumbs[index].canvas);
+        });
+        ALL("#field-room-select input").forEach((input, index) => {
+            input.after(this.roomThumbs2[index].canvas);
         });
 
         // editor actions controlled by html buttons
@@ -1506,6 +1558,41 @@ bipsi.Editor = class extends EventTarget {
         return instance;
     }
 
+    /**
+     * @param {CanvasRenderingContext2D} rendering 
+     * @param {number} roomIndex 
+     */
+    drawRoom(rendering, roomIndex) {
+        const { data, tilesets } = this.getSelections();
+        const room = data.rooms[roomIndex];
+        const palette = data.palettes[room.palette];
+        const [background, foreground, highlight] = palette;
+        const tileset = tilesets[0];
+
+        const tilesetC = recolorMask(tileset, foreground);
+        const tilesetH = recolorMask(tileset, highlight);
+
+        fillRendering2D(rendering, background);
+        drawTilemap(TEMP_128, tilesetC, room.tilemap);
+        rendering.drawImage(TEMP_128.canvas, 0, 0);
+        fillTilemap(TEMP_128, background, room.highmap);
+        rendering.drawImage(TEMP_128.canvas, 0, 0);
+        drawTilemap(TEMP_128, tilesetH, room.highmap);
+        rendering.drawImage(TEMP_128.canvas, 0, 0);
+
+        room.events.forEach((event) => {
+            const [x, y] = event.position;
+            const graphicField = event.fields.find((field) => field.key === "graphic");
+            if (graphicField) {
+                TEMP_128.fillStyle = background;
+                TEMP_128.fillRect(x * 8, y * 8, 8, 8);
+                const tile = copyTile(tilesetH, graphicField.data);
+                TEMP_128.drawImage(tile.canvas, x * 8, y * 8);
+            }
+        });
+        rendering.drawImage(TEMP_128.canvas, 0, 0);
+    }
+
     redraw() {
         const { data, room, tileSize, tilesets } = this.getSelections();
         const palette = this.modeSelect.value === "palettes" 
@@ -1587,6 +1674,7 @@ bipsi.Editor = class extends EventTarget {
         this.roomThumbs.forEach((thumbnail, roomIndex) => {
             const room = data.rooms[roomIndex];
             drawRoomThumbnail(thumbnail, palette, room);
+            this.roomThumbs2[roomIndex].drawImage(thumbnail.canvas, 0, 0);
         });
 
         const events = getEventsAt(room.events, x, y);

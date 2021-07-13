@@ -15,16 +15,16 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/fl
         meta(name="twitter:image:alt" value="mosaic of many colorful avatars")
         // scripts
         script
-            include /scripts/maker.js
+            include /common/maker.js
         script
-            include /scripts/blitsy.js
+            include /common/blitsy.js
         script
             include /scripts/flickguy.js
         // styles
         style#base-style
-            include /styles/base-style.css
+            include /common/base-style.css
         style#main-style
-            include /styles/main-style.css
+            include /common/main-style.css
         style
             include /styles/flickguy-style.css
     body(onload="flickguy.start()")

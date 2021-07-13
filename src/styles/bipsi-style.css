@@ -427,7 +427,7 @@ select {
     gap: .5rem;
 }
 
-#event-empty > button {
+#event-template-list > button {
     flex: 0;
 
     display: flex; flex-direction: row;
@@ -436,9 +436,9 @@ select {
 }
 
 #event-template-list {
-    display: flex; flex-direction: row;
+    display: grid;
     gap: .5rem;
-    height: 48px;
+    grid-template-columns: repeat(2, 1fr);
 }
 
 #event-properties {
@@ -514,7 +514,7 @@ select {
 #event-lines-toolbar {
     flex: unset;
     width: 48px;
-    height: 160px;
+    height: 180px;
     gap: .5rem;
 
     display: flex; flex-direction: column;
@@ -625,4 +625,43 @@ select {
     z-index: 5;
 
     box-shadow: 0 0 0 5px white;
+}
+
+#field-room-select {
+    --room-size: calc(16px * 2);
+
+    flex: 1;
+
+    display: grid;
+    grid-template-columns: repeat(8, var(--room-size));
+
+    justify-content: space-around;
+    align-content: space-around;
+}
+
+#field-room-select label {
+    min-height: unset;
+
+    width: var(--room-size);
+    height: var(--room-size);
+}
+
+#field-room-select input[type="radio"]:checked {
+    background: none;
+    z-index: 5;
+
+    box-shadow: 0 0 0 4px white;
+}
+
+#field-room-select canvas {
+    width: 100%; height: 100%;
+}
+
+#field-location-editor {
+    display: flex; flex-direction: row;
+    gap: 1rem;
+}
+
+#field-position-select {
+    background: var(--trans-gradient);
 }
