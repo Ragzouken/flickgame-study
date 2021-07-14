@@ -665,3 +665,7 @@ select {
 #field-position-select {
     background: var(--trans-gradient);
 }
+
+#play-tab-view canvas {
+    width: 512px; height: 512px;
+}

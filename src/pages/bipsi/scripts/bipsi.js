@@ -187,13 +187,18 @@ function drawTile(tileset, tileIndex, tile) {
  * @param {CanvasRenderingContext2D} tileset 
  * @param {number[][]} tilemap 
  */
-function drawTilemap(rendering, tileset, tilemap) {
-    fillRendering2D(rendering);
+function drawTilemap(rendering, tileset, tilemap, background = undefined) {
+    rendering.save();
+    rendering.fillStyle = background;
     tilemap.forEach((row, dy) => {
         row.forEach((tileIndex, dx) => {
             if (tileIndex < 0) return;
 
             const { x, y, size } = getTileCoords(tileset.canvas, tileIndex);
+
+            if (background) {
+                rendering.fillRect(dx * size, dy * size, size, size);
+            }
 
             rendering.drawImage(
                 tileset.canvas,
@@ -202,6 +207,25 @@ function drawTilemap(rendering, tileset, tilemap) {
             );
         });
     });
+    rendering.restore();
+}
+
+function drawEvents(rendering, tileset, events, background = undefined) {
+    rendering.save();
+    rendering.fillStyle = background;
+    events.forEach((event) => {
+        const [x, y] = event.position;
+        const graphicField = event.fields.find((field) => field.key === "graphic");
+        if (graphicField) {
+            if (background) {
+                rendering.fillStyle = background;
+                rendering.fillRect(x * 8, y * 8, 8, 8);
+            }
+            const tile = copyTile(tileset, graphicField.data);
+            rendering.drawImage(tile.canvas, x * 8, y * 8);
+        }
+    });
+    rendering.restore();
 }
 
 /**
@@ -1140,7 +1164,14 @@ bipsi.Editor = class extends EventTarget {
             tilePaintRoom: ONE("#tile-paint-room").getContext("2d"),
             paletteRoom: ONE("#palette-room").getContext("2d"),
             eventsRoom: ONE("#events-room").getContext("2d"),
+
+            playtest: ONE("#playtest-rendering").getContext("2d"),
         };
+
+        this.player = new bipsi.Player();
+        this.player.addEventListener("render", () => {
+            this.renderings.playtest.drawImage(this.player.rendering.canvas, 0, 0, 256, 256);
+        });
 
         this.fieldRoomSelect = ui.radio("field-room-select");
         
@@ -1179,6 +1210,9 @@ bipsi.Editor = class extends EventTarget {
         this.modeSelect.tab(ONE("#tile-paint-tab"), "draw-tiles");
         this.modeSelect.tab(ONE("#tile-map-tab"), "draw-room");
         this.modeSelect.tab(ONE("#palette-tab"), "palettes");
+
+        this.modeSelect.tab(ONE("#play-tab-body"), "playtest");
+        this.modeSelect.tab(ONE("#play-tab-view"), "playtest");
 
         // initial selections
         this.modeSelect.selectedIndex = 0;
@@ -1275,6 +1309,13 @@ bipsi.Editor = class extends EventTarget {
                 topkeys.forEach((code, i) => {
                     if (event.code === code) this.modeSelect.selectedIndex = i;
                 });
+
+                if (event.key === "ArrowLeft")  this.player.move(-1,  0);
+                if (event.key === "ArrowRight") this.player.move( 1,  0);
+                if (event.key === "ArrowUp")    this.player.move( 0, -1);
+                if (event.key === "ArrowDown")  this.player.move( 0,  1);
+                
+                event.preventDefault();
             }
 
             if (event.altKey && this.heldColorPick === undefined) {
@@ -1294,8 +1335,14 @@ bipsi.Editor = class extends EventTarget {
         });
 
         // changes in mode select bar
-        this.modeSelect.addEventListener("change", () => {
+        this.modeSelect.addEventListener("change", async () => {
             this.redrawTileBrowser();
+
+            // TODO: hmm
+            if (this.modeSelect.value === "playtest") {
+                await this.player.copyFrom(this.stateManager);
+                this.player.render();
+            }
         });
 
         this.roomSelect.addEventListener("change", () => {
@@ -1573,24 +1620,9 @@ bipsi.Editor = class extends EventTarget {
         const tilesetH = recolorMask(tileset, highlight);
 
         fillRendering2D(rendering, background);
-        drawTilemap(TEMP_128, tilesetC, room.tilemap);
-        rendering.drawImage(TEMP_128.canvas, 0, 0);
-        fillTilemap(TEMP_128, background, room.highmap);
-        rendering.drawImage(TEMP_128.canvas, 0, 0);
-        drawTilemap(TEMP_128, tilesetH, room.highmap);
-        rendering.drawImage(TEMP_128.canvas, 0, 0);
-
-        room.events.forEach((event) => {
-            const [x, y] = event.position;
-            const graphicField = event.fields.find((field) => field.key === "graphic");
-            if (graphicField) {
-                TEMP_128.fillStyle = background;
-                TEMP_128.fillRect(x * 8, y * 8, 8, 8);
-                const tile = copyTile(tilesetH, graphicField.data);
-                TEMP_128.drawImage(tile.canvas, x * 8, y * 8);
-            }
-        });
-        rendering.drawImage(TEMP_128.canvas, 0, 0);
+        drawTilemap(rendering, tilesetC, room.tilemap, background);
+        drawTilemap(rendering, tilesetH, room.highmap, background);
+        drawEvents(rendering, tilesetH, room.events, background);
     }
 
     redraw() {
@@ -1680,6 +1712,9 @@ bipsi.Editor = class extends EventTarget {
         const events = getEventsAt(room.events, x, y);
         this.actions.copyEvent.disabled = events.length === 0;
         this.actions.deleteEvent.disabled = events.length === 0;
+
+        this.player.frameCount = this.frame;
+        this.player.render();
     } 
 
     renderMasks() {
@@ -1687,13 +1722,16 @@ bipsi.Editor = class extends EventTarget {
         const [background] = data.palettes[room.palette];
 
         this.layers.tilemapMask.forEach((rendering, frameIndex) => {
+            fillRendering2D(rendering);
             drawTilemap(rendering, tilesets[frameIndex], room.tilemap);
         });
 
         this.layers.highmapMask.forEach((rendering, frameIndex) => {
+            fillRendering2D(rendering);
             drawTilemap(rendering, tilesets[frameIndex], room.highmap);
         });
 
+        fillRendering2D(this.layers.highmapFill);
         fillTilemap(this.layers.highmapFill, background, room.highmap);
     }
 

@@ -200,6 +200,7 @@ maker.StateManager = class extends EventTarget {
     constructor(getManifest = undefined) {
         super();
 
+        /** @type {maker.ManifestFunction<TState>} */
         this.getManifest = getManifest || (() => []);
         this.resources = new maker.ResourceManager();
 
@@ -252,12 +253,30 @@ maker.StateManager = class extends EventTarget {
     async copyFrom(other) {
         this.history = COPY(other.history);
         this.index = other.index;
+        
         this.resources.clear();
         await this.resources.copyFrom(other.resources);
         
         this.changed();
     }
     
+    /**
+     * Replace all state by copying just the present and dependent resources
+     * from another state manager.
+     * @param {maker.StateManager<TState>} other 
+     */
+    async copyPresentFrom(other) {
+        this.history = [COPY(other.present)];
+        this.index = 0;
+        this.resources.clear();
+
+        // TODO: only copy what's not going to be pruned..
+        await this.resources.copyFrom(other.resources);
+        this.pruneResources();
+        
+        this.changed();
+    }
+
     /**
      * Copy the present state and dependent resources into a project bundle.
      * @returns {Promise<maker.ProjectBundle<TState>>}
