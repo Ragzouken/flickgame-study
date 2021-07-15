@@ -19,6 +19,7 @@ bipsi.storage = new maker.ProjectStorage("bipsi");
 
 /**
  * @typedef {Object} BipsiDataEvent
+ * @property {string} id
  * @property {number[]} position
  * @property {BipsiDataEventField[]} fields
  */
@@ -120,7 +121,10 @@ bipsi.updateProject = function(project) {
     for (let i = project.rooms.length; i < 24; ++i) {
         project.rooms.push(makeBlankRoom());
     }
-    project.rooms.forEach((room) => room.events.forEach((event) => event.fields = event.fields ?? []));
+    project.rooms.forEach((room) => room.events.forEach((event) => {
+        event.id = event.id ?? nanoid();
+        event.fields = event.fields ?? [];
+    }));
 }
 
 function generateColorWheel(width, height) {
@@ -570,6 +574,9 @@ const EVENT_TEMPLATES = {
         { key: "solid", type: "tag", data: true },
         { key: "say", type: "dialogue", data: "hello" },
     ],
+    ending: [
+        { key: "ending", type: "dialogue", data: "goodbye"},
+    ],
     player: [
         { key: "graphic", type: "tile", data: 0 },
         { key: "is-player", type: "tag", data: true },
@@ -595,6 +602,7 @@ bipsi.EventEditor = class {
         ui.action("create-event-exit", () => this.editor.createEvent(EVENT_TEMPLATES.exit));
         ui.action("create-event-message", () => this.editor.createEvent(EVENT_TEMPLATES.message));
         ui.action("create-event-character", () => this.editor.createEvent(EVENT_TEMPLATES.character));
+        ui.action("create-event-ending", () => this.editor.createEvent(EVENT_TEMPLATES.ending));
         ui.action("create-event-player", () => this.editor.createEvent(EVENT_TEMPLATES.player));
 
         this.actions = {
@@ -1134,7 +1142,7 @@ bipsi.Editor = class extends EventTarget {
      * HTML UI so it doesn't really make sense to construct this more than once
      * but a class is easy syntax for wrapping functions and state together 🤷‍♀️
      */
-    constructor() {
+    constructor(font) {
         super();
 
         // run full editor functionally? (or just simple playback?)
@@ -1168,7 +1176,7 @@ bipsi.Editor = class extends EventTarget {
             playtest: ONE("#playtest-rendering").getContext("2d"),
         };
 
-        this.player = new bipsi.Player();
+        this.player = new bipsi.Player(font);
         this.player.addEventListener("render", () => {
             this.renderings.playtest.drawImage(this.player.rendering.canvas, 0, 0, 256, 256);
         });
@@ -1334,6 +1342,15 @@ bipsi.Editor = class extends EventTarget {
             }
         });
 
+        let prev;
+        const timer = (next) => {
+            prev ||= Date.now();
+            this.player.update((next - prev) / 1000.);
+            prev = next;
+            window.requestAnimationFrame(timer);
+        }
+        timer();
+
         // changes in mode select bar
         this.modeSelect.addEventListener("change", async () => {
             this.redrawTileBrowser();
@@ -1341,7 +1358,8 @@ bipsi.Editor = class extends EventTarget {
             // TODO: hmm
             if (this.modeSelect.value === "playtest") {
                 await this.player.copyFrom(this.stateManager);
-                this.player.render();
+            } else {
+                this.player.clear();
             }
         });
 
@@ -1562,6 +1580,7 @@ bipsi.Editor = class extends EventTarget {
 
     async init() {
         await this.paletteEditor.init();
+        await this.player.init();
 
         this.EVENT_TILE = await loadImage(bipsi.constants.eventTile);
         this.WALL_TILE = await loadImage(bipsi.constants.wallTile);
@@ -1714,7 +1733,6 @@ bipsi.Editor = class extends EventTarget {
         this.actions.deleteEvent.disabled = events.length === 0;
 
         this.player.frameCount = this.frame;
-        this.player.render();
     } 
 
     renderMasks() {
@@ -2018,7 +2036,9 @@ bipsi.Editor = class extends EventTarget {
 }
 
 bipsi.start = async function () {
-    const editor = new bipsi.Editor();
+    const font = await loadBasicFont(ONE("#font-embed"));
+
+    const editor = new bipsi.Editor(font);
     await editor.init();
 
     bipsi.editor = editor;

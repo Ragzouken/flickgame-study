@@ -716,6 +716,15 @@ function trackCanvasStroke(canvas, drag) {
     return positions;
 }
 
+// from https://github.com/ai/nanoid/blob/master/non-secure/index.js
+const urlAlphabet = 'ModuleSymbhasOwnPr-0123456789ABCDEFGHNRVfgctiUvz_KqYTJkLxpZXIjQW';
+function nanoid(size = 21) {
+    let id = '';
+    let i = size;
+    while (i--) id += urlAlphabet[(Math.random() * 64) | 0];
+    return id
+}
+
 /**
  * Deep copy an object by serializing it to json and parsing it again.
  * @template T
