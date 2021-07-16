@@ -33,13 +33,13 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/fl
                 #viewport
                     canvas#renderer(width="160" height="100" draggable="false")
                     #help(hidden)
-                        button(name="help" title="hide help") close
                         include:markdown-it(html) about.md
                         h2 extra
                         p you made it to the end so here's an extra feature that didn't fit in the ui:
                         .button-row
                             button(name="export-palette" title="export palette as image") export palette
                             button(name="import-palette" title="import palette from image") import palette
+                        button(name="help" title="hide help") close
                 #tool-select.horizontal-capsule.radio-select(title="tools")
                     label
                         input(type="radio" name="tool-select" value="freehand" title="freehand paint")
