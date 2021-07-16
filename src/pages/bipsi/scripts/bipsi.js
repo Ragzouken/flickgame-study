@@ -583,6 +583,17 @@ const EVENT_TEMPLATES = {
     ],
 };
 
+function prepareTemplate(element) {
+    const clone = element.cloneNode(true);
+    clone.removeAttribute("id");
+    clone.hidden = false;
+
+    return {
+        parent: element.parentElement,
+        element: clone,
+    }
+}
+
 bipsi.EventEditor = class {
     /**
      * @param {bipsi.Editor} editor 
@@ -590,9 +601,9 @@ bipsi.EventEditor = class {
     constructor(editor) {
         this.editor = editor;
 
-        this.fieldTemplate = ONE("#event-field-template");
-        this.fieldContainer = this.fieldTemplate.parentElement;
-        this.fieldTemplate.remove();
+        const { parent, element } = prepareTemplate(ONE("#event-field-template"));
+        this.fieldContainer = parent;
+        this.fieldTemplate = element; 
 
         this.fieldEditors = [];
 
@@ -823,9 +834,11 @@ bipsi.TileBrowser = class {
         this.editor = editor;
 
         this.thumbnailURIs = [];
-        this.itemTemplate = ONE("#tile-select-item-template");
-        this.itemContainer = this.itemTemplate.parentElement;
-        this.itemTemplate.remove();
+
+        const { parent, element } = prepareTemplate(ONE("#tile-select-item-template"));
+        this.itemContainer = parent;
+        this.itemTemplate = element; 
+
         /** @type {HTMLLabelElement[]} */
         this.items = [];
 
@@ -958,9 +971,11 @@ bipsi.EventTileBrowser = class {
         this.editor = editor;
 
         this.thumbnailURIs = [];
-        this.itemTemplate = ONE("#event-tile-select-item-template");
-        this.itemContainer = this.itemTemplate.parentElement;
-        this.itemTemplate.remove();
+
+        const { parent, element } = prepareTemplate(ONE("#event-tile-select-item-template"));
+        this.itemContainer = parent;
+        this.itemTemplate = element; 
+
         /** @type {HTMLLabelElement[]} */
         this.items = [];
 
@@ -1319,9 +1334,10 @@ bipsi.Editor = class extends EventTarget {
                 });
 
                 if (event.key === "ArrowLeft")  this.player.move(-1,  0);
-                if (event.key === "ArrowRight") this.player.move( 1,  0);
-                if (event.key === "ArrowUp")    this.player.move( 0, -1);
-                if (event.key === "ArrowDown")  this.player.move( 0,  1);
+                else if (event.key === "ArrowRight") this.player.move( 1,  0);
+                else if (event.key === "ArrowUp")    this.player.move( 0, -1);
+                else if (event.key === "ArrowDown")  this.player.move( 0,  1);
+                else this.player.proceed();
                 
                 event.preventDefault();
             }
@@ -2035,6 +2051,66 @@ bipsi.Editor = class extends EventTarget {
     }
 }
 
+/**
+ * Use inline style to resize canvas to fit its parent, preserving the aspect
+ * ratio of its internal dimensions.
+ * @param {HTMLCanvasElement} canvas 
+ */
+ function fitCanvasToParent(canvas) {
+    const [tw, th] = [canvas.parentElement.clientWidth, canvas.parentElement.clientHeight];
+    const [sw, sh] = [tw / canvas.width, th / canvas.height];
+    const scale = Math.min(sw, sh);
+    canvas.style.setProperty("width", `${canvas.width * scale}px`);
+    canvas.style.setProperty("height", `${canvas.height * scale}px`);
+}
+
+async function makePlayer(font) {
+    const player = new bipsi.Player(font);
+    await player.init();
+
+    const playCanvas = /** @type {HTMLCanvasElement} */ (ONE("#player-canvas"));
+    const playRendering = /** @type {CanvasRenderingContext2D} */ (playCanvas.getContext("2d"));
+
+    // update the canvas size every render just in case..
+    player.addEventListener("render", () => {
+        playRendering.drawImage(player.rendering.canvas, 0, 0);
+        fitCanvasToParent(playCanvas);
+    });
+
+    // update the canvas size whenever the browser window resizes
+    window.addEventListener("resize", () => fitCanvasToParent(playCanvas));
+    
+    // update the canvas size initially
+    fitCanvasToParent(playCanvas);
+
+    let prev;
+    const timer = (next) => {
+        prev ||= Date.now();
+        player.update((next - prev) / 1000.);
+        prev = next;
+        window.requestAnimationFrame(timer);
+    }
+    timer();
+
+    const keys = new Map();
+    keys.set("ArrowLeft",  () => player.move(-1,  0));
+    keys.set("ArrowRight", () => player.move( 1,  0));
+    keys.set("ArrowUp",    () => player.move( 0, -1));
+    keys.set("ArrowDown",  () => player.move( 0,  1));
+
+    document.addEventListener("keydown", (event) => {
+        const action = keys.get(event.key);
+        if (action) {
+            action();
+            event.preventDefault();
+        } else {
+            player.proceed();
+        }
+    });
+
+    return player;
+}
+
 bipsi.start = async function () {
     const font = await loadBasicFont(ONE("#font-embed"));
 
@@ -2051,9 +2127,14 @@ bipsi.start = async function () {
     const bundle = maker.bundleFromHTML(document);
 
     if (bundle) {
+        const player = await makePlayer(font);
+        bipsi.player = player;
+
         // embedded project, load it in the player
         await editor.loadBundle(bundle);
         editor.enterPlayerMode();
+        await player.loadBundle(bundle);
+
     } else {
         // no embedded project, start editor with save or editor embed
         const save = await bipsi.storage.load("slot0").catch(() => undefined);

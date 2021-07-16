@@ -63,18 +63,44 @@ function roomFromEvent(data, event) {
     return data.rooms.find((room) => room.events.includes(event));
 }
 
+/**
+ * @param {EventTarget} target 
+ * @param {string} event 
+ * @returns 
+ */
+async function wait(target, event) {
+    return new Promise((resolve) => {
+        target.addEventListener(event, resolve, { once: true });
+    });
+}
+
 bipsi.Player = class extends EventTarget {
     constructor(font) {
         super();
         // home for data of the project we're playing
         this.stateManager = new maker.StateManager(bipsi.getManifest);
+        this.stateBackup = new maker.StateManager(bipsi.getManifest);
         // final composite of any graphics
         this.rendering = createRendering2D(256, 256);
 
         this.dialoguePlayer = new DialoguePlayer(font);
 
+        this.time = 0;
         this.ready = false;
+        this.title = false;
         this.frameCount = 0;
+
+        // an awaitable that generates a new promise that resolves once no dialogue is active
+        /** @type {PromiseLike<void>} */
+        this.dialogueWaiter = {
+            then: (resolve, reject) => {
+                if (!this.dialoguePlayer.active) {
+                    resolve();
+                } else {
+                    return wait(this.dialoguePlayer, "done").then(resolve, reject);
+                }
+            },
+        };
     }
 
     async init() {
@@ -86,12 +112,17 @@ bipsi.Player = class extends EventTarget {
         return this.stateManager.present;
     }
 
+    async backup() {
+        this.stateBackup.copyFrom(this.stateManager);
+    }
+
     /**
      * @param {maker.StateManager<BipsiDataProject>} stateManager 
      */
     async copyFrom(stateManager) {
         this.clear();
         await this.stateManager.copyFrom(stateManager);
+        await this.backup();
         this.start();
     }
 
@@ -101,18 +132,33 @@ bipsi.Player = class extends EventTarget {
     async loadBundle(bundle) {
         this.clear();
         await this.stateManager.loadBundle(bundle);
+        await this.backup();
         this.start();
     }
 
-    start() {
+    async restart() {
+        this.clear();
+        await this.stateManager.copyFrom(this.stateBackup);
+        this.start();
+    }
+
+    async start() {
         const avatar = allEvents(this.data).find((event) => eventIsTagged(event, "is-player"));
+        if (avatar === undefined) {
+            this.dialoguePlayer.queueScript("[ COULDN'T FIND PLAYER EVENT ]");
+            return;
+        }
+
         this.avatarId = avatar.id;
         this.ready = true;
 
         const title = oneField(avatar, "game-title", "dialogue")?.data;
-        if (title) this.dialoguePlayer.queueScript(title);
-
-        console.log("TITLE?", title)
+        if (title) {
+            this.title = true;
+            this.dialoguePlayer.queueScript(title);
+            await this.dialogueWaiter;
+            this.title = false;
+        }
     }
 
     clear() {
@@ -122,6 +168,12 @@ bipsi.Player = class extends EventTarget {
 
     update(dt) {
         if (!this.ready) return;
+
+        this.time += dt;
+        while (this.time >= .400) {
+            this.frameCount += 1;
+            this.time -= .4;
+        }
 
         this.dialoguePlayer.update(dt);
         this.render();
@@ -144,9 +196,12 @@ bipsi.Player = class extends EventTarget {
         }
 
         fillRendering2D(TEMP_128, background);
-        drawTilemap(TEMP_128, tilesets.foreground, room.tilemap, background);
-        drawTilemap(TEMP_128, tilesets.highlight, room.highmap, background);
-        drawEvents(TEMP_128, tilesets.highlight, room.events, background);
+
+        if (!this.title) {
+            drawTilemap(TEMP_128, tilesets.foreground, room.tilemap, background);
+            drawTilemap(TEMP_128, tilesets.highlight, room.highmap, background);
+            drawEvents(TEMP_128, tilesets.highlight, room.events, background);
+        }
 
         this.rendering.drawImage(TEMP_128.canvas, 0, 0, 256, 256);
 
@@ -154,8 +209,14 @@ bipsi.Player = class extends EventTarget {
         if (this.dialoguePlayer.active) {
             let { width, height } = this.dialoguePlayer.dialogueRendering.canvas;
             
+            const t = 24;
+            const m = 109;
+            const b = 194;
+
+            const top = avatar.position[1] >= 8;
+
             const x = 24;
-            const y = 256 - 38 - 24;
+            const y = this.title ? m : top ? t : b;
 
             this.dialoguePlayer.render();
             this.rendering.drawImage(this.dialoguePlayer.dialogueRendering.canvas, x, y, width, height);
@@ -165,7 +226,17 @@ bipsi.Player = class extends EventTarget {
         this.dispatchEvent(new CustomEvent("render"));
     }
 
-    move(dx, dy) {
+    async proceed() {
+        if (!this.ready) return;
+
+        if (this.dialoguePlayer.active) {
+            this.dialoguePlayer.skip();
+        } 
+    }
+
+    async move(dx, dy) {
+        if (!this.ready) return;
+
         if (this.dialoguePlayer.active) {
             this.dialoguePlayer.skip();
             return;
@@ -177,7 +248,7 @@ bipsi.Player = class extends EventTarget {
         const [px, py] = avatar.position;
         const [tx, ty] = [px+dx, py+dy];
 
-        const redirected = this.touch(tx, ty);
+        const redirected = await this.touch(tx, ty);
         const blocked = cellIsSolid(room, tx, ty);
         const confined = tx < 0 || tx >= 16 || ty < 0 || ty >= 16;
 
@@ -186,7 +257,7 @@ bipsi.Player = class extends EventTarget {
         }
     }
 
-    touch(x, y) {
+    async touch(x, y) {
         const avatar = eventById(this.data, this.avatarId);
         const room = roomFromEvent(this.data, avatar);
 
@@ -203,6 +274,8 @@ bipsi.Player = class extends EventTarget {
             this.dialoguePlayer.queueScript(say);
         }
 
+        await this.dialogueWaiter;
+
         if (exit !== undefined) {
             const nextRoom = this.data.rooms[exit.room];
             arrayDiscard(room.events, avatar);
@@ -215,7 +288,11 @@ bipsi.Player = class extends EventTarget {
         }
 
         if (ending !== undefined) {
+            this.title = true;
             this.dialoguePlayer.queueScript(ending);
+            await this.dialogueWaiter;
+            this.title = false; 
+            this.restart();
         }
 
         return exit !== undefined;

@@ -32,9 +32,7 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/bi
     body(onload="bipsi.start()")
         #player(data-hidden-in-editor)
             #player-container
-                canvas(width=256 height=256)
-            #player-menu
-                button(name="edit" title="edit this game") edit
+                canvas#player-canvas(width=256 height=256)
         #editor(data-hidden-in-player)
             #viewport
                 #play-tab-view(hidden)
@@ -157,7 +155,7 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/bi
                         #room-select-tab(hidden)
                             #room-select.radio-select(title="select rooms")
                                 each _, index in (new Array(24).fill(0))
-                                    label#room-select-item-template
+                                    label
                                         input(type="radio" name="room-select" value=`${index}` title=`select room ${index}`)
                             #room-buttons
                                 button(name="copy-room" title="copy room")
@@ -168,7 +166,7 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/bi
                                     include /common/icons/delete.svg
                         #tile-select-tab(hidden)
                             #tile-select.radio-select(title="select tiles")
-                                label#tile-select-item-template
+                                label#tile-select-item-template(hidden)
                                     input(type="radio" name="tile-select")
                             #tile-buttons
                                 button(name="copy-tile" title="copy tile")

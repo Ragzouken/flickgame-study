@@ -25,6 +25,37 @@ input[type="text"], textarea {
     flex: 1;
 }
 
+#player {
+    position: absolute;
+    width: 100%; height: 100%;
+    overflow: hidden;
+
+    display: flex;
+    flex-direction: column;
+
+    padding-bottom: 0;
+    gap: 1em;
+}
+
+#player-container {
+    flex: 1;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#player-menu {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 1em;
+
+    height: 32px;
+
+    align-self: center;
+}
+
 #editor {
     display: flex; flex-direction: row;
     flex-wrap: wrap;

@@ -28,7 +28,7 @@
                 option(value="exit")
                 option(value="script")
             #event-sheet.column
-                .event-line#event-field-template
+                .event-line#event-field-template(hidden)
                     input(type="text" name="field-name" list="field-names" autocomplete="off")
                     select(name="field-type")
                         option tile
@@ -63,11 +63,11 @@
                 textarea
         #field-tile-editor(hidden)
             #field-tile-select.radio-select(title="select tile")
-                label#event-tile-select-item-template
+                label#event-tile-select-item-template(hidden)
                     input(type="radio" name="event-tile-select")
         #field-location-editor(hidden)
             #field-room-select.radio-select(title="select room")
                 each _, index in (new Array(24).fill(0))
-                    label#field-room-select-item-template
+                    label
                         input(type="radio" name="field-room-select" value=`${index}` title=`select room ${index}`)
             canvas#field-position-select(width="128" height="128" title="select position")
