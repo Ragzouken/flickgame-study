@@ -867,7 +867,7 @@ bipsi.TileBrowser = class {
         this.select.inputs[this.select.selectedIndex].scrollIntoView({ block: "center" }); 
     }
 
-    redraw() {
+    redraw(tileset0 = undefined, tileset1 = undefined) {
         const { data, tilesets, room, tileIndex } = this.editor.getSelections();
         const palette = data.palettes[room.palette];
 
@@ -879,14 +879,14 @@ bipsi.TileBrowser = class {
 
         fillRendering2D(this.editor.renderings.tilePaint0, bg);
         this.editor.renderings.tilePaint0.drawImage(
-            recolorMask(tilesets[0], color).canvas,
+            recolorMask(tileset0 ?? tilesets[0], color).canvas,
             x, y, size, size,
             0, 0, size, size,
         );
 
         fillRendering2D(this.editor.renderings.tilePaint1, bg);
         this.editor.renderings.tilePaint1.drawImage(
-            recolorMask(tilesets[1], color).canvas,
+            recolorMask(tileset1 ?? tilesets[1], color).canvas,
             x, y, size, size,
             0, 0, size, size,
         );
@@ -1121,7 +1121,13 @@ bipsi.TileEditor = class {
         const frame = await this.editor.forkTilesetFrame(frameIndex);
         const width = frame.canvas.width;
 
-        const redraw = () => this.editor.stateManager.changed();
+        const frames = [tilesets[0], tilesets[1]];
+        frames[frameIndex] = frame;
+
+        const redraw = () => {
+            this.editor.redraw();
+            this.editor.tileBrowser.redraw(...frames);
+        };
 
         const drag = ui.drag(event);
         const positions = trackCanvasStroke(rendering.canvas, drag);
