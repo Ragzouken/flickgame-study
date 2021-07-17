@@ -89,7 +89,10 @@ async function loadBasicFont(script) {
 
 /** @param {string} data */
 function parseRuns(data) {
-    const runs = data.split(",").map((run) => run.split("-").map((index) => parseInt(index, 10)));
+    const runs = data.split(",").map((run) => {
+        const [start, end] = run.split("-").map((index) => parseInt(index, 10));
+        return [ start, end ?? start ];
+    });
     const indexes = [];
     runs.forEach(([min, max]) => indexes.push(...range(min, max)));
     return indexes;

@@ -248,9 +248,9 @@ bipsi.Player = class extends EventTarget {
         const [px, py] = avatar.position;
         const [tx, ty] = [px+dx, py+dy];
 
-        const redirected = await this.touch(tx, ty);
         const blocked = cellIsSolid(room, tx, ty);
         const confined = tx < 0 || tx >= 16 || ty < 0 || ty >= 16;
+        const redirected = await this.touch(tx, ty);
 
         if (!redirected && !blocked && !confined) {
             avatar.position = [tx, ty];
@@ -417,7 +417,7 @@ class DialoguePlayer extends EventTarget {
     }
 
     queueScript(script) {
-        const pages = scriptToPages(script, { font: this.font, lineWidth: 208, lineCount: 2 });
+        const pages = scriptToPages(script, { font: this.font, lineWidth: 192, lineCount: 2 });
         this.queuedPages.push(...pages);
         
         if (!this.currentPage)
