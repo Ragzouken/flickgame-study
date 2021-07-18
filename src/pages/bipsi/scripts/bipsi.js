@@ -580,6 +580,7 @@ const EVENT_TEMPLATES = {
     player: [
         { key: "graphic", type: "tile", data: 0 },
         { key: "is-player", type: "tag", data: true },
+        { key: "game-title", type: "dialogue", data: "your game title" }
     ],
 };
 
@@ -846,6 +847,7 @@ bipsi.TileBrowser = class {
         this.select.remove(ONE("#tile-select-item-template > input"));
 
         this.select.addEventListener("change", () => {
+            this.editor.tileEditor.animateToggle.checked = true;
             this.redraw();
         });
 
@@ -1106,6 +1108,19 @@ bipsi.TileEditor = class {
 
         tile0.canvas.addEventListener("pointerdown", (event) => this.startDrag(event, 0));
         tile1.canvas.addEventListener("pointerdown", (event) => this.startDrag(event, 1));
+
+        this.animateToggle = ui.toggle("tile-animated");
+
+        this.animateToggle.addEventListener("change", () => {
+            if (!this.animateToggle.checked) {
+                this.editor.stateManager.makeChange(async (data) => {
+                    const { tilesets, frameIndex, tileIndex } = this.editor.getSelections();
+                    const copy = copyTile(tilesets[frameIndex], tileIndex);
+                    const tileset = await this.editor.forkTilesetFrame(1 - frameIndex);
+                    drawTile(tileset, tileIndex, copy);
+                });
+            } 
+        });
     }
 
     async startDrag(event, frameIndex) {
@@ -1199,9 +1214,8 @@ bipsi.Editor = class extends EventTarget {
             playtest: ONE("#playtest-rendering").getContext("2d"),
         };
 
-        this.player = new bipsi.Player(font);
-        this.player.addEventListener("render", () => {
-            this.renderings.playtest.drawImage(this.player.rendering.canvas, 0, 0, 256, 256);
+        bipsi.player.addEventListener("render", () => {
+            this.renderings.playtest.drawImage(bipsi.player.rendering.canvas, 0, 0, 256, 256);
         });
 
         this.fieldRoomSelect = ui.radio("field-room-select");
@@ -1244,6 +1258,8 @@ bipsi.Editor = class extends EventTarget {
 
         this.modeSelect.tab(ONE("#play-tab-body"), "playtest");
         this.modeSelect.tab(ONE("#play-tab-view"), "playtest");
+
+        this.modeSelect.tab(ONE("#about-tab-body"), "about");
 
         // initial selections
         this.modeSelect.selectedIndex = 0;
@@ -1340,12 +1356,6 @@ bipsi.Editor = class extends EventTarget {
                 topkeys.forEach((code, i) => {
                     if (event.code === code) this.modeSelect.selectedIndex = i;
                 });
-
-                if (event.key === "ArrowLeft")  this.player.move(-1,  0);
-                else if (event.key === "ArrowRight") this.player.move( 1,  0);
-                else if (event.key === "ArrowUp")    this.player.move( 0, -1);
-                else if (event.key === "ArrowDown")  this.player.move( 0,  1);
-                else this.player.proceed();
                 
                 event.preventDefault();
             }
@@ -1366,25 +1376,16 @@ bipsi.Editor = class extends EventTarget {
             }
         });
 
-        let prev;
-        const timer = (next) => {
-            prev ||= Date.now();
-            this.player.update((next - prev) / 1000.);
-            prev = next;
-            window.requestAnimationFrame(timer);
-        }
-        timer();
-
         // changes in mode select bar
         this.modeSelect.addEventListener("change", async () => {
             this.redrawTileBrowser();
 
-            // TODO: hmm
-            if (this.modeSelect.value === "playtest") {
-                await this.player.copyFrom(this.stateManager);
-            } else {
-                this.player.clear();
-            }
+            bipsi.player.clear();
+        });
+
+        ui.action("playtest", () => {
+            bipsi.player.copyFrom(this.stateManager);
+            ONE("#playtest-rendering").focus();
         });
 
         this.roomSelect.addEventListener("change", () => {
@@ -1604,7 +1605,6 @@ bipsi.Editor = class extends EventTarget {
 
     async init() {
         await this.paletteEditor.init();
-        await this.player.init();
 
         this.EVENT_TILE = await loadImage(bipsi.constants.eventTile);
         this.WALL_TILE = await loadImage(bipsi.constants.wallTile);
@@ -1657,7 +1657,7 @@ bipsi.Editor = class extends EventTarget {
         const room = data.rooms[roomIndex];
         palette = palette ?? data.palettes[room.palette];
         const [background, foreground, highlight] = palette;
-        const tileset = tilesets[0];
+        const tileset = tilesets[this.frame];
 
         const tilesetC = recolorMask(tileset, foreground);
         const tilesetH = recolorMask(tileset, highlight);
@@ -1685,8 +1685,7 @@ bipsi.Editor = class extends EventTarget {
         const tilesetH = recolorMask(tilesets[this.frame], highlight);
 
         const targets = [
-            this.renderings.tileMapPaint, 
-            this.renderings.tilePaintRoom, 
+            this.renderings.tileMapPaint,
             this.renderings.eventsRoom,
         ];
 
@@ -1755,11 +1754,10 @@ bipsi.Editor = class extends EventTarget {
         this.actions.copyEvent.disabled = events.length === 0;
         this.actions.deleteEvent.disabled = events.length === 0;
 
-        this.player.frameCount = this.frame;
-
         this.drawRoom(TEMP_128, 0, palette);
         this.renderings.paletteRoom.drawImage(TEMP_128.canvas, 0, 0);
         this.renderings.playtest.drawImage(TEMP_128.canvas, 0, 0, 256, 256);
+        this.renderings.tilePaintRoom.drawImage(TEMP_128.canvas, 0, 0);
     } 
 
     renderMasks() {
@@ -2097,29 +2095,56 @@ async function makePlayer(font) {
     // update the canvas size initially
     fitCanvasToParent(playCanvas);
 
-    let prev;
-    const timer = (next) => {
-        prev ||= Date.now();
-        player.update((next - prev) / 1000.);
-        prev = next;
-        window.requestAnimationFrame(timer);
-    }
-    timer();
-
+    let moveCooldown = 0;
+    const heldKeys = new Set();
     const keys = new Map();
     keys.set("ArrowLeft",  () => player.move(-1,  0));
     keys.set("ArrowRight", () => player.move( 1,  0));
     keys.set("ArrowUp",    () => player.move( 0, -1));
     keys.set("ArrowDown",  () => player.move( 0,  1));
 
-    document.addEventListener("keydown", (event) => {
-        const action = keys.get(event.key);
-        if (action) {
-            action();
-            event.preventDefault();
-        } else {
-            player.proceed();
+    function doMove(key) {
+        const move = keys.get(key);
+        if (move) {
+            move();
+            moveCooldown = .2;
         }
+    }
+
+    let prev;
+    const timer = (next) => {
+        prev = prev ?? Date.now();
+        next = next ?? Date.now();
+        const dt = Math.max(0, (next - prev) / 1000.);
+        moveCooldown = Math.max(moveCooldown - dt, 0);
+        prev = next;
+        window.requestAnimationFrame(timer);
+
+        if (moveCooldown === 0) {
+            const key = Array.from(keys.keys()).find((key) => heldKeys.has(key));
+            if (key) doMove(key);
+        }
+
+        player.update(dt);
+    }
+    timer();
+
+    document.addEventListener("keydown", (event) => {
+        if (event.repeat) return;
+
+        doMove(event.key);
+
+        if (player.dialoguePlayer.active) {
+            player.proceed();
+        } else {
+            heldKeys.add(event.key);
+            heldKeys.add(event.code);
+        }
+    });
+
+    document.addEventListener("keyup", (event) => {
+        heldKeys.delete(event.key);
+        heldKeys.delete(event.code);
     });
 
     return player;
@@ -2128,26 +2153,22 @@ async function makePlayer(font) {
 bipsi.start = async function () {
     const font = await loadBasicFont(ONE("#font-embed"));
 
-    const editor = new bipsi.Editor(font);
-    await editor.init();
-
-    bipsi.editor = editor;
+    bipsi.player = await makePlayer(font);
+    bipsi.editor = new bipsi.Editor(font);
+    await bipsi.editor.init();
 
     // setup play/edit buttons to switch between modes
-    const play = ui.action("play", () => editor.enterPlayerMode());
-    const edit = ui.action("edit", () => editor.enterEditorMode());
+    const play = ui.action("play", () => bipsi.editor.enterPlayerMode());
+    const edit = ui.action("edit", () => bipsi.editor.enterEditorMode());
 
     // determine if there is a project bundle embedded in this page
     const bundle = maker.bundleFromHTML(document);
 
     if (bundle) {
-        const player = await makePlayer(font);
-        bipsi.player = player;
-
         // embedded project, load it in the player
-        await editor.loadBundle(bundle);
-        editor.enterPlayerMode();
-        await player.loadBundle(bundle);
+        //await editor.loadBundle(bundle);
+        bipsi.editor.enterPlayerMode();
+        await bipsi.player.loadBundle(bundle);
 
     } else {
         // no embedded project, start editor with save or editor embed
@@ -2155,13 +2176,13 @@ bipsi.start = async function () {
         const bundle = save || maker.bundleFromHTML(document, "#editor-embed");
         
         // load bundle and enter editor mode
-        await editor.loadBundle(bundle);
+        await bipsi.editor.loadBundle(bundle);
         //await editor.loadBundle(bipsi.makeBlankBundle());
-        editor.enterEditorMode();
+        bipsi.editor.enterEditorMode();
 
         // unsaved changes warning
         window.addEventListener("beforeunload", (event) => {
-            if (!editor.unsavedChanges) return;
+            if (!bipsi.editor.unsavedChanges) return;
             event.preventDefault();
             return event.returnValue = "Are you sure you want to exit?";
         });
@@ -2173,7 +2194,7 @@ bipsi.start = async function () {
         const channel = new MessageChannel();
         channel.port1.onmessage = async (event) => {
             if (event.data.bundle) {
-                return editor.loadBundle(event.data.bundle);
+                return bipsi.editor.loadBundle(event.data.bundle);
             }
         };
         window.opener.postMessage({ port: channel.port2 }, "*", [channel.port2]);

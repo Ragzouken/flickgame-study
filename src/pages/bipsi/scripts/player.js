@@ -207,8 +207,6 @@ bipsi.Player = class extends EventTarget {
 
         // render dialogue box if necessary
         if (this.dialoguePlayer.active) {
-            let { width, height } = this.dialoguePlayer.dialogueRendering.canvas;
-            
             const t = 24;
             const m = 109;
             const b = 194;
@@ -219,7 +217,7 @@ bipsi.Player = class extends EventTarget {
             const y = this.title ? m : top ? t : b;
 
             this.dialoguePlayer.render();
-            this.rendering.drawImage(this.dialoguePlayer.dialogueRendering.canvas, x, y, width, height);
+            this.rendering.drawImage(this.dialoguePlayer.dialogueRendering.canvas, x, y);
         }
 
         // signal, to anyone listening, that rendering happened
@@ -235,12 +233,7 @@ bipsi.Player = class extends EventTarget {
     }
 
     async move(dx, dy) {
-        if (!this.ready) return;
-
-        if (this.dialoguePlayer.active) {
-            this.dialoguePlayer.skip();
-            return;
-        } 
+        if (!this.ready || this.dialoguePlayer.active) return;
 
         const avatar = eventById(this.data, this.avatarId);
         const room = roomFromEvent(this.data, avatar);
@@ -250,19 +243,15 @@ bipsi.Player = class extends EventTarget {
 
         const blocked = cellIsSolid(room, tx, ty);
         const confined = tx < 0 || tx >= 16 || ty < 0 || ty >= 16;
-        const redirected = await this.touch(tx, ty);
-
-        if (!redirected && !blocked && !confined) {
-            avatar.position = [tx, ty];
-        }
+        
+        const [event] = getEventsAt(room.events, tx, ty);
+        if (!blocked && !confined) avatar.position = [tx, ty];
+        if (event) await this.touch(event);
     }
 
-    async touch(x, y) {
+    async touch(event) {
         const avatar = eventById(this.data, this.avatarId);
         const room = roomFromEvent(this.data, avatar);
-
-        const [event] = getEventsAt(room.events, x, y);
-        if (!event) return;
 
         // test
         const say = oneField(event, "say", "dialogue")?.data;
@@ -294,8 +283,6 @@ bipsi.Player = class extends EventTarget {
             this.title = false; 
             this.restart();
         }
-
-        return exit !== undefined;
     }
 }
 

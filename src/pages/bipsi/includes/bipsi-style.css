@@ -524,7 +524,7 @@ select {
     color: white;
     flex: 1;
     border-radius: 0;
-    background: none;
+    background: inherit;
     padding-top: 0;
     padding-bottom: 0;
 }
@@ -699,4 +699,33 @@ select {
 
 #play-tab-view canvas {
     width: 512px; height: 512px;
+}
+
+details > summary {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: var(--button-color);
+}
+
+#about-tab-body {
+    gap: .5rem;
+
+    overflow: auto;
+}
+
+#about-tab-body a {
+    color: var(--button-color);
+}
+
+#about-tab-body a:hover {
+    color: white;
+}
+
+#about-tab-body a:visited {
+    color: lightgray;
+}
+
+em {
+    font-weight: bold;
+    color: var(--button-color);
 }
