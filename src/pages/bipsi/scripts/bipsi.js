@@ -2129,22 +2129,57 @@ async function makePlayer(font) {
     }
     timer();
 
-    document.addEventListener("keydown", (event) => {
-        if (event.repeat) return;
-
-        doMove(event.key);
-
+    function down(key) {
         if (player.dialoguePlayer.active) {
             player.proceed();
         } else {
-            heldKeys.add(event.key);
-            heldKeys.add(event.code);
+            heldKeys.add(key);
+            doMove(key);
         }
-    });
+    }
 
-    document.addEventListener("keyup", (event) => {
-        heldKeys.delete(event.key);
-        heldKeys.delete(event.code);
+    function up(key) {
+        heldKeys.delete(key);
+    }
+
+    document.addEventListener("keydown", (event) => {
+        if (!event.repeat) down(event.key);
+    });
+    document.addEventListener("keyup", (event) => up(event.key));
+
+    const turnToKey = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"];
+    const threshold = 30;
+
+    document.addEventListener("pointerdown", (event) => {
+        const drag = ui.drag(event);
+        let [x0, y0] = [drag.downEvent.clientX, drag.downEvent.clientY];
+        let prevKey = undefined;
+
+        bipsi.player.proceed();
+
+        drag.addEventListener("move", () => {
+            const [x1, y1] = [drag.lastEvent.clientX, drag.lastEvent.clientY];
+            const [dx, dy] = [x1 - x0, y1 - y0];
+
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const angle = Math.atan2(dy, dx) + Math.PI * 2;
+            const turns = Math.round(angle / (Math.PI * .5)) % 4;
+
+            if (dist >= threshold && prevKey === undefined) {
+                const nextKey = turnToKey[turns];
+                
+                if (prevKey !== nextKey) {
+                    up(prevKey);
+                    down(nextKey);
+                    prevKey = nextKey;
+                }
+            }
+        });
+
+        drag.addEventListener("up", () => {
+            up(prevKey);
+            prevKey = undefined;
+        });
     });
 
     return player;

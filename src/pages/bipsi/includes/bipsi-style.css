@@ -99,11 +99,6 @@ input[type="text"], textarea {
     overflow: hidden;
 }
 
-#viewport {
-    padding: 0;
-    border-radius: 0;
-}
-
 #renderer {
     height: 512px;
     background: none;
@@ -331,7 +326,10 @@ label.toggle {
     width: 512px;
     height: calc(512px + 48px + .5rem);
     background: none;
-    overflow: auto;
+
+    padding: 0;
+    border-radius: 0;
+    overflow: visible;
 }
 
 #tile-paint-tab {
