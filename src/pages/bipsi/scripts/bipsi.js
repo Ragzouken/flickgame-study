@@ -1741,7 +1741,7 @@ bipsi.Editor = class extends EventTarget {
 
         this.roomThumbs.forEach((thumbnail, roomIndex) => {
             const room = data.rooms[roomIndex];
-            drawRoomThumbnail(thumbnail, palette, room);
+            drawRoomThumbnail(thumbnail, data.palettes[room.palette], room);
             this.roomThumbs2[roomIndex].drawImage(thumbnail.canvas, 0, 0);
         });
 
