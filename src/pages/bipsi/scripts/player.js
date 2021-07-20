@@ -311,6 +311,7 @@ class DialoguePlayer extends EventTarget {
         this.showCharTime = .05;
         /** @type {BlitsyPage[]} */
         this.queuedPages = [];
+        this.pagesSeen = 0;
 
         this.setPage(undefined);
     }
@@ -400,6 +401,7 @@ class DialoguePlayer extends EventTarget {
 
     moveToNextPage() {
         const nextPage = this.queuedPages.shift();
+        this.pagesSeen += 1;
         this.setPage(nextPage);
     }
 

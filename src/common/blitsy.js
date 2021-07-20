@@ -148,9 +148,10 @@ function withPixels(rendering, action) {
 /**
  * @param {CanvasRenderingContext2D} mask 
  * @param {string} style 
+ * @param {CanvasRenderingContext2D} destination 
  */
-function recolorMask(mask, style) {
-    const recolored = copyRendering2D(mask);
+function recolorMask(mask, style, destination = undefined) {
+    const recolored = copyRendering2D(mask, destination);
     recolored.globalCompositeOperation = "source-in";
     fillRendering2D(recolored, style);
     return recolored;

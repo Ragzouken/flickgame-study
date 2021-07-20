@@ -88,6 +88,7 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/fl
                             each index in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                                 option(value=`${index}`)= `jump to scene ${index}`
             #menu.hanging-menu
+                button(name="play" title="playtest this flickgame") play
                 button(name="save" title="save to browser" data-original-only) save
                 button(name="export" title="export as webpage") export
                 button(name="update" title="open this flickgame study in the latest version" data-remix-only) update

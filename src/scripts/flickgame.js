@@ -627,7 +627,7 @@ flickgame.Editor = class extends EventTarget {
         this.stateManager.makeChange(async (data) => {
             const scene = data.scenes[this.sceneSelect.selectedIndex];
             const instance = await this.forkSceneImage(scene);
-            fillRendering2D(instance, palette[this.colorSelect.selectedIndex]);
+            fillRendering2D(instance, data.palette[this.colorSelect.selectedIndex]);
         });
     }
 
