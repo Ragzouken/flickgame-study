@@ -645,6 +645,7 @@ bipsi.EventEditor = class {
 
         this.valueEditors.dialogue.addEventListener("input", () => {
             this.resetDialoguePreview();
+            this.editor.dialoguePreviewPlayer.skip();
         });
 
         this.editor.eventTileBrowser.select.addEventListener("change", () => {
