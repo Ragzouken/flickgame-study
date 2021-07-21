@@ -328,6 +328,40 @@ function getEventsAt(events, x, y) {
     return events.filter((event) => event.position[0] === x && event.position[1] === y);
 }
 
+/**
+ * @param {BipsiDataTile[]} tiles
+ */
+function findFreeFrame(tiles) {
+    const frames = new Set(tiles.flatMap((tile) => tile.frames));
+    const max = Math.max(...frames);
+
+    for (let i = 0; i < max; ++i) {
+        if (!frames.has(i)) return i;
+    }
+
+    return max + 1;
+}
+
+/**
+ * @param {BipsiDataTile[]} tiles
+ */
+ function nextTileId(tiles) {
+    const max = Math.max(...tiles.map((tile) => tile.id));
+    return max + 1;
+}
+
+/**
+ * @param {CanvasRenderingContext2D} tileset 
+ * @param {BipsiDataTile[]} tiles
+ */
+function resizeTileset(tileset, tiles) {
+    const maxFrame = Math.max(...tiles.flatMap((tile) => tile.frames));
+    const size = 8
+    const cols = 16;
+    const rows = Math.ceil(maxFrame / cols);
+    resizeRendering2D(tileset, cols * size, rows * size);
+}
+
 bipsi.PaletteEditor = class {
     /**
      * 
@@ -679,7 +713,7 @@ bipsi.EventEditor = class {
         this.editor.eventTileBrowser.select.addEventListener("change", () => {
             this.editor.stateManager.makeChange(async (data) => {
                 const { field } = this.getSelections(data);
-                field.data = this.editor.eventTileBrowser.selectedTileIndex;
+                field.data = data.tiles[this.editor.eventTileBrowser.selectedTileIndex].id;
             });
         });
 
@@ -767,7 +801,8 @@ bipsi.EventEditor = class {
                     ONE("#field-dialogue-editor").hidden = false;
                 } else if (field.type === "tile") {
                     ONE("#field-tile-editor").hidden = false;
-                    this.editor.eventTileBrowser.selectedTileIndex = field.data;
+                    const index = this.editor.stateManager.present.tiles.findIndex((tile) => tile.id === field.data);
+                    this.editor.eventTileBrowser.selectedTileIndex = index;
                 } else if (field.type === "location") {
                     ONE("#field-location-editor").hidden = false;
                     this.editor.fieldRoomSelect.selectedIndex = field.data.room;
@@ -896,7 +931,8 @@ bipsi.TileBrowser = class {
         this.select.remove(ONE("#tile-select-item-template > input"));
 
         this.select.addEventListener("change", () => {
-            this.editor.tileEditor.animateToggle.checked = true;
+            const { tile } = this.editor.getSelections();
+            this.editor.tileEditor.animateToggle.checked = tile.frames.length > 1;
             this.redraw();
         });
 
@@ -921,6 +957,8 @@ bipsi.TileBrowser = class {
 
     redraw(tileset0 = undefined) {
         const { data, tileset, room, tile } = this.editor.getSelections();
+        if (!tile) return;
+
         const [bg, fg, hi] = data.palettes[room.palette];
 
         const color = this.editor.roomPaintTool.selectedIndex === 1 ? hi : fg;
@@ -992,7 +1030,7 @@ bipsi.TileBrowser = class {
         const missing = count - this.items.length;
 
         if (missing < 0) {
-            const excess = this.items.splice(-missing, missing);
+            const excess = this.items.splice(missing, -missing);
             excess.forEach((element) => {
                 element.remove();
                 const radio = ONE("input", element);
@@ -1074,9 +1112,7 @@ bipsi.EventTileBrowser = class {
         prev.map(URL.revokeObjectURL);
 
         const scale = 5;
-        const columns = canvases[0].width / bipsi.constants.tileSize;
-        const rows = canvases[0].height / bipsi.constants.tileSize;
-        this.updateTileCount(rows * columns);
+        this.updateTileCount(this.editor.stateManager.present.tiles.length);
         this.items.forEach((label, index) => {
             const { x, y } = getTileCoords(canvases[0], index);
             label.style.backgroundPosition = `-${x * scale}px -${y * scale}px`;
@@ -1095,7 +1131,7 @@ bipsi.EventTileBrowser = class {
         const missing = count - this.items.length;
 
         if (missing < 0) {
-            const excess = this.items.splice(-missing, missing);
+            const excess = this.items.splice(missing, -missing);
             excess.forEach((element) => {
                 element.remove();
                 const radio = ONE("input", element);
@@ -1137,16 +1173,8 @@ bipsi.TileEditor = class {
         tile1.canvas.addEventListener("pointerdown", (event) => this.startDrag(event, 1));
 
         this.animateToggle = ui.toggle("tile-animated");
-
         this.animateToggle.addEventListener("change", () => {
-            if (!this.animateToggle.checked) {
-                this.editor.stateManager.makeChange(async (data) => {
-                    const { tilesets, frameIndex, tileIndex } = this.editor.getSelections();
-                    const copy = copyTile(tilesets[frameIndex], tileIndex);
-                    const tileset = await this.editor.forkTileset(1 - frameIndex);
-                    drawTile(tileset, tileIndex, copy);
-                });
-            } 
+            this.editor.toggleTileAnimated();
         });
     }
 
@@ -1156,20 +1184,18 @@ bipsi.TileEditor = class {
             this.editor.renderings.tilePaint1,
         ][frameIndex];
 
-        const { tilesets, tileIndex } = this.editor.getSelections();
+        const { tile } = this.editor.getSelections();
  
         this.editor.stateManager.makeCheckpoint();
-        const frame = await this.editor.forkTileset(frameIndex);
+        const tileset = await this.editor.forkTileset();
 
-        const frames = [tilesets[0], tilesets[1]];
-        frames[frameIndex] = frame;
-
-        const temp = copyTile(frame, tileIndex);
+        const index = tile.frames[frameIndex] ?? tile.frames[0];
+        const temp = copyTile(tileset, index);
 
         const redraw = () => {
-            drawTile(frame, tileIndex, temp);
+            drawTile(tileset, index, temp);
             this.editor.redraw();
-            this.editor.tileBrowser.redraw(...frames);
+            this.editor.tileBrowser.redraw(tileset);
         };
 
         const drag = ui.drag(event);
@@ -1364,6 +1390,12 @@ bipsi.Editor = class extends EventTarget {
             copyTileFrame: ui.action("copy-tile-frame", () => this.copySelectedTileFrame()),
             pasteTileFrame: ui.action("paste-tile-frame", () => this.pasteSelectedTileFrame()),
             clearTileFrame: ui.action("clear-tile-frame", () => this.clearSelectedTileFrame()),
+
+            newTile: ui.action("add-new-tile", () => this.newTile()),
+            duplicateTile: ui.action("duplicate-tile", () => this.duplicateTile()),
+            reorderTileBefore: ui.action("reorder-tile-before", () => this.reorderTileBefore()),
+            reorderTileAfter: ui.action("reorder-tile-after", () => this.reorderTileAfter()),
+            deleteTile: ui.action("delete-tile", () => this.deleteTile()),
 
             swapTileFrames: ui.action("swap-tile-frames", () => this.swapSelectedTileFrames()),
 
@@ -1813,7 +1845,7 @@ bipsi.Editor = class extends EventTarget {
             {
                 const { x, y, size } = getTileCoords(tilesetC.canvas, index0);
                 frame0.drawImage(
-                    tileset.canvas,
+                    tilesetC.canvas,
                     x, y, size, size, 
                     tx * size, ty * size, size, size,
                 );
@@ -1821,7 +1853,7 @@ bipsi.Editor = class extends EventTarget {
             {
                 const { x, y, size } = getTileCoords(tilesetC.canvas, index1);
                 frame1.drawImage(
-                    tileset.canvas,
+                    tilesetC.canvas,
                     x, y, size, size, 
                     tx * size, ty * size, size, size,
                 );
@@ -1929,6 +1961,72 @@ bipsi.Editor = class extends EventTarget {
 
             const { x, y, size } = getTileCoords(tileset.canvas, tileIndex);
             tileset.clearRect(x, y, size, size);
+        });
+    }
+
+    async newTile() {
+        return this.stateManager.makeChange(async (data) => {
+            const { tileIndex, tileset } = this.getSelections(data);
+            const id = nextTileId(data.tiles);
+            const frames = [findFreeFrame(data.tiles)];
+            data.tiles.splice(tileIndex, 0, { id, frames });
+            resizeTileset(tileset, data.tiles);
+        });
+    }
+
+    async duplicateTile() {
+        return this.stateManager.makeChange(async (data) => {
+            const { tileIndex, tile, tileset } = this.getSelections(data);
+            const id = nextTileId(data.tiles);
+            const frames = [];
+
+            data.tiles.splice(tileIndex, 0, { id, frames });
+            tile.frames.forEach((_, i) => {
+                frames.push(findFreeFrame(data.tiles));
+                resizeTileset(tileset, data.tiles);
+                const frame = copyTile(tileset, tile.frames[i]);
+                drawTile(tileset, frames[i], frame);
+            });
+        });
+    }
+
+    async toggleTileAnimated() {
+        return this.stateManager.makeChange(async (data) => {
+            const { tile, tileset } = this.getSelections(data);
+            
+            if (tile.frames.length === 1) {
+                tile.frames.push(findFreeFrame(data.tiles));
+                resizeTileset(tileset, data.tiles);
+                const frame = copyTile(tileset, tile.frames[0]);
+                drawTile(tileset, tile.frames[1], frame);
+            } else {
+                tile.frames = [tile.frames[0]];
+            }
+        });
+    }
+
+    async reorderTileBefore() {
+        return this.stateManager.makeChange(async (data) => {
+            const { tileIndex } = this.getSelections(data);
+            const nextIndex = tileIndex - 1;
+            [data.tiles[nextIndex], data.tiles[tileIndex]] = [data.tiles[tileIndex], data.tiles[nextIndex]];
+            this.tileBrowser.selectedTileIndex -= 1;
+        });
+    }
+
+    async reorderTileAfter() {
+        return this.stateManager.makeChange(async (data) => {
+            const { tileIndex } = this.getSelections(data);
+            const nextIndex = tileIndex + 1;
+            [data.tiles[nextIndex], data.tiles[tileIndex]] = [data.tiles[tileIndex], data.tiles[nextIndex]];
+            this.tileBrowser.selectedTileIndex += 1;
+        });
+    }
+
+    async deleteTile() {
+        return this.stateManager.makeChange(async (data) => {
+            const { tile } = this.getSelections(data);
+            arrayDiscard(data.tiles, tile);
         });
     }
 
