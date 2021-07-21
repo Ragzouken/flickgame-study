@@ -34,11 +34,18 @@ bipsi.storage = new maker.ProjectStorage("bipsi");
  */
 
 /**
+ * @typedef {Object} BipsiDataTile
+ * @property {number} id
+ * @property {number[]} frames
+ */
+
+/**
  * @typedef {Object} BipsiDataProject
  * @property {BipsiDataSettings} settings
  * @property {BipsiDataRoom[]} rooms
  * @property {string[][]} palettes
- * @property {string[]} tilesets
+ * @property {string} tileset
+ * @property {BipsiDataTile[]} tiles
  */
 
 /**
@@ -47,8 +54,8 @@ bipsi.storage = new maker.ProjectStorage("bipsi");
  * @returns {string[]}
  */
 bipsi.getManifest = function (data) {
-     // only resources are the tileset images
-     return data.tilesets;
+     // only resource is the tileset image
+     return [data.tileset];
 }
 
 bipsi.constants = {
@@ -95,7 +102,12 @@ bipsi.makeBlankBundle = function () {
         settings: { title: "bipsi game" },
         rooms: [],
         palettes: ZEROES(8).map(randomPalette),
-        tilesets: ["0", "0"],
+        tileset: "0",
+        tiles: [
+            { id: 0, frames: [0] },
+            { id: 1, frames: [1] },
+            { id: 2, frames: [2] },
+        ],
     };
 
     const resources = {
@@ -108,8 +120,8 @@ bipsi.makeBlankBundle = function () {
 function makeBlankRoom() {
     return {
         palette: 0,
-        tilemap: ZEROES(16).map(() => REPEAT(16, -1)),
-        highmap: ZEROES(16).map(() => REPEAT(16, -1)),
+        tilemap: ZEROES(16).map(() => REPEAT(16, 0)),
+        highmap: ZEROES(16).map(() => REPEAT(16, 0)),
         wallmap: ZEROES(16).map(() => REPEAT(16, 0)),
         events: [],
     }
@@ -189,19 +201,34 @@ function drawTile(tileset, tileIndex, tile) {
 }
 
 /**
+ * @param {BipsiDataTile[]} tiles 
+ * @param {number} frame 
+ * @returns {Map<number, number>} 
+ */
+function makeTileToFrameMap(tiles, frame) {
+    /** @type {[number, number][]} */
+    return new Map(tiles.map((tile) => [
+        tile.id, 
+        tile.frames[frame] ?? tile.frames[0],
+    ]));
+}
+
+/**
  * 
  * @param {CanvasRenderingContext2D} rendering 
  * @param {CanvasRenderingContext2D} tileset 
+ * @param {Map<number, number>} tileToFrame
  * @param {number[][]} tilemap 
  */
-function drawTilemap(rendering, tileset, tilemap, background = undefined) {
+function drawTilemap(rendering, tileset, tileToFrame, tilemap, background = undefined) {
     rendering.save();
     rendering.fillStyle = background;
     tilemap.forEach((row, dy) => {
         row.forEach((tileIndex, dx) => {
-            if (tileIndex < 0) return;
+            if (tileIndex == 0) return;
 
-            const { x, y, size } = getTileCoords(tileset.canvas, tileIndex);
+            const frameIndex = tileToFrame.get(tileIndex) ?? 0;
+            const { x, y, size } = getTileCoords(tileset.canvas, frameIndex);
 
             if (background) {
                 rendering.fillRect(dx * size, dy * size, size, size);
@@ -217,7 +244,7 @@ function drawTilemap(rendering, tileset, tilemap, background = undefined) {
     rendering.restore();
 }
 
-function drawEvents(rendering, tileset, events, background = undefined) {
+function drawEvents(rendering, tileset, tileToFrame, events, background = undefined) {
     rendering.save();
     rendering.fillStyle = background;
     events.forEach((event) => {
@@ -228,7 +255,8 @@ function drawEvents(rendering, tileset, events, background = undefined) {
                 rendering.fillStyle = background;
                 rendering.fillRect(x * 8, y * 8, 8, 8);
             }
-            const tile = copyTile(tileset, graphicField.data);
+            const frameIndex = tileToFrame.get(graphicField.data) ?? 0;
+            const tile = copyTile(tileset, frameIndex);
             rendering.drawImage(tile.canvas, x * 8, y * 8);
         }
     });
@@ -252,7 +280,7 @@ function drawRoomThumbnail(rendering, palette, room) {
             for (let x = 0; x < 16; ++x) {
                 let color = bg;
                 if (room.wallmap[y][x] === 1) color = fg;
-                if (room.highmap[y][x] !== -1) color = hi;
+                if (room.highmap[y][x] !== 0) color = hi;
                 pixels[y * 16 + x] = color;
             }
         }
@@ -891,29 +919,34 @@ bipsi.TileBrowser = class {
         this.select.inputs[this.select.selectedIndex].scrollIntoView({ block: "center" }); 
     }
 
-    redraw(tileset0 = undefined, tileset1 = undefined) {
-        const { data, tilesets, room, tileIndex } = this.editor.getSelections();
-        const palette = data.palettes[room.palette];
-
-        const { x, y, size } = getTileCoords(tilesets[0].canvas, tileIndex);
-
-        const [bg, fg, hi] =  palette;
+    redraw(tileset0 = undefined) {
+        const { data, tileset, room, tile } = this.editor.getSelections();
+        const [bg, fg, hi] = data.palettes[room.palette];
 
         const color = this.editor.roomPaintTool.selectedIndex === 1 ? hi : fg;
+        const tilesetC = recolorMask(tileset0 ?? tileset, color);
 
-        fillRendering2D(this.editor.renderings.tilePaint0, bg);
-        this.editor.renderings.tilePaint0.drawImage(
-            recolorMask(tileset0 ?? tilesets[0], color).canvas,
-            x, y, size, size,
-            0, 0, size, size,
-        );
+        {
+            const frameIndex = tile.frames[0];
+            const { x, y, size } = getTileCoords(tileset.canvas, frameIndex);
+            fillRendering2D(this.editor.renderings.tilePaint0, bg);
+            this.editor.renderings.tilePaint0.drawImage(
+                tilesetC.canvas,
+                x, y, size, size,
+                0, 0, size, size,
+            );
+        }
 
-        fillRendering2D(this.editor.renderings.tilePaint1, bg);
-        this.editor.renderings.tilePaint1.drawImage(
-            recolorMask(tileset1 ?? tilesets[1], color).canvas,
-            x, y, size, size,
-            0, 0, size, size,
-        );
+        {
+            const frameIndex = tile.frames[1] ?? tile.frames[0];
+            const { x, y, size } = getTileCoords(tileset.canvas, frameIndex);
+            fillRendering2D(this.editor.renderings.tilePaint1, bg);
+            this.editor.renderings.tilePaint1.drawImage(
+                tilesetC.canvas,
+                x, y, size, size,
+                0, 0, size, size,
+            );
+        }
 
         this.editor.renderings.tilePaintA.drawImage(
             [this.editor.renderings.tilePaint0, this.editor.renderings.tilePaint1][this.frame].canvas,
@@ -940,9 +973,7 @@ bipsi.TileBrowser = class {
         root.style.setProperty("--tileset-background-size", `${w}px ${h}px`);
         root.style.setProperty("--tileset-background-color", data.palettes[room.palette][0]);
 
-        const columns = canvases[0].width / bipsi.constants.tileSize;
-        const rows = canvases[0].height / bipsi.constants.tileSize;
-        this.updateTileCount(rows * columns);
+        this.updateTileCount(data.tiles.length);
         this.items.forEach((label, index) => {
             const { x, y } = getTileCoords(canvases[0], index);
             label.style.backgroundPosition = `-${x * scale}px -${y * scale}px`;
@@ -1031,33 +1062,6 @@ bipsi.EventTileBrowser = class {
     }
 
     redraw() {
-        const { data, tilesets, room, tileIndex } = this.editor.getSelections();
-        const palette = data.palettes[room.palette];
-
-        const { x, y, size } = getTileCoords(tilesets[0].canvas, tileIndex);
-
-        const [bg, fg, hi] =  palette;
-
-        const color = this.editor.roomPaintTool.selectedIndex === 1 ? hi : fg;
-
-        fillRendering2D(this.editor.renderings.tilePaint0, bg);
-        this.editor.renderings.tilePaint0.drawImage(
-            recolorMask(tilesets[0], color).canvas,
-            x, y, size, size,
-            0, 0, size, size,
-        );
-
-        fillRendering2D(this.editor.renderings.tilePaint1, bg);
-        this.editor.renderings.tilePaint1.drawImage(
-            recolorMask(tilesets[1], color).canvas,
-            x, y, size, size,
-            0, 0, size, size,
-        );
-
-        this.editor.renderings.tilePaintA.drawImage(
-            [this.editor.renderings.tilePaint0, this.editor.renderings.tilePaint1][this.frame].canvas,
-            0, 0,
-        );
     }
 
     async setFrames(canvases) {
@@ -1139,7 +1143,7 @@ bipsi.TileEditor = class {
                 this.editor.stateManager.makeChange(async (data) => {
                     const { tilesets, frameIndex, tileIndex } = this.editor.getSelections();
                     const copy = copyTile(tilesets[frameIndex], tileIndex);
-                    const tileset = await this.editor.forkTilesetFrame(1 - frameIndex);
+                    const tileset = await this.editor.forkTileset(1 - frameIndex);
                     drawTile(tileset, tileIndex, copy);
                 });
             } 
@@ -1155,7 +1159,7 @@ bipsi.TileEditor = class {
         const { tilesets, tileIndex } = this.editor.getSelections();
  
         this.editor.stateManager.makeCheckpoint();
-        const frame = await this.editor.forkTilesetFrame(frameIndex);
+        const frame = await this.editor.forkTileset(frameIndex);
 
         const frames = [tilesets[0], tilesets[1]];
         frames[frameIndex] = frame;
@@ -1475,7 +1479,7 @@ bipsi.Editor = class extends EventTarget {
         });
 
         const onRoomPointer = async (event, canvas) => {
-            const { tileIndex, room } = this.getSelections();
+            const { tile, room } = this.getSelections();
     
             this.stateManager.makeCheckpoint();
 
@@ -1498,9 +1502,9 @@ bipsi.Editor = class extends EventTarget {
             const tool = this.roomPaintTool.value;
 
             const prevTile = room.tilemap[y][x];
-            const nextTile = prevTile !== tileIndex ? tileIndex : -1;
+            const nextTile = prevTile !== tile.id ? tile.id : 0;
             const prevHigh = room.highmap[y][x];
-            const nextHigh = prevHigh !== tileIndex ? tileIndex : -1;
+            const nextHigh = prevHigh !== tile.id ? tile.id : 0;
             const nextWall = 1 - room.wallmap[y][x];
 
             if (tool === "pick") {
@@ -1508,7 +1512,7 @@ bipsi.Editor = class extends EventTarget {
                 this.tileBrowser.selectedTileIndex = pick;
             } else if (tool === "wall" || tool === "tile" || tool === "high") {
                 const setIfWithin = (map, x, y, value) => {
-                    if (x >= 0 && x < 16 && y >= 0 && y < 16) map[y][x] = value ?? -1;
+                    if (x >= 0 && x < 16 && y >= 0 && y < 16) map[y][x] = value ?? 0;
                 } 
 
                 const plots = {
@@ -1656,34 +1660,30 @@ bipsi.Editor = class extends EventTarget {
     getSelections(data = undefined) {
         data = data || this.stateManager.present;
         
-        const tilesets = [
-            this.stateManager.resources.get(data.tilesets[0]),
-            this.stateManager.resources.get(data.tilesets[1]),
-        ];
-
+        const tileset = this.stateManager.resources.get(data.tileset);
         const tileSize = bipsi.constants.tileSize;
         const roomIndex = this.roomSelect.selectedIndex;
         const tileIndex = this.tileBrowser.selectedTileIndex;
         const frameIndex = this.tilePaintFrameSelect.selectedIndex;
 
+        const tile = data.tiles[tileIndex];
         const room = data.rooms[roomIndex];
 
         const { x, y } = this.selectedEventCell;
         const event = getEventsAt(room.events, x, y)[0];
 
-        return { data, tilesets, room, roomIndex, frameIndex, tileIndex, tileSize, event };
+        return { data, tileset, room, roomIndex, frameIndex, tileIndex, tileSize, event, tile };
     }
 
     /**
-     * @param {number} frame 
      * @returns {Promise<CanvasRenderingContext2D>}
      */
-    async forkTilesetFrame(frame) {
-        const tilesetId = this.stateManager.present.tilesets[frame];
+    async forkTileset() {
+        const tilesetId = this.stateManager.present.tileset;
         // create a new copy of the image resource
         const { id, instance } = await this.stateManager.resources.fork(tilesetId);
-        // replace the tileset frame's image with the new copy
-        this.stateManager.present.tilesets[frame] = id;
+        // replace the tileset image with the new copy
+        this.stateManager.present.tileset = id;
         // return the instance of the image for editing
         return instance;
     }
@@ -1693,33 +1693,33 @@ bipsi.Editor = class extends EventTarget {
      * @param {number} roomIndex 
      */
     drawRoom(rendering, roomIndex, { palette = undefined, events = true } = {}) {
-        const { data, tilesets } = this.getSelections();
+        const { data, tileset } = this.getSelections();
         const room = data.rooms[roomIndex];
         palette = palette ?? data.palettes[room.palette];
         const [background, foreground, highlight] = palette;
-        const tileset = tilesets[this.frame];
 
         const tilesetC = recolorMask(tileset, foreground, TEMP_TILESET0);
         const tilesetH = recolorMask(tileset, highlight, TEMP_TILESET1);
+        const tileToFrame = makeTileToFrameMap(data.tiles, this.frame);
 
         fillRendering2D(rendering, background);
-        drawTilemap(rendering, tilesetC, room.tilemap, background);
-        drawTilemap(rendering, tilesetH, room.highmap, background);
-        if (events) drawEvents(rendering, tilesetH, room.events, background);
+        drawTilemap(rendering, tilesetC, tileToFrame, room.tilemap, background);
+        drawTilemap(rendering, tilesetH, tileToFrame, room.highmap, background);
+        if (events) drawEvents(rendering, tilesetH, tileToFrame, room.events, background);
     }
 
     redraw() {
-        const { data, room, tileSize, roomIndex, tilesets } = this.getSelections();
+        const { data, room, tileSize, roomIndex, tileset } = this.getSelections();
         const palette = this.modeSelect.value === "palettes" 
                       ? this.paletteEditor.getPreviewPalette()  
                       : data.palettes[room.palette];
-        const tileset = tilesets[this.frame];
 
+        const tileToFrame = makeTileToFrameMap(data.tiles, this.frame);
         this.drawRoom(TEMP_128, roomIndex, { palette, events: false });
         this.renderings.tileMapPaint.drawImage(TEMP_128.canvas, 0, 0, 256, 256);
         fillRendering2D(TEMP_128);
         const tilesetH = recolorMask(tileset, palette[2], TEMP_TILESET0);
-        drawEvents(TEMP_128, tilesetH, room.events, palette[0]);
+        drawEvents(TEMP_128, tilesetH, tileToFrame, room.events, palette[0]);
         this.renderings.tileMapPaint.globalAlpha = .75;
         this.renderings.tileMapPaint.drawImage(TEMP_128.canvas, 0, 0, 256, 256);
         this.renderings.tileMapPaint.globalAlpha = 1;
@@ -1790,16 +1790,46 @@ bipsi.Editor = class extends EventTarget {
     } 
 
     redrawTileBrowser() {
-        const { data, room, tilesets } = this.getSelections();
+        const { data, room, tileset } = this.getSelections();
         const [, foreground, highlight] = data.palettes[room.palette];
 
         const hi = this.roomPaintTool.value === "high" || this.modeSelect.value === "events";
         const color = hi ? highlight : foreground;
-        const tileset = recolorMask(tilesets[0], color, TEMP_TILESET0);
-        const tileset2 = recolorMask(tilesets[1], color, TEMP_TILESET1);
+        const tilesetC = recolorMask(tileset, color, TEMP_TILESET0);
 
-        this.tileBrowser.setFrames([tileset.canvas, tileset2.canvas]);
-        this.eventTileBrowser.setFrames([tileset.canvas, tileset2.canvas]);
+        // draw tileset frame
+        const cols = 16;
+        const rows = Math.ceil(data.tiles.length / cols);
+        const frame0 = createRendering2D(cols * 8, rows * 8);
+        const frame1 = createRendering2D(cols * 8, rows * 8);
+
+        data.tiles.forEach(({ frames }, i) => {
+            const index0 = frames[0];
+            const index1 = frames[1] ?? index0;
+
+            const tx = i % 16;
+            const ty = Math.floor(i / 16);
+
+            {
+                const { x, y, size } = getTileCoords(tilesetC.canvas, index0);
+                frame0.drawImage(
+                    tileset.canvas,
+                    x, y, size, size, 
+                    tx * size, ty * size, size, size,
+                );
+            }
+            {
+                const { x, y, size } = getTileCoords(tilesetC.canvas, index1);
+                frame1.drawImage(
+                    tileset.canvas,
+                    x, y, size, size, 
+                    tx * size, ty * size, size, size,
+                );
+            }
+        });
+
+        this.tileBrowser.setFrames([frame0.canvas, frame1.canvas]);
+        this.eventTileBrowser.setFrames([frame0.canvas, frame1.canvas]);
     }
 
     async copySelectedRoom() {
@@ -1838,8 +1868,8 @@ bipsi.Editor = class extends EventTarget {
 
     async pasteSelectedTile() {
         return this.stateManager.makeChange(async (data) => {
-            const tileset0 = await this.forkTilesetFrame(0);
-            const tileset1 = await this.forkTilesetFrame(1);
+            const tileset0 = await this.forkTileset(0);
+            const tileset1 = await this.forkTileset(1);
 
             const { x, y, size } = getTileCoords(tileset0.canvas, this.tileBrowser.selectedTileIndex);
 
@@ -1852,8 +1882,8 @@ bipsi.Editor = class extends EventTarget {
     
     async clearSelectedTile() {
         return this.stateManager.makeChange(async (data) => {
-            const tileset0 = await this.forkTilesetFrame(0);
-            const tileset1 = await this.forkTilesetFrame(1);
+            const tileset0 = await this.forkTileset(0);
+            const tileset1 = await this.forkTileset(1);
 
             const { x, y, size } = getTileCoords(tileset0.canvas, this.tileBrowser.selectedTileIndex);
 
@@ -1868,7 +1898,7 @@ bipsi.Editor = class extends EventTarget {
     async processSelectedTile(process) {
         return this.stateManager.makeChange(async (data) => {
             const { frameIndex, tileIndex } = this.getSelections(data);
-            const tileset = await this.forkTilesetFrame(frameIndex);
+            const tileset = await this.forkTileset(frameIndex);
 
             const frame = copyTile(tileset, tileIndex);
             process(frame);
@@ -1886,7 +1916,7 @@ bipsi.Editor = class extends EventTarget {
     async pasteSelectedTileFrame() {
         return this.stateManager.makeChange(async (data) => {
             const { frameIndex, tileIndex } = this.getSelections(data);
-            const tileset = await this.forkTilesetFrame(frameIndex);
+            const tileset = await this.forkTileset(frameIndex);
 
             drawTile(tileset, tileIndex, this.copiedTileFrame);
         });
@@ -1895,7 +1925,7 @@ bipsi.Editor = class extends EventTarget {
     async clearSelectedTileFrame() {
         return this.stateManager.makeChange(async (data) => {
             const { frameIndex, tileIndex } = this.getSelections(data);
-            const tileset = await this.forkTilesetFrame(frameIndex);
+            const tileset = await this.forkTileset(frameIndex);
 
             const { x, y, size } = getTileCoords(tileset.canvas, tileIndex);
             tileset.clearRect(x, y, size, size);
@@ -1905,8 +1935,8 @@ bipsi.Editor = class extends EventTarget {
     async swapSelectedTileFrames() {
         return this.stateManager.makeChange(async (data) => {
             const { tileIndex } = this.getSelections(data);
-            const tileset0 = await this.forkTilesetFrame(0);
-            const tileset1 = await this.forkTilesetFrame(1);
+            const tileset0 = await this.forkTileset(0);
+            const tileset1 = await this.forkTileset(1);
 
             const frame0 = copyTile(tileset0, tileIndex);
             const frame1 = copyTile(tileset1, tileIndex);

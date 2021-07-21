@@ -187,20 +187,19 @@ bipsi.Player = class extends EventTarget {
         const palette = this.data.palettes[room.palette];
         const [background, foreground, highlight] = palette;
 
-        const frame = this.frameCount % this.data.tilesets.length;
-        const tileset = this.stateManager.resources.get(this.data.tilesets[frame]);
-
-        const tilesets = {
-            foreground: recolorMask(tileset, foreground),
-            highlight: recolorMask(tileset, highlight),
-        }
+        const tileset = this.stateManager.resources.get(this.data.tileset);
+        const tilesetFG = recolorMask(tileset, foreground);
+        const tilesetHI = recolorMask(tileset, highlight);
 
         fillRendering2D(TEMP_128, background);
 
         if (!this.title) {
-            drawTilemap(TEMP_128, tilesets.foreground, room.tilemap, background);
-            drawTilemap(TEMP_128, tilesets.highlight, room.highmap, background);
-            drawEvents(TEMP_128, tilesets.highlight, room.events, background);
+            const frame = this.frameCount % 2;
+            const tileToFrame = makeTileToFrameMap(this.data.tiles, frame);
+
+            drawTilemap(TEMP_128, tilesetFG, tileToFrame, room.tilemap, background);
+            drawTilemap(TEMP_128, tilesetHI, tileToFrame, room.highmap, background);
+            drawEvents(TEMP_128, tilesetHI, tileToFrame, room.events, background);
         }
 
         this.rendering.drawImage(TEMP_128.canvas, 0, 0, 256, 256);
