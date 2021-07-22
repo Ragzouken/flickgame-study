@@ -180,8 +180,8 @@ bipsi.Player = class extends EventTarget {
         const [background, foreground, highlight] = palette;
 
         const tileset = this.stateManager.resources.get(this.data.tileset);
-        const tilesetFG = recolorMask(tileset, foreground);
-        const tilesetHI = recolorMask(tileset, highlight);
+        const tilesetFG = recolorMask(tileset, foreground, TEMP_TILESET0);
+        const tilesetHI = recolorMask(tileset, highlight, TEMP_TILESET1);
 
         fillRendering2D(TEMP_128, background);
 

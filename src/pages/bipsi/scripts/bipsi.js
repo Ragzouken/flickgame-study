@@ -77,6 +77,7 @@ const TEMP_256 = createRendering2D(256, 256);
 
 const TEMP_TILESET0 = createRendering2D(1, 1);
 const TEMP_TILESET1 = createRendering2D(1, 1);
+const TEMP_TILE = createRendering2D(1, 1);
 
 function randomPalette() {
     const h0 = Math.random();
@@ -196,12 +197,25 @@ function getTileCoords(tileset, index) {
  * @param {CanvasRenderingContext2D} tileset 
  * @param {number} tileIndex 
  * @param {CanvasRenderingContext2D} destination 
- * @returns 
+ * @returns {CanvasRenderingContext2D}
  */
 function copyTile(tileset, tileIndex, destination = undefined) {
     const { x, y, size } = getTileCoords(tileset.canvas, tileIndex);
     const tile = copyRendering2D(tileset, destination, { x, y, w: size, h: size });
     return tile;
+}
+
+/**
+ * 
+ * @param {CanvasRenderingContext2D} rendering 
+ * @param {CanvasRenderingContext2D} tileset 
+ * @param {number} tileIndex 
+ * @param {number} dx 
+ * @param {number} dy 
+ */
+function drawTileFromTileset(rendering, tileset, tileIndex, dx, dy) {
+    const { x, y, size } = getTileCoords(tileset.canvas, tileIndex);
+    rendering.drawImage(tileset.canvas, x, y, size, size, dx, dy, size, size);
 }
 
 /**
@@ -272,8 +286,7 @@ function drawEvents(rendering, tileset, tileToFrame, events, background = undefi
                 rendering.fillRect(x * 8, y * 8, 8, 8);
             }
             const frameIndex = tileToFrame.get(graphicField.data) ?? 0;
-            const tile = copyTile(tileset, frameIndex);
-            rendering.drawImage(tile.canvas, x * 8, y * 8);
+            drawTileFromTileset(rendering, tileset, frameIndex, x * 8, y * 8);
         }
     });
     rendering.restore();
