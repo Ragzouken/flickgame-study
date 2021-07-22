@@ -29,7 +29,7 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/bi
             include /common/main-style.css
         style
             include includes/bipsi-style.css
-    body(onload="bipsi.start()")
+    body(onload="bipsi.start()").no-select
         #player(data-hidden-in-editor)
             #player-container
                 canvas#player-canvas(width=256 height=256)
@@ -196,13 +196,17 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/bi
                                     input(name="color-hex" type="text" value="#ffffff")
                         include includes/event-edit.pug
                         #play-tab-body(hidden)
-                            h2 playtest
-                            .button-row
-                                button(name="playtest" title="start playtest") playtest
-                                button(name="export" title="export as webpage") export
-                                button(name="update" title="open this flickgame study in the latest version" data-remix-only) update
-                                button(name="import" title="import from webpage" data-original-only) import
-                                button(name="reset" title="reset to blank") reset
+                            h2 project
+                            p
+                                .button-row
+                                    button(name="playtest" title="start playtest") playtest
+                                    button(name="export" title="export as webpage") export
+                                    button(name="update" title="open this flickgame study in the latest version" data-remix-only) update
+                                    button(name="import" title="import from webpage" data-original-only) import
+                                    button(name="reset" title="reset to blank") reset
+                            h2 about bipsi
+                            p bipsi is a tool for making small games where a character explores a world and interacts with its inhabitants. it is a clone of adam ledoux's <a href="http://www.bitsy.org/">bitsy game maker</a>
+                            p i'm <a href="https://kool.tools/">candle</a>, a long time bitsy user and tool maker
                         include includes/about.pug
         script#bundle-embed(type="application/json")
         script#editor-embed(type="application/json" data-editor-only)

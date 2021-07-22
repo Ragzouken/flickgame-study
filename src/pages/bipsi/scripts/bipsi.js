@@ -19,13 +19,14 @@ bipsi.storage = new maker.ProjectStorage("bipsi");
 
 /**
  * @typedef {Object} BipsiDataEvent
- * @property {string} id
+ * @property {number} id
  * @property {number[]} position
  * @property {BipsiDataEventField[]} fields
  */
 
 /**
  * @typedef {Object} BipsiDataRoom
+ * @property {number} id
  * @property {number} palette
  * @property {number[][]} tilemap
  * @property {number[][]} wallmap
@@ -117,8 +118,9 @@ bipsi.makeBlankBundle = function () {
     return { project, resources };
 }
 
-function makeBlankRoom() {
+function makeBlankRoom(id) {
     return {
+        id,
         palette: 0,
         tilemap: ZEROES(16).map(() => REPEAT(16, 0)),
         highmap: ZEROES(16).map(() => REPEAT(16, 0)),
@@ -134,10 +136,11 @@ function makeBlankRoom() {
  */
 bipsi.updateProject = function(project) {
     for (let i = project.rooms.length; i < 24; ++i) {
-        project.rooms.push(makeBlankRoom());
+        project.rooms.push(makeBlankRoom(nextRoomId(project)));
     }
+
     project.rooms.forEach((room) => room.events.forEach((event) => {
-        event.id = event.id ?? nanoid();
+        event.id = event.id ?? nextEventId(project);
         event.fields = event.fields ?? [];
     }));
 }
@@ -159,6 +162,19 @@ function generateColorWheel(width, height) {
         }
     });
     return rendering;
+}
+
+function fakedownToTag(text, fd, tag) {
+    const pattern = new RegExp(`${fd}([^${fd}]+)${fd}`, 'g');
+    return text.replace(pattern, `{+${tag}}$1{-${tag}}`);
+}
+
+function parseFakedown(text) {
+    text = fakedownToTag(text, '##', 'shk');
+    text = fakedownToTag(text, '~~', 'wvy');
+    text = fakedownToTag(text, '==', 'rbw');
+    text = fakedownToTag(text, '__', 'r');
+    return text;
 }
 
 /**
@@ -324,8 +340,44 @@ function cycleEvents(events, dx, dy) {
  * @param {number} x
  * @param {number} y 
  */
-function getEventsAt(events, x, y) {
-    return events.filter((event) => event.position[0] === x && event.position[1] === y);
+function getEventsAt(events, x, y, ignore=undefined) {
+    return events.filter((event) => event.position[0] === x 
+                                 && event.position[1] === y 
+                                 && event !== ignore);
+}
+
+/**
+ * @template {{id: number}} T
+ * @param {T[]} items 
+ * @param {number} id 
+ * @returns {T}
+ */
+function getById(items, id) {
+    return items.find((item) => item.id === id);
+}
+
+/** 
+ * @param {BipsiDataProject} data 
+ * @param {number} id
+ */
+function getRoomById(data, id) {
+    return getById(data.rooms, id);
+}
+
+/** 
+ * @param {BipsiDataProject} data 
+ * @param {number} id
+ */
+function getEventById(data, id) {
+    return getById(allEvents(data), id);
+}
+
+/** 
+ * @param {BipsiDataProject} data 
+ * @param {number} id
+ */
+function getTileById(data, id) {
+    return getById(data.tiles, id);
 }
 
 /**
@@ -343,12 +395,22 @@ function findFreeFrame(tiles) {
 }
 
 /**
- * @param {BipsiDataTile[]} tiles
+ * @param {{id: number}[]} items 
+ * @returns {number}
  */
- function nextTileId(tiles) {
-    const max = Math.max(...tiles.map((tile) => tile.id));
+function nextId(items) {
+    const max = Math.max(...items.map((item) => item.id));
     return max + 1;
 }
+
+/** @param {BipsiDataProject} data */
+const nextRoomId = (data) => nextId(data.rooms);
+
+/** @param {BipsiDataProject} data */
+const nextTileId = (data) => nextId(data.tiles);
+
+/** @param {BipsiDataProject} data */
+const nextEventId = (data) => nextId(data.rooms.flatMap((room) => room.events));
 
 /**
  * @param {CanvasRenderingContext2D} tileset 
@@ -361,6 +423,18 @@ function resizeTileset(tileset, tiles) {
     const rows = Math.ceil(maxFrame / cols);
     resizeRendering2D(tileset, cols * size, rows * size);
 }
+
+/**
+ * Return a random integer at least min and below max. Why is that the normal
+ * way to do random ints? I have no idea.
+ * @param {number} min 
+ * @param {number} max 
+ * @returns {number}
+ */
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min)) + min;
+}
+
 
 bipsi.PaletteEditor = class {
     /**
@@ -749,7 +823,7 @@ bipsi.EventEditor = class {
         const page = this.editor.dialoguePreviewPlayer.active ? this.editor.dialoguePreviewPlayer.pagesSeen : 0;
         this.editor.dialoguePreviewPlayer.restart();
         if (field && field.type === "dialogue") {
-            this.editor.dialoguePreviewPlayer.queueScript(this.valueEditors.dialogue.value);
+            this.editor.dialoguePreviewPlayer.queueScript(parseFakedown(this.valueEditors.dialogue.value));
             for (let i = 0; i < page-1; ++i) {
                 this.editor.dialoguePreviewPlayer.moveToNextPage();
             }
@@ -931,8 +1005,6 @@ bipsi.TileBrowser = class {
         this.select.remove(ONE("#tile-select-item-template > input"));
 
         this.select.addEventListener("change", () => {
-            const { tile } = this.editor.getSelections();
-            this.editor.tileEditor.animateToggle.checked = tile.frames.length > 1;
             this.redraw();
         });
 
@@ -958,6 +1030,8 @@ bipsi.TileBrowser = class {
     redraw(tileset0 = undefined) {
         const { data, tileset, room, tile } = this.editor.getSelections();
         if (!tile) return;
+
+        this.editor.tileEditor.animateToggle.setCheckedSilent(tile.frames.length > 1);
 
         const [bg, fg, hi] = data.palettes[room.palette];
 
@@ -990,6 +1064,9 @@ bipsi.TileBrowser = class {
             [this.editor.renderings.tilePaint0, this.editor.renderings.tilePaint1][this.frame].canvas,
             0, 0,
         );
+
+        this.editor.actions.reorderTileBefore.disabled = this.selectedTileIndex <= 0;
+        this.editor.actions.reorderTileAfter.disabled = this.selectedTileIndex >= data.tiles.length - 1;
     }
 
     async setFrames(canvases) {
@@ -1365,10 +1442,6 @@ bipsi.Editor = class extends EventTarget {
             pasteRoom: ui.action("paste-room", () => this.pasteSelectedRoom()),
             clearRoom: ui.action("clear-room", () => this.clearSelectedRoom()),
 
-            copyTile: ui.action("copy-tile", () => this.copySelectedTile()),
-            pasteTile: ui.action("paste-tile", () => this.pasteSelectedTile()),
-            clearTile: ui.action("clear-tile", () => this.clearSelectedTile()),
-
             shiftTileUp: ui.action("shift-tile-up", () =>
                 this.processSelectedTile((tile) => cycleRendering2D(tile,  0, -1))),
             shiftTileDown: ui.action("shift-tile-down", () =>
@@ -1408,7 +1481,6 @@ bipsi.Editor = class extends EventTarget {
         this.actions.undo.disabled = true;
         this.actions.redo.disabled = true;
         this.actions.pasteRoom.disabled = true;
-        this.actions.pasteTile.disabled = true;
         this.actions.pasteTileFrame.disabled = true;
         this.actions.pasteEvent.disabled = true;
 
@@ -1456,9 +1528,13 @@ bipsi.Editor = class extends EventTarget {
             bipsi.player.clear();
         });
 
-        ui.action("playtest", () => {
+        const playtest = ui.action("playtest", () => {
             bipsi.player.copyFrom(this.stateManager);
             ONE("#playtest-rendering").focus();
+        });
+
+        ONE("#playtest-rendering").addEventListener("click", () => {
+            if (!bipsi.player.ready) playtest.invoke();
         });
 
         this.roomSelect.addEventListener("change", () => {
@@ -1511,7 +1587,7 @@ bipsi.Editor = class extends EventTarget {
         });
 
         const onRoomPointer = async (event, canvas) => {
-            const { tile, room } = this.getSelections();
+            const { tile, room, data } = this.getSelections();
     
             this.stateManager.makeCheckpoint();
 
@@ -1540,8 +1616,8 @@ bipsi.Editor = class extends EventTarget {
             const nextWall = 1 - room.wallmap[y][x];
 
             if (tool === "pick") {
-                const pick = prevHigh >= 0 ? prevHigh : prevTile;
-                this.tileBrowser.selectedTileIndex = pick;
+                const pick = prevHigh != 0 ? prevHigh : prevTile;
+                this.tileBrowser.selectedTileIndex = data.tiles.findIndex((tile) => tile.id === pick);
             } else if (tool === "wall" || tool === "tile" || tool === "high") {
                 const setIfWithin = (map, x, y, value) => {
                     if (x >= 0 && x < 16 && y >= 0 && y < 16) map[y][x] = value ?? 0;
@@ -1684,6 +1760,13 @@ bipsi.Editor = class extends EventTarget {
 
         this.EVENT_TILE = await loadImage(bipsi.constants.eventTile);
         this.WALL_TILE = await loadImage(bipsi.constants.wallTile);
+
+        this.playtestSplash = createRendering2D(256, 256);
+        this.dialoguePreviewPlayer.restart();
+        this.dialoguePreviewPlayer.queueScript("click here to playtest");
+        this.dialoguePreviewPlayer.skip();
+        this.dialoguePreviewPlayer.render();
+        this.playtestSplash.drawImage(this.dialoguePreviewPlayer.dialogueRendering.canvas, 24, 109);
     }
 
     /**
@@ -1819,6 +1902,10 @@ bipsi.Editor = class extends EventTarget {
             this.dialoguePreviewPlayer.render();
             this.renderings.eventsRoom.drawImage(this.dialoguePreviewPlayer.dialogueRendering.canvas, x, y);
         }
+
+        if (!bipsi.player.ready) {
+            this.renderings.playtest.drawImage(this.playtestSplash.canvas, 0, 0);
+        }
     } 
 
     redrawTileBrowser() {
@@ -1874,7 +1961,9 @@ bipsi.Editor = class extends EventTarget {
         return this.stateManager.makeChange(async (data) => {
             const { roomIndex } = this.getSelections(data);
             const copy = COPY(this.copiedRoom);
-            copy.events.forEach((event) => event.id = nanoid());
+            copy.id = nextRoomId(data);
+            const eventId = nextEventId(data);
+            copy.events.forEach((event, i) => event.id = eventId + i);
             data.rooms[roomIndex] = copy;
         });
     }
@@ -1886,88 +1975,56 @@ bipsi.Editor = class extends EventTarget {
         });
     }
 
-    async copySelectedTile() {
-        const { tilesets } = this.getSelections();
-        const { x, y, size } = getTileCoords(tilesets[0].canvas, this.tileBrowser.selectedTileIndex);
-
-        this.copiedTileFrames = [
-            copyRendering2D(tilesets[0], undefined, { x, y, w: size, h: size }),
-            copyRendering2D(tilesets[1], undefined, { x, y, w: size, h: size }),
-        ];
-
-        this.actions.pasteTile.disabled = false;
-    }
-
-    async pasteSelectedTile() {
-        return this.stateManager.makeChange(async (data) => {
-            const tileset0 = await this.forkTileset(0);
-            const tileset1 = await this.forkTileset(1);
-
-            const { x, y, size } = getTileCoords(tileset0.canvas, this.tileBrowser.selectedTileIndex);
-
-            tileset0.clearRect(x, y, size, size);
-            tileset0.drawImage(this.copiedTileFrames[0].canvas, x, y);
-            tileset1.clearRect(x, y, size, size);
-            tileset1.drawImage(this.copiedTileFrames[1].canvas, x, y);
-        });
-    }
-    
-    async clearSelectedTile() {
-        return this.stateManager.makeChange(async (data) => {
-            const tileset0 = await this.forkTileset(0);
-            const tileset1 = await this.forkTileset(1);
-
-            const { x, y, size } = getTileCoords(tileset0.canvas, this.tileBrowser.selectedTileIndex);
-
-            tileset0.clearRect(x, y, size, size);
-            tileset1.clearRect(x, y, size, size);
-        });
-    }
-
     /**
      * @param {(CanvasRenderingContext2D) => void} process 
      */
     async processSelectedTile(process) {
         return this.stateManager.makeChange(async (data) => {
-            const { frameIndex, tileIndex } = this.getSelections(data);
-            const tileset = await this.forkTileset(frameIndex);
+            const { frameIndex, tile } = this.getSelections(data);
+            const tileset = await this.forkTileset();
 
-            const frame = copyTile(tileset, tileIndex);
+            const frame = copyTile(tileset, tile.frames[frameIndex]);
             process(frame);
-
-            drawTile(tileset, tileIndex, frame);
+            drawTile(tileset, tile.frames[frameIndex], frame);
         });
     }
 
     async copySelectedTileFrame() {
-        const { tilesets, frameIndex, tileIndex } = this.getSelections();
-        this.copiedTileFrame = copyTile(tilesets[frameIndex], tileIndex);
+        const { tileset, frameIndex, tile } = this.getSelections();
+        this.copiedTileFrame = copyTile(tileset, tile.frames[frameIndex]);
         this.actions.pasteTileFrame.disabled = false;
     }
 
     async pasteSelectedTileFrame() {
         return this.stateManager.makeChange(async (data) => {
-            const { frameIndex, tileIndex } = this.getSelections(data);
-            const tileset = await this.forkTileset(frameIndex);
+            const { frameIndex, tile } = this.getSelections(data);
+            const tileset = await this.forkTileset();
 
-            drawTile(tileset, tileIndex, this.copiedTileFrame);
+            drawTile(tileset, tile.frames[frameIndex], this.copiedTileFrame);
         });
     }
     
     async clearSelectedTileFrame() {
         return this.stateManager.makeChange(async (data) => {
-            const { frameIndex, tileIndex } = this.getSelections(data);
-            const tileset = await this.forkTileset(frameIndex);
+            const { frameIndex, tile } = this.getSelections(data);
+            const tileset = await this.forkTileset();
 
-            const { x, y, size } = getTileCoords(tileset.canvas, tileIndex);
+            const { x, y, size } = getTileCoords(tileset.canvas, tile.frames[frameIndex]);
             tileset.clearRect(x, y, size, size);
+        });
+    }
+
+    async swapSelectedTileFrames() {
+        return this.stateManager.makeChange(async (data) => {
+            const { tile } = this.getSelections(data);
+            [tile.frames[1], tile.frames[0]] = [tile.frames[0], tile.frames[1]];
         });
     }
 
     async newTile() {
         return this.stateManager.makeChange(async (data) => {
             const { tileIndex, tileset } = this.getSelections(data);
-            const id = nextTileId(data.tiles);
+            const id = nextTileId(data);
             const frames = [findFreeFrame(data.tiles)];
             data.tiles.splice(tileIndex, 0, { id, frames });
             resizeTileset(tileset, data.tiles);
@@ -1977,7 +2034,7 @@ bipsi.Editor = class extends EventTarget {
     async duplicateTile() {
         return this.stateManager.makeChange(async (data) => {
             const { tileIndex, tile, tileset } = this.getSelections(data);
-            const id = nextTileId(data.tiles);
+            const id = nextTileId(data);
             const frames = [];
 
             data.tiles.splice(tileIndex, 0, { id, frames });
@@ -2030,25 +2087,12 @@ bipsi.Editor = class extends EventTarget {
         });
     }
 
-    async swapSelectedTileFrames() {
-        return this.stateManager.makeChange(async (data) => {
-            const { tileIndex } = this.getSelections(data);
-            const tileset0 = await this.forkTileset(0);
-            const tileset1 = await this.forkTileset(1);
-
-            const frame0 = copyTile(tileset0, tileIndex);
-            const frame1 = copyTile(tileset1, tileIndex);
-
-            drawTile(tileset0, tileIndex, frame1);
-            drawTile(tileset1, tileIndex, frame0);
-        });
-    }
-
     createEvent(fieldsTemplate = undefined) {
         this.stateManager.makeChange(async (data) => {
             const { room } = this.getSelections(data);
             const { x, y } = this.selectedEventCell;
             const event = { 
+                id: nextEventId(data),
                 position: [x, y],
                 fields: COPY(fieldsTemplate ?? []),
             }
@@ -2069,7 +2113,7 @@ bipsi.Editor = class extends EventTarget {
             const { room } = this.getSelections(data);
             const { x, y } = this.selectedEventCell;
             const event = COPY(this.copiedEvent);
-            event.id = nanoid();
+            event.id = nextEventId(data);
             event.position = [x, y];
             room.events.push(event);
         });
@@ -2210,7 +2254,9 @@ bipsi.Editor = class extends EventTarget {
  function fitCanvasToParent(canvas) {
     const [tw, th] = [canvas.parentElement.clientWidth, canvas.parentElement.clientHeight];
     const [sw, sh] = [tw / canvas.width, th / canvas.height];
-    const scale = Math.min(sw, sh);
+    let scale = Math.min(sw, sh);
+    if (canvas.width * scale > 512) scale = Math.floor(scale); 
+
     canvas.style.setProperty("width", `${canvas.width * scale}px`);
     canvas.style.setProperty("height", `${canvas.height * scale}px`);
 }
@@ -2243,6 +2289,12 @@ async function makePlayer(font) {
     keys.set("ArrowUp",    () => player.move( 0, -1));
     keys.set("ArrowDown",  () => player.move( 0,  1));
 
+    const keyToCode = new Map();
+    keyToCode.set("ArrowUp", "KeyW");
+    keyToCode.set("ArrowLeft", "KeyA");
+    keyToCode.set("ArrowDown", "KeyS");
+    keyToCode.set("ArrowRight", "KeyD");
+
     function doMove(key) {
         const move = keys.get(key);
         if (move) {
@@ -2261,7 +2313,7 @@ async function makePlayer(font) {
         window.requestAnimationFrame(timer);
 
         if (moveCooldown === 0) {
-            const key = Array.from(keys.keys()).find((key) => heldKeys.has(key));
+            const key = Array.from(keys.keys()).find((key) => heldKeys.has(key) || heldKeys.has(keyToCode.get(key)));
             if (key) doMove(key);
         }
 
@@ -2269,28 +2321,44 @@ async function makePlayer(font) {
     }
     timer();
 
-    function down(key) {
+    function down(key, code) {
         if (player.dialoguePlayer.active) {
             player.proceed();
         } else {
             heldKeys.add(key);
+            heldKeys.add(code);
             doMove(key);
         }
     }
 
-    function up(key) {
+    function up(key, code) {
         heldKeys.delete(key);
+        heldKeys.delete(code);
     }
-
-    document.addEventListener("keydown", (event) => {
-        if (!event.repeat) down(event.key);
-    });
-    document.addEventListener("keyup", (event) => up(event.key));
 
     const turnToKey = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"];
     const threshold = 512 / 16 * 4;
+    let ignoreMouse = false;
+    let eatKeyboard = false;
+
+    window.onblur = () => setTimeout(() => ignoreMouse = true, 0);
+    window.onfocus = () => setTimeout(() => ignoreMouse = false, 0);
+
+    ONE("#playtest-rendering").onfocus = () => eatKeyboard = true;
+    ONE("#playtest-rendering").onblur = () => eatKeyboard = false;
+
+    document.addEventListener("keydown", (event) => {
+        if (!event.repeat) down(event.key, event.code);
+        if (eatKeyboard) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+    }, { capture: true });
+    document.addEventListener("keyup", (event) => up(event.key, event.code));
 
     document.addEventListener("pointerdown", (event) => {
+        if (ignoreMouse) return;
+
         const drag = ui.drag(event);
         let [x0, y0] = [drag.downEvent.clientX, drag.downEvent.clientY];
 

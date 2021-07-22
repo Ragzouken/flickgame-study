@@ -3,6 +3,10 @@
     --frame-color: #367b6b;
 }
 
+body {
+    touch-action: none;
+}
+
 canvas {
     touch-action: none;
 }
@@ -23,6 +27,10 @@ input[type="text"], textarea {
 .column {
     display: flex; flex-direction: column;
     flex: 1;
+}
+
+#playtest-rendering {
+    background: var(--trans-gradient);
 }
 
 #player {
@@ -690,6 +698,12 @@ select {
 }
 
 details > summary {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: var(--button-color);
+}
+
+h2 {
     font-size: 1.5em;
     font-weight: bold;
     color: var(--button-color);

@@ -5,6 +5,7 @@
       },
       "rooms": [
         {
+          "id":0,
           "palette":0,
           "tilemap": [
             [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -77,10 +78,10 @@
                 {
                   "key":"game-title",
                   "type":"dialogue",
-                  "data":"your game title"
+                  "data":"demo ==bipsi== game"
                 }
               ],
-              "id":"gBulw6AJ7Jtg-xS9NkyOq"
+              "id":0
             },
             {
               "position":[3,11],
@@ -98,10 +99,10 @@
                 {
                   "key":"say",
                   "type":"dialogue",
-                  "data":"join the conversation with a nice refreshing glass of bipsi"
+                  "data":"join the conversation with a nice ~~refreshing~~ glass of __bipsi__"
                 }
               ],
-              "id":"BVm1Uh7u8Wv5kL4JJgV0s"
+              "id":1
             },
             {
               "position":[11,5],
@@ -109,7 +110,7 @@
                 {
                   "key":"say",
                   "type":"dialogue",
-                  "data":"aaaahhh, a delicious bipsi"
+                  "data":"aaaahhh, a __delicious__ ##bipsi##"
                 },
                 {
                   "key":"one-time",
@@ -122,7 +123,7 @@
                   "data":5
                 }
               ],
-              "id":"3gXuIomuOiDH1kfHpiEL0"
+              "id":2
             },
             {
               "position":[11,8],
@@ -136,7 +137,7 @@
                   }
                 }
               ],
-              "id":"nYVYPXrrypSMc7w5vfsRY"
+              "id":3
             },
             {
               "position":[11,6],
@@ -148,7 +149,7 @@
                     "position":[11,8]
                   }
                 }],
-              "id":"JmCRdkf994x6fGSR_AIbA"
+              "id":4
             }
           ]
         }

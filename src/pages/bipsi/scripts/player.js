@@ -49,14 +49,6 @@ function allEvents(data) {
 
 /**
  * @param {BipsiDataProject} data 
- * @param {string} id 
- */
-function eventById(data, id) {
-    return allEvents(data).find((event) => event.id === id);
-}
-
-/**
- * @param {BipsiDataProject} data 
  * @param {BipsiDataEvent} event 
  */
 function roomFromEvent(data, event) {
@@ -182,7 +174,7 @@ bipsi.Player = class extends EventTarget {
     render() {
         if (!this.ready) return;
 
-        const avatar = eventById(this.data, this.avatarId);
+        const avatar = getEventById(this.data, this.avatarId);
         const room = roomFromEvent(this.data, avatar);
         const palette = this.data.palettes[room.palette];
         const [background, foreground, highlight] = palette;
@@ -234,7 +226,7 @@ bipsi.Player = class extends EventTarget {
     async move(dx, dy) {
         if (!this.ready || this.dialoguePlayer.active) return;
 
-        const avatar = eventById(this.data, this.avatarId);
+        const avatar = getEventById(this.data, this.avatarId);
         const room = roomFromEvent(this.data, avatar);
 
         const [px, py] = avatar.position;
@@ -242,14 +234,19 @@ bipsi.Player = class extends EventTarget {
 
         const blocked = cellIsSolid(room, tx, ty);
         const confined = tx < 0 || tx >= 16 || ty < 0 || ty >= 16;
-        
-        const [event] = getEventsAt(room.events, tx, ty);
+
         if (!blocked && !confined) avatar.position = [tx, ty];
+
+        const [fx, fy] = avatar.position;
+        const [event0] = getEventsAt(room.events, tx, ty, avatar);
+        const [event1] = getEventsAt(room.events, fx, fy, avatar);
+        const event = event0 ?? event1;
+
         if (event) await this.touch(event);
     }
 
     async touch(event) {
-        const avatar = eventById(this.data, this.avatarId);
+        const avatar = getEventById(this.data, this.avatarId);
         const room = roomFromEvent(this.data, avatar);
 
         // test
@@ -405,6 +402,7 @@ class DialoguePlayer extends EventTarget {
     }
 
     queueScript(script) {
+        script = parseFakedown(script);
         const pages = scriptToPages(script, { font: this.font, lineWidth: 192, lineCount: 2 });
         this.queuedPages.push(...pages);
         
@@ -445,6 +443,10 @@ class DialoguePlayer extends EventTarget {
                 glyph.offset = { x: getRandomInt(-1, 2), y: getRandomInt(-1, 2) };
             if (glyph.styles.has("wvy"))
                 glyph.offset.y = (Math.sin(i + this.pageTime * 5) * 3) | 0;
+            if (glyph.styles.has("rbw")) {
+                const h = Math.abs(Math.sin(performance.now() / 600 - i / 8));
+                glyph.fillStyle = rgbToHex(HSVToRGB({ h, s: 1, v: 1 }));
+            }
         });
     }
 }
