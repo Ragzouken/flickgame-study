@@ -143,6 +143,7 @@ bipsi.updateProject = function(project) {
     project.rooms.forEach((room) => room.events.forEach((event) => {
         event.id = event.id ?? nextEventId(project);
         event.fields = event.fields ?? [];
+        event.fields = event.fields.filter((field) => field !== null);
     }));
 }
 
@@ -279,7 +280,7 @@ function drawEvents(rendering, tileset, tileToFrame, events, background = undefi
     rendering.fillStyle = background;
     events.forEach((event) => {
         const [x, y] = event.position;
-        const graphicField = event.fields.find((field) => field.key === "graphic");
+        const graphicField = oneField(event, "graphic", "tile");
         if (graphicField) {
             if (background) {
                 rendering.fillStyle = background;
@@ -433,7 +434,7 @@ function resizeTileset(tileset, tiles) {
     const maxFrame = Math.max(...tiles.flatMap((tile) => tile.frames));
     const size = 8
     const cols = 16;
-    const rows = Math.ceil(maxFrame / cols);
+    const rows = Math.ceil((maxFrame + 1) / cols);
     resizeRendering2D(tileset, cols * size, rows * size);
 }
 
@@ -751,7 +752,18 @@ bipsi.EventEditor = class {
         ui.action("create-event-message", () => this.editor.createEvent(EVENT_TEMPLATES.message));
         ui.action("create-event-character", () => this.editor.createEvent(EVENT_TEMPLATES.character));
         ui.action("create-event-ending", () => this.editor.createEvent(EVENT_TEMPLATES.ending));
-        ui.action("create-event-player", () => this.editor.createEvent(EVENT_TEMPLATES.player));
+        ui.action("create-event-player", () => {
+            const avatar = allEvents(this.editor.stateManager.present).find((event) => eventIsTagged(event, "is-player"));
+
+            this.editor.createEvent(avatar?.fields ?? EVENT_TEMPLATES.player);
+            
+            if (avatar) {
+                this.editor.stateManager.makeChange(async (data) => {
+                    const room = roomFromEvent(data, avatar);
+                    arrayDiscard(room.events, avatar);
+                });
+            }
+        });
 
         this.actions = {
             add: ui.action("add-event-field", () => this.addField()),
@@ -777,11 +789,14 @@ bipsi.EventEditor = class {
         });
 
         this.valueEditors.json.addEventListener("change", () => {
-            const data_ = JSON.parse(this.valueEditors.json.value);
-
             this.editor.stateManager.makeChange(async (data) => {
                 const { field } = this.getSelections(data);
-                field.data = data_;
+
+                if (field.type === "json") {
+                    field.data = JSON.parse(this.valueEditors.json.value);
+                } else {
+                    field.data = this.valueEditors.json.value;
+                }
             });
         });
 
@@ -902,6 +917,9 @@ bipsi.EventEditor = class {
                     this.positionSelectRendering.fillRect(0, y * 8+2, 128, 4);
                     this.positionSelectRendering.fillRect(x * 8+2, 0, 4, 128);
                     this.positionSelectRendering.restore();
+                } else if (field.type === "text") {
+                    this.valueEditors.json.value = field.data;
+                    ONE("#field-json-editor").hidden = false;
                 } else {
                     this.valueEditors.json.value = JSON.stringify(field.data);
                     ONE("#field-json-editor").hidden = false;
@@ -981,10 +999,17 @@ bipsi.EventEditor = class {
             const { event, fieldIndex } = this.getSelections(data);
             const prev = fieldIndex;
             const next = Math.max(0, Math.min(fieldIndex + di, event.fields.length));
+            
+            if (event.fields[prev] === undefined || event.fields[next] === undefined) {
+                console.log("WHOOPS");
+                return;
+            }
 
             const temp = event.fields[prev];
             event.fields[prev] = event.fields[next];
             event.fields[next] = temp;
+
+            console.log(event.fields);
 
             this.setSelectedIndex(next);
         });
@@ -1917,6 +1942,7 @@ bipsi.Editor = class extends EventTarget {
         }
 
         if (!bipsi.player.ready) {
+            fillRendering2D(this.renderings.playtest);
             this.renderings.playtest.drawImage(this.playtestSplash.canvas, 0, 0);
         }
     } 

@@ -55,6 +55,13 @@ function roomFromEvent(data, event) {
     return data.rooms.find((room) => room.events.includes(event));
 }
 
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
 /**
  * @param {EventTarget} target 
  * @param {string} event 
@@ -143,6 +150,10 @@ bipsi.Player = class extends EventTarget {
 
         this.avatarId = avatar.id;
         this.ready = true;
+
+        const room = roomFromEvent(this.data, avatar);
+        arrayDiscard(room.events, avatar);
+        room.events.push(avatar);
 
         const title = oneField(avatar, "game-title", "dialogue")?.data;
         if (title) {
@@ -250,13 +261,31 @@ bipsi.Player = class extends EventTarget {
         const room = roomFromEvent(this.data, avatar);
 
         // test
-        const say = oneField(event, "say", "dialogue")?.data;
+        const says = allFields(event, "say", "dialogue");
         const exit = oneField(event, "exit", "location")?.data;
         const once = eventIsTagged(event, "one-time");
         const ending = oneField(event, "ending", "dialogue")?.data;
 
-        if (say !== undefined) {
+        const sayMode = oneField(event, "say-mode", "text")?.data;
+        if (event.says === undefined) {
+            event.says = says.map((say) => say.data);
+            event.sayProgress = 0;
+            if (sayMode === "shuffle") shuffleArray(event.says);
+        }
+
+        if (event.says.length > 0) {
+            event.sayProgress = event.sayProgress ?? 0;
+            const say = event.says[event.sayProgress];
             this.dialoguePlayer.queueScript(say);
+            event.sayProgress += 1;
+
+            if (event.sayProgress >= event.says.length) {
+                if (sayMode === "shuffle" || sayMode === "cycle") {
+                    event.says = undefined;
+                } else {
+                    event.sayProgress = event.says.length - 1;
+                }
+            }
         }
 
         await this.dialogueWaiter;

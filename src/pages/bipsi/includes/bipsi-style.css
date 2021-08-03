@@ -213,6 +213,7 @@ input[type="text"], textarea {
     flex-wrap: wrap;
     gap: 5px;
     justify-content: flex-start;
+    align-items: flex-start;
 
     border-radius: .5rem;
     background: var(--trans-gradient);

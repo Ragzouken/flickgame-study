@@ -1,6 +1,6 @@
 - var now = new Date();
 - var date = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`;
-- var version = "0";
+- var version = "alpha";
 
 - for (let i = 0; i < 37; ++i) Math.random();
 
@@ -113,15 +113,6 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/bi
                         select(name="room-palette")
                             each index in [0, 1, 2, 3, 4, 5, 6, 7]
                                 option(value=`${index}`)= `palette ${index}`
-
-                #help(hidden)
-                    button(name="help" title="hide help") close
-                    include:markdown-it(html) includes/about.md
-                    h2 extra
-                    p you made it to the end so here's an extra feature that didn't fit in the ui:
-                    .button-row
-                        button(name="export-palette" title="export palette as image") export palette
-                        button(name="import-palette" title="import palette from image") import palette
             #controls
                 #upper-toolbar
                     #mode-select.horizontal-capsule.radio-select(title="mode-select")
@@ -204,9 +195,10 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/bi
                                     button(name="update" title="open this flickgame study in the latest version" data-remix-only) update
                                     button(name="import" title="import from webpage" data-original-only) import
                                     button(name="reset" title="reset to blank") reset
-                            h2 about bipsi
+                            h2= `bipsi -- ${version} (${date})`
                             p bipsi is a tool for making small games where a character explores a world and interacts with its inhabitants. it is a clone of adam ledoux's <a href="http://www.bitsy.org/">bitsy game maker</a>
                             p i'm <a href="https://kool.tools/">candle</a>, a long time bitsy user and tool maker
+                            p you can <a href="https://kool.tools/blog/makers-study.html">read more about the motivation for this tool on my blog</a>
                         include includes/about.pug
         script#bundle-embed(type="application/json")
         script#editor-embed(type="application/json" data-editor-only)
