@@ -257,58 +257,103 @@ bipsi.Player = class extends EventTarget {
     }
 
     async touch(event) {
-        const avatar = getEventById(this.data, this.avatarId);
-        const room = roomFromEvent(this.data, avatar);
+        await runEventDialogue(this, event);
+        await runEventExit(this, event);
+        await runEventRemove(this, event);
+        await runEventEnding(this, event);
+    }
+}
 
-        // test
-        const says = allFields(event, "say", "dialogue");
-        const exit = oneField(event, "exit", "location")?.data;
-        const once = eventIsTagged(event, "one-time");
-        const ending = oneField(event, "ending", "dialogue")?.data;
+/**
+ * @param {bipsi.Player} player 
+ * @param {BipsiDataEvent} event 
+ * @returns {Promise}
+ */
+async function runEventDialogue(player, event) {
+    const says = allFields(event, "say", "dialogue");
+    const sayMode = oneField(event, "say-mode", "text")?.data;
+    
+    if (event.says === undefined) {
+        event.says = says.map((say) => say.data);
+        event.sayProgress = 0;
+        if (sayMode === "shuffle") shuffleArray(event.says);
+    }
 
-        const sayMode = oneField(event, "say-mode", "text")?.data;
-        if (event.says === undefined) {
-            event.says = says.map((say) => say.data);
-            event.sayProgress = 0;
-            if (sayMode === "shuffle") shuffleArray(event.says);
-        }
+    if (event.says.length > 0) {
+        event.sayProgress = event.sayProgress ?? 0;
+        const say = event.says[event.sayProgress];
+        player.dialoguePlayer.queueScript(say);
+        event.sayProgress += 1;
 
-        if (event.says.length > 0) {
-            event.sayProgress = event.sayProgress ?? 0;
-            const say = event.says[event.sayProgress];
-            this.dialoguePlayer.queueScript(say);
-            event.sayProgress += 1;
-
-            if (event.sayProgress >= event.says.length) {
-                if (sayMode === "shuffle" || sayMode === "cycle") {
-                    event.says = undefined;
-                } else {
-                    event.sayProgress = event.says.length - 1;
-                }
+        if (event.sayProgress >= event.says.length) {
+            if (sayMode === "shuffle" || sayMode === "cycle") {
+                event.says = undefined;
+            } else {
+                event.sayProgress = event.says.length - 1;
             }
         }
-
-        await this.dialogueWaiter;
-
-        if (exit !== undefined) {
-            const nextRoom = this.data.rooms[exit.room];
-            arrayDiscard(room.events, avatar);
-            nextRoom.events.push(avatar);
-            avatar.position = [...exit.position];
-        }
-
-        if (once) {
-            arrayDiscard(roomFromEvent(this.data, event).events, event);
-        }
-
-        if (ending !== undefined) {
-            this.title = true;
-            this.dialoguePlayer.queueScript(ending);
-            await this.dialogueWaiter;
-            this.title = false; 
-            this.restart();
-        }
     }
+
+    return player.dialogueWaiter;
+}
+
+/**
+ * @param {bipsi.Player} player 
+ * @param {BipsiDataEvent} event 
+ * @returns {Promise}
+ */
+async function runEventExit(player, event) {
+    const avatar = getEventById(player.data, player.avatarId);
+    const room = roomFromEvent(player.data, avatar);
+    const exit = oneField(event, "exit", "location")?.data;
+
+    if (exit !== undefined) {
+        const nextRoom = player.data.rooms[exit.room];
+        arrayDiscard(room.events, avatar);
+        nextRoom.events.push(avatar);
+        avatar.position = [...exit.position];
+    }
+}
+
+/**
+ * @param {bipsi.Player} player 
+ * @param {BipsiDataEvent} event 
+ * @returns {Promise}
+ */
+async function runEventRemove(player, event) {
+    if (eventIsTagged(event, "one-time")) {
+        arrayDiscard(roomFromEvent(player.data, event).events, event);
+    }
+}
+
+/**
+ * @param {bipsi.Player} player 
+ * @param {BipsiDataEvent} event 
+ * @returns {Promise}
+ */
+ async function runEventEnding(player, event) {
+    const ending = oneField(event, "ending", "dialogue")?.data;
+
+    if (ending !== undefined) {
+        player.title = true;
+        player.dialoguePlayer.queueScript(ending);
+        await player.dialogueWaiter;
+        player.title = false; 
+        player.restart();
+    }
+}
+
+function fakedownToTag(text, fd, tag) {
+    const pattern = new RegExp(`${fd}([^${fd}]+)${fd}`, 'g');
+    return text.replace(pattern, `{+${tag}}$1{-${tag}}`);
+}
+
+function parseFakedown(text) {
+    text = fakedownToTag(text, '##', 'shk');
+    text = fakedownToTag(text, '~~', 'wvy');
+    text = fakedownToTag(text, '==', 'rbw');
+    text = fakedownToTag(text, '__', 'r');
+    return text;
 }
 
 class DialoguePlayer extends EventTarget {

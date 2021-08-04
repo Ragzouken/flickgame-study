@@ -2,9 +2,7 @@
 - var date = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`;
 - var version = "alpha";
 
-- for (let i = 0; i < 37; ++i) Math.random();
-
-doctype html
+<!DOCTYPE html>
 html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/bipsi" data-app-mode="editor")
     head
         title bipsi
@@ -28,6 +26,8 @@ html(lang="en" data-remix-generation="0" data-editor-live="https://kool.tools/bi
         style#main-style
             include /common/main-style.css
         style
+            include includes/player-style.css
+        style(data-editor-only)
             include includes/bipsi-style.css
     body(onload="bipsi.start()").no-select
         #player(data-hidden-in-editor)

@@ -33,26 +33,6 @@ input[type="text"], textarea {
     background: var(--trans-gradient);
 }
 
-#player {
-    position: absolute;
-    width: 100%; height: 100%;
-    overflow: hidden;
-
-    display: flex;
-    flex-direction: column;
-
-    padding-bottom: 0;
-    gap: 1em;
-}
-
-#player-container {
-    flex: 1;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
 #player-menu {
     display: grid;
     grid-auto-flow: column;
@@ -213,7 +193,7 @@ input[type="text"], textarea {
     flex-wrap: wrap;
     gap: 5px;
     justify-content: flex-start;
-    align-items: flex-start;
+    align-content: flex-start;
 
     border-radius: .5rem;
     background: var(--trans-gradient);

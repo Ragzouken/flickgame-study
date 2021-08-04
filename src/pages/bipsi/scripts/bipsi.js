@@ -66,8 +66,8 @@ bipsi.constants = {
 
     tileset: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAAjUlEQVR42u3XMQ4AEBAEwPv/p2kUIo5ScmYqQWU3QsSkDbu5TFBHVoDTfqemAFQKfy3BOs7WKBT+HLQCfBB+dgPcHnoKULAIp7ECfFoA30AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOCFDjCu5xlD93/uAAAAAElFTkSuQmCC",
 
-    wallTile: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAAZQTFRFAAAA////pdmf3QAAAAJ0Uk5TAP9bkSK1AAAAEklEQVQYlWNgYGBgpBAzDCMzACMQAEGgO/QHAAAAAElFTkSuQmCC",
-    eventTile: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAAZQTFRFAAAA////pdmf3QAAAAJ0Uk5TAP9bkSK1AAAAGUlEQVQYlWNgwACMKAC7ALLqwS1AyC9oAAA0EABhSIRy/QAAAABJRU5ErkJggg==",
+    wallTile: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAAlQTFRFAAAA////AAAAc8aDcQAAAAN0Uk5TAP//RFDWIQAAADlJREFUGJVlj0EOACAIw2D/f7QmLAa7XeyaKFgVkfSjum1M9xhDeN24+pjdbVYPwSt8lGMDcnV+DjlaUACpjVBfxAAAAABJRU5ErkJggg==",
+    eventTile: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAAlQTFRFAAAA////AAAAc8aDcQAAAAN0Uk5TAP//RFDWIQAAACVJREFUGJVjYMAATCgAJMCIBCACCHmYAFz3AAugOwzd6eieQwMAdfAA3XvBXggAAAAASUVORK5CYII=",
     startTile: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAAZQTFRFAAAA////pdmf3QAAAAJ0Uk5TAP9bkSK1AAAAJUlEQVQYlWNgwACMKAC7ALJqnALIqkEETD8lAhiGEnIHIb+gAQBFEACBGFbz9wAAAABJRU5ErkJggg==",
 
     colorwheelMargin: 12,
@@ -164,19 +164,6 @@ function generateColorWheel(width, height) {
         }
     });
     return rendering;
-}
-
-function fakedownToTag(text, fd, tag) {
-    const pattern = new RegExp(`${fd}([^${fd}]+)${fd}`, 'g');
-    return text.replace(pattern, `{+${tag}}$1{-${tag}}`);
-}
-
-function parseFakedown(text) {
-    text = fakedownToTag(text, '##', 'shk');
-    text = fakedownToTag(text, '~~', 'wvy');
-    text = fakedownToTag(text, '==', 'rbw');
-    text = fakedownToTag(text, '__', 'r');
-    return text;
 }
 
 /**
@@ -509,6 +496,14 @@ bipsi.PaletteEditor = class {
             this.commitSelectedColorFromTemporary();
         });
 
+        this.colorHex.addEventListener("paste", () => {
+            setTimeout(() => {
+                this.temporary.hex = this.colorHex.value;
+                this.updateTemporaryFromHex();
+                this.refreshDisplay();
+            }, 0);
+        });
+
         this.colorHueSat.addEventListener("pointerdown", (event) => {
             const drag = ui.drag(event);
 
@@ -628,6 +623,8 @@ bipsi.PaletteEditor = class {
     }
 
     commitSelectedColorFromTemporary() {
+
+
         this.editor.stateManager.makeChange(async (data) => {
             const { palette, colorIndex, color } = this.getSelections(data);
     
@@ -851,7 +848,7 @@ bipsi.EventEditor = class {
         const page = this.editor.dialoguePreviewPlayer.active ? this.editor.dialoguePreviewPlayer.pagesSeen : 0;
         this.editor.dialoguePreviewPlayer.restart();
         if (field && field.type === "dialogue") {
-            this.editor.dialoguePreviewPlayer.queueScript(parseFakedown(this.valueEditors.dialogue.value));
+            this.editor.dialoguePreviewPlayer.queueScript(this.valueEditors.dialogue.value);
             for (let i = 0; i < page-1; ++i) {
                 this.editor.dialoguePreviewPlayer.moveToNextPage();
             }
@@ -1879,7 +1876,6 @@ bipsi.Editor = class extends EventTarget {
 
         if (this.roomPaintTool.value === "wall") {
             const rendering = this.renderings.tileMapPaint;
-            rendering.globalCompositeOperation = "difference";
             room.wallmap.forEach((row, y) => {
                 row.forEach((wall, x) => {
                     if (wall > 0) {
@@ -1890,7 +1886,6 @@ bipsi.Editor = class extends EventTarget {
                     }
                 });
             });
-            rendering.globalCompositeOperation = "source-over";
         }
 
         this.roomThumbs.forEach((thumbnail, roomIndex) => {
@@ -1908,19 +1903,19 @@ bipsi.Editor = class extends EventTarget {
 
         if (!this.eventEditor.showDialoguePreview) {
             fillRendering2D(TEMP_256);
-            TEMP_256.fillStyle = "white";
-            TEMP_256.fillRect(0, y * 16 + 6, 256, 4);
-            TEMP_256.fillRect(x * 16 + 6, 0, 4, 256);
-            TEMP_256.clearRect(x * 16, y * 16, 16, 16);
     
             room.events.forEach((event) => {
                 const [x, y] = event.position;
                 TEMP_256.drawImage(this.EVENT_TILE, x * tileSize * 2, y * tileSize * 2);
             });
 
-            this.renderings.eventsRoom.globalCompositeOperation = "difference";
+            TEMP_256.fillStyle = "white";
+            TEMP_256.fillRect(0, y * 16 + 6, 256, 4);
+            TEMP_256.fillRect(x * 16 + 6, 0, 4, 256);
+
+            //this.renderings.eventsRoom.globalCompositeOperation = "difference";
             this.renderings.eventsRoom.drawImage(TEMP_256.canvas, 0, 0);
-            this.renderings.eventsRoom.globalCompositeOperation = "source-over";
+            //this.renderings.eventsRoom.globalCompositeOperation = "source-over";
         }
 
         const events = getEventsAt(room.events, x, y);
@@ -2065,8 +2060,9 @@ bipsi.Editor = class extends EventTarget {
             const { tileIndex, tileset } = this.getSelections(data);
             const id = nextTileId(data);
             const frames = [findFreeFrame(data.tiles)];
-            data.tiles.splice(tileIndex, 0, { id, frames });
+            data.tiles.splice(tileIndex+1, 0, { id, frames });
             resizeTileset(tileset, data.tiles);
+            this.tileBrowser.selectedTileIndex += 1;
         });
     }
 
@@ -2076,13 +2072,14 @@ bipsi.Editor = class extends EventTarget {
             const id = nextTileId(data);
             const frames = [];
 
-            data.tiles.splice(tileIndex, 0, { id, frames });
+            data.tiles.splice(tileIndex+1, 0, { id, frames });
             tile.frames.forEach((_, i) => {
                 frames.push(findFreeFrame(data.tiles));
                 resizeTileset(tileset, data.tiles);
                 const frame = copyTile(tileset, tile.frames[i]);
                 drawTile(tileset, frames[i], frame);
             });
+            this.tileBrowser.selectedTileIndex += 1;
         });
     }
 
