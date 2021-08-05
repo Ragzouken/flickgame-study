@@ -1,6 +1,9 @@
 const CONT_ICON_DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAGCAYAAAD68A/GAAAAAXNSR0IArs4c6QAAADNJREFUCJmNzrENACAMA0E/++/8NAhRBEg6yyc5SePUoNqwDICnWP04ww1tWOHfUqqf1UwGcw4T9WFhtgAAAABJRU5ErkJggg==";
 const STOP_ICON_DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAGCAYAAAD68A/GAAAAAXNSR0IArs4c6QAAACJJREFUCJljZICC/////2fAAhgZGRn////PwIRNEhsYCgoBIkQHCf7H+yAAAAAASUVORK5CYII="
 
+// async equivalent of Function constructor
+const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor
+
 /**
  * @param {BipsiDataEvent} event 
  * @param {string} key 
@@ -257,11 +260,38 @@ bipsi.Player = class extends EventTarget {
     }
 
     async touch(event) {
-        await runEventDialogue(this, event);
-        await runEventExit(this, event);
-        await runEventRemove(this, event);
-        await runEventEnding(this, event);
+        const touch = oneField(event, "touch", "javascript")?.data;
+
+        if (touch !== undefined) {
+            const defines = generateScriptingDefines(this, event);
+            const names = Object.keys(defines).join(", ");
+            const preamble = `const { ${names} } = COMMANDS;\n`;
+
+            try {
+                const script = new AsyncFunction("COMMANDS", preamble + touch);
+                await script(defines);
+            } catch (e) {
+                const error = `SCRIPT ERROR:\n${e}`;
+                console.log(error);
+                this.dialoguePlayer.queueScript(error);
+                await this.dialogueWaiter;
+            }
+        } else {
+            return standardEventTouch(this, event);
+        }
     }
+}
+
+/**
+ * @param {bipsi.Player} player 
+ * @param {BipsiDataEvent} event 
+ * @returns {Promise}
+ */
+async function standardEventTouch(player, event) {
+    await runEventDialogue(player, event);
+    await runEventExit(player, event);
+    await runEventRemove(player, event);
+    await runEventEnding(player, event);
 }
 
 /**
@@ -523,4 +553,24 @@ class DialoguePlayer extends EventTarget {
             }
         });
     }
+}
+
+/**
+ * @param {bipsi.Player} player 
+ * @param {BipsiDataEvent} event 
+ */
+ function generateScriptingDefines(player, event) {
+    // edit here to add new scripting functions
+    const defines = {};
+    
+    defines.PLAYER = player;
+    defines.EVENT = event;
+
+    defines.LOG = (text) => console.log(text);
+    defines.SAY = async (dialogue) => player.dialoguePlayer.queueScript(dialogue);
+    defines.DELAY = async (seconds) => sleep(seconds * 1000);
+    defines.DIALOGUE = player.dialogueWaiter;
+    defines.DIALOG = defines.DIALOGUE;
+
+    return defines;
 }

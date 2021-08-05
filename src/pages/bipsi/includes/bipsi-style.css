@@ -541,7 +541,7 @@ select {
 }
 
 #field-json-editor {
-    height: 64px;
+    height: 192px;
 
     display: flex;
 }
@@ -690,22 +690,21 @@ h2 {
     color: var(--button-color);
 }
 
-#about-tab-body {
-    gap: .5rem;
-
-    overflow: auto;
+#play-tab-body {
+    font-size: larger;
 }
 
-#about-tab-body a {
+a {
     color: var(--button-color);
+    font-weight: bold;
 }
 
-#about-tab-body a:hover {
+a:hover {
     color: white;
 }
 
-#about-tab-body a:visited {
-    color: lightgray;
+a:visited {
+    color: #cef0df;
 }
 
 em {

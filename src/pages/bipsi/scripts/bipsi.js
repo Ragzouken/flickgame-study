@@ -641,7 +641,7 @@ const FIELD_DEFAULTS = {
     tile: 0,
     dialogue: "",
     location: { room: 0, position: [0, 0] },
-    javascript: "",
+    javascript: "await runEventDialogue(PLAYER, EVENT);\nawait runEventExit(PLAYER, EVENT);\nawait runEventRemove(PLAYER, EVENT);\nawait runEventEnding(PLAYER, EVENT);",
     json: "",
     text: "",
 };
@@ -909,16 +909,18 @@ bipsi.EventEditor = class {
 
                     this.positionSelectRendering.save();
                     this.editor.drawRoom(this.positionSelectRendering, field.data.room);
-                    this.positionSelectRendering.globalCompositeOperation = "difference"
-                    this.positionSelectRendering.fillStyle = "white";
-                    this.positionSelectRendering.fillRect(0, y * 8+2, 128, 4);
-                    this.positionSelectRendering.fillRect(x * 8+2, 0, 4, 128);
+                    {
+                        this.positionSelectRendering.globalCompositeOperation = "difference"
+                        this.positionSelectRendering.fillStyle = "white";
+                        this.positionSelectRendering.fillRect(0, y * 8+2, 128, 4);
+                        this.positionSelectRendering.fillRect(x * 8+2, 0, 4, 128);
+                    }
                     this.positionSelectRendering.restore();
-                } else if (field.type === "text") {
-                    this.valueEditors.json.value = field.data;
+                } else if (field.type === "json") {
+                    this.valueEditors.json.value = JSON.stringify(field.data);
                     ONE("#field-json-editor").hidden = false;
                 } else {
-                    this.valueEditors.json.value = JSON.stringify(field.data);
+                    this.valueEditors.json.value = field.data;
                     ONE("#field-json-editor").hidden = false;
                 }
             }
@@ -1437,8 +1439,6 @@ bipsi.Editor = class extends EventTarget {
 
         this.modeSelect.tab(ONE("#play-tab-body"), "playtest");
         this.modeSelect.tab(ONE("#play-tab-view"), "playtest");
-
-        this.modeSelect.tab(ONE("#about-tab-body"), "about");
 
         // initial selections
         this.modeSelect.selectedIndex = 0;
