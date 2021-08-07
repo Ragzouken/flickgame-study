@@ -435,7 +435,7 @@ select {
     gap: .5rem;
 }
 
-#event-template-list > button {
+.event-template-list > button {
     flex: 0;
 
     display: flex; flex-direction: row;
@@ -443,7 +443,7 @@ select {
     justify-content: flex-start;
 }
 
-#event-template-list {
+.event-template-list {
     display: grid;
     gap: .5rem;
     grid-template-columns: repeat(2, 1fr);

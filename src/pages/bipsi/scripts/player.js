@@ -91,6 +91,7 @@ bipsi.Player = class extends EventTarget {
         this.ready = false;
         this.title = false;
         this.frameCount = 0;
+        this.busy = false;
 
         // an awaitable that generates a new promise that resolves once no dialogue is active
         /** @type {PromiseLike<void>} */
@@ -238,7 +239,9 @@ bipsi.Player = class extends EventTarget {
     }
 
     async move(dx, dy) {
-        if (!this.ready || this.dialoguePlayer.active) return;
+        if (!this.ready || this.dialoguePlayer.active || this.busy) return;
+
+        this.busy = true;
 
         const avatar = getEventById(this.data, this.avatarId);
         const room = roomFromEvent(this.data, avatar);
@@ -257,6 +260,8 @@ bipsi.Player = class extends EventTarget {
         const event = event0 ?? event1;
 
         if (event) await this.touch(event);
+
+        this.busy = false;
     }
 
     async touch(event) {
@@ -292,6 +297,7 @@ async function standardEventTouch(player, event) {
     await runEventExit(player, event);
     await runEventRemove(player, event);
     await runEventEnding(player, event);
+    await runEventMisc(player, event);
 }
 
 /**
@@ -370,6 +376,20 @@ async function runEventRemove(player, event) {
         await player.dialogueWaiter;
         player.title = false; 
         player.restart();
+    }
+}
+
+/**
+ * @param {bipsi.Player} player 
+ * @param {BipsiDataEvent} event 
+ * @returns {Promise}
+ */
+ async function runEventMisc(player, event) {
+    const setAvatar = oneField(event, "set-avatar", "tile")?.data;
+    const avatar = getEventById(player.data, player.avatarId);
+
+    if (setAvatar !== undefined) {
+        replaceFields(avatar, "graphic", "tile", setAvatar);
     }
 }
 
@@ -556,15 +576,48 @@ class DialoguePlayer extends EventTarget {
 }
 
 /**
+ * @param {BipsiDataEvent} event 
+ * @param {string} name 
+ * @param {string?} type 
+ */
+function clearFields(event, name, type=undefined) {
+    const fields = allFields(event, name, type);
+    fields.forEach((field) => arrayDiscard(event.fields, field));
+}
+
+/**
+ * @param {BipsiDataEvent} event 
+ * @param {string} name 
+ * @param {string} type 
+ * @param {any[]} values
+ */
+function replaceFields(event, name, type, ...values) {
+    clearFields(event, name, type);
+    values.forEach((value) => {
+        event.fields.push({
+            key: name,
+            type,
+            data: value,
+        });
+    });
+}
+
+/**
  * @param {bipsi.Player} player 
  * @param {BipsiDataEvent} event 
  */
- function generateScriptingDefines(player, event) {
+function generateScriptingDefines(player, event) {
     // edit here to add new scripting functions
     const defines = {};
     
     defines.PLAYER = player;
+    defines.AVATAR = getEventById(player.data, player.avatarId);
     defines.EVENT = event;
+
+    defines.SET_FIELDS = (event, name, type, ...values) => replaceFields(event, name, type, ...values);
+
+    defines.FIELD = (event, name, type=undefined) => oneField(event, name, type)?.data;
+    defines.FIELDS = (event, name, type=undefined) => allFields(event, name, type).map((field) => field.data);
 
     defines.LOG = (text) => console.log(text);
     defines.SAY = async (dialogue) => player.dialoguePlayer.queueScript(dialogue);

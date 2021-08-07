@@ -269,7 +269,7 @@ function drawEvents(rendering, tileset, tileToFrame, events, background = undefi
         const [x, y] = event.position;
         const graphicField = oneField(event, "graphic", "tile");
         if (graphicField) {
-            if (background) {
+            if (background && !eventIsTagged(event, "transparent")) {
                 rendering.fillStyle = background;
                 rendering.fillRect(x * 8, y * 8, 8, 8);
             }
@@ -714,7 +714,10 @@ const EVENT_TEMPLATES = {
     player: [
         { key: "graphic", type: "tile", data: 0 },
         { key: "is-player", type: "tag", data: true },
-        { key: "game-title", type: "dialogue", data: "your game title" }
+        { key: "game-title", type: "dialogue", data: "your game title" },
+    ],
+    code: [
+        { key: "touch", type: "javascript", data: "await standardEventTouch(PLAYER, EVENT);" },
     ],
 };
 
@@ -745,6 +748,7 @@ bipsi.EventEditor = class {
         this.selectedIndex = 0;
 
         ui.action("create-event-empty", () => this.editor.createEvent(EVENT_TEMPLATES.empty));
+        ui.action("create-event-code", () => this.editor.createEvent(EVENT_TEMPLATES.code));
         ui.action("create-event-exit", () => this.editor.createEvent(EVENT_TEMPLATES.exit));
         ui.action("create-event-message", () => this.editor.createEvent(EVENT_TEMPLATES.message));
         ui.action("create-event-character", () => this.editor.createEvent(EVENT_TEMPLATES.character));
@@ -1000,7 +1004,6 @@ bipsi.EventEditor = class {
             const next = Math.max(0, Math.min(fieldIndex + di, event.fields.length));
             
             if (event.fields[prev] === undefined || event.fields[next] === undefined) {
-                console.log("WHOOPS");
                 return;
             }
 
@@ -1621,10 +1624,8 @@ bipsi.Editor = class extends EventTarget {
             this.eventEditor.refresh();
         });
 
-        const onRoomPointer = async (event, canvas) => {
+        const onRoomPointer = async (event, canvas, forcePick=false) => {
             const { tile, room, data } = this.getSelections();
-    
-            this.stateManager.makeCheckpoint();
 
             const scale = canvas.width / (8 * 16);
 
@@ -1650,10 +1651,13 @@ bipsi.Editor = class extends EventTarget {
             const nextHigh = prevHigh !== tile.id ? tile.id : 0;
             const nextWall = 1 - room.wallmap[y][x];
 
-            if (tool === "pick") {
+            if (tool === "pick" || forcePick) {
                 const pick = prevHigh != 0 ? prevHigh : prevTile;
-                this.tileBrowser.selectedTileIndex = data.tiles.findIndex((tile) => tile.id === pick);
-            } else if (tool === "wall" || tool === "tile" || tool === "high") {
+                this.tileBrowser.selectedTileIndex = Math.max(0, data.tiles.findIndex((tile) => tile.id === pick));
+                this.tileBrowser.redraw();
+            } else if (tool === "wall" || tool === "tile" || tool === "high") {    
+                this.stateManager.makeCheckpoint();
+
                 const setIfWithin = (map, x, y, value) => {
                     if (x >= 0 && x < 16 && y >= 0 && y < 16) map[y][x] = value ?? 0;
                 } 
@@ -1696,7 +1700,9 @@ bipsi.Editor = class extends EventTarget {
                         redraw();
                     });
                 }
-            } else if (tool === "shift") {
+            } else if (tool === "shift") {    
+                this.stateManager.makeCheckpoint();
+
                 drag.addEventListener("move", (event) => {
                     const { x: x0, y: y0 } = round(positions[positions.length - 2]);
                     const { x: x1, y: y1 } = round(positions[positions.length - 1]);
@@ -1711,9 +1717,12 @@ bipsi.Editor = class extends EventTarget {
         };
 
         this.renderings.tileMapPaint.canvas.addEventListener("pointerdown", (event) => onRoomPointer(event, this.renderings.tileMapPaint.canvas));
-        this.renderings.tilePaintRoom.canvas.addEventListener("pointerdown", (event) => onRoomPointer(event, this.renderings.tilePaintRoom.canvas));
+        this.renderings.tilePaintRoom.canvas.addEventListener("pointerdown", (event) => onRoomPointer(event, this.renderings.tilePaintRoom.canvas, true));
 
-        this.renderings.eventsRoom.canvas.addEventListener("pointerdown", (event) => {
+        this.renderings.eventsRoom.canvas.addEventListener("pointerdown", async (event) => {
+            // hack bc race condition rn
+            await sleep(1);
+
             if (this.eventEditor.showDialoguePreview) {
                 this.dialoguePreviewPlayer.skip();
                 if (!this.dialoguePreviewPlayer.active) this.eventEditor.resetDialoguePreview();
@@ -1754,6 +1763,7 @@ bipsi.Editor = class extends EventTarget {
 
             const event_ = getEventsAt(room.events, x, y)[0];
             const events = event_ === undefined ? room.events : [event_];
+            
             this.eventEditor.showEvent(event_);
 
             drag.addEventListener("move", (event) => {
@@ -2385,7 +2395,7 @@ async function makePlayer(font) {
 
     document.addEventListener("keydown", (event) => {
         if (!event.repeat) down(event.key, event.code);
-        if (eatKeyboard) {
+        if (eatKeyboard || !bipsi.editor.editorMode) {
             event.stopPropagation();
             event.preventDefault();
         }
