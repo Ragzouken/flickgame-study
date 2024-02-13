@@ -610,7 +610,8 @@ flickgame.Editor = class extends EventTarget {
 
     copyScene() {
         // make a copy of scene data and enable pasting
-        this.copiedScene = COPY(this.selectedScene);
+        const { scene } = this.getSelections();
+        this.copiedScene = COPY(scene);
         this.actions.paste.disabled = false;
     }
 
